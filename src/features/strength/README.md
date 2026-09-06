@@ -1,6 +1,13 @@
 # Bloom Strength
 
-Strength replaces the former Insights tab when `EXPO_PUBLIC_BLOOM_STRENGTH=1` on web. When disabled, the primary navigation contains four tabs. Native builds use the camera-free guided counter.
+Strength replaces the former Insights tab when `EXPO_PUBLIC_BLOOM_STRENGTH=1` on web. When disabled, the primary navigation contains four tabs.
+
+## Reachable flows (current)
+
+- **Web** (`StrengthScreen.web.js`): selecting a move leads to the **pose-tracked** session (`TrackedStrengthScreen.web.js`) driven by `useStrengthSession.web` + `CameraStage.web` + the deterministic rep engine. Camera denial, MediaPipe init failure, or engine run errors fall back to the **camera-free guided** session (`SessionPlayer`) for the same move. Guided mode is an explicit fallback — it never silently replaces pose tracking.
+- **Native** (`StrengthScreen.js`): resolves to the camera-free guided session. There is no native pose module in this repository (see `docs/strength/IMPLEMENTATION_STATUS.md`), so native users are not presented with an unreachable pose path. `TrackedStrengthScreen.js` documents the intended native contract and immediately defers to guided.
+
+See `docs/strength/IMPLEMENTATION_STATUS.md` for the full status of the engine, web/native pose, guided fallback, MediaPipe model, tests, and device validation.
 
 ## Privacy boundary
 
@@ -20,26 +27,14 @@ node server/strengthEngine.test.js
 
 Exercise thresholds are marked `pending-pro` until professional review. They are product tuning values, not medical claims.
 
-## Native pose runtime decision
+## Native pose runtime status
 
-Bloom will evaluate `react-native-mediapipe-posedetection@0.4.0` before any custom
-Swift or Kotlin pose module is written. It is the maintained candidate that most
-closely matches the current requirements: React Native 0.74+, iOS and Android,
-VisionCamera live frames, MediaPipe's 33 landmarks, presence and visibility
-confidence, mirror controls, GPU delegates, an Expo config plugin, and bounded
-15 FPS delivery.
+No native pose module exists in this repository (see `docs/strength/IMPLEMENTATION_STATUS.md`), so **no third-party pose wrapper has been adopted** (including `react-native-mediapipe-posedetection`). Native resolves to the camera-free guided session, and Expo Go continues to use that honest camera-free flow.
 
-This is a compatibility candidate, not an assumed dependency. It requires React
-Native's New Architecture while Bloom is still on Expo SDK 51. Native adoption is
-therefore gated by all of the following in a disposable development-build spike:
+If a local `modules/bloom-pose-landmarker` module is ever written (CameraX + MediaPipe Pose Landmarker LIVE_STREAM), it must satisfy all of the following in a disposable development-build spike before native pose tracking can be claimed:
 
-1. Expo prebuild completes with the package config plugin and local Lite model.
+1. Expo prebuild completes with the local Lite model.
 2. Android and iOS development builds compile without manual native-project edits.
 3. Front-camera landmarks remain aligned in portrait with cover cropping.
 4. A ten-minute session stays within the latency and memory budgets.
-5. Camera denial, backgrounding, rotation, and detector failure return to Bloom's
-   camera-free guidance without losing the session.
-
-If the candidate fails one of those requirements, the failure and attempted
-version will be recorded here before considering a local Expo native module.
-Expo Go continues to use the honest camera-free flow.
+5. Camera denial, backgrounding, rotation, and detector failure return to Bloom's camera-free guidance without losing the session.

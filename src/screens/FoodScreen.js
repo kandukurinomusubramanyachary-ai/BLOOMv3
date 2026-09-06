@@ -408,7 +408,7 @@ function ActionButton({ label, icon, danger, onPress }) {
 }
 
 const styles = createThemedStyles({
-  safeArea: { flex: 1, minHeight: 0, backgroundColor: COLORS.canvas, ...Platform.select({ web: { height: '100vh', maxHeight: '100vh', overflow: 'hidden' } }) },
+  safeArea: { flex: 1, minHeight: 0, backgroundColor: COLORS.canvas, ...Platform.select({ web: { height: '100%', maxHeight: '100%', overflow: 'hidden' } }) },
   scroll: { flex: 1, minHeight: 0, ...Platform.select({ web: { height: '100%', maxHeight: '100%', overflowY: 'auto', overscrollBehaviorY: 'contain' } }) },
   scrollContent: { flexGrow: 1, paddingBottom: 48 },
   content: { width: '100%', maxWidth: LAYOUT.phoneMaxWidth || 430, alignSelf: 'center', paddingHorizontal: 16, paddingTop: 10 },

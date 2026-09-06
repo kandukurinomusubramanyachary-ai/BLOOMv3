@@ -24,12 +24,12 @@ test('Expo iOS configuration includes identity and the only required protected-r
 test('Strength flag enables the native camera-free implementation without requesting camera access', () => {
   const flag = read('src/features/strength/featureFlag.js');
   const nativeScreen = read('src/features/strength/StrengthScreen.js');
-  const fallback = read('src/features/strength/StrengthUnsupportedScreen.js');
 
   assert.doesNotMatch(flag, /Platform\.OS/);
-  assert.match(nativeScreen, /StrengthUnsupportedScreen/);
-  assert.match(fallback, /Start guided set/);
-  assert.doesNotMatch(fallback, /requestCameraPermissions|CameraView|getUserMedia/);
+  // Native Strength resolves to the camera-free guided session.
+  assert.match(nativeScreen, /GuidedStrengthScreen/);
+  // The live native path must never request a camera or mount a native camera view.
+  assert.doesNotMatch(nativeScreen, /requestCameraPermissions|CameraView|getUserMedia|leaveCamera/);
 });
 
 test('notifications use cross-platform triggers and keep Android priority Android-only', () => {

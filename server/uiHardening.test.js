@@ -95,7 +95,7 @@ test('doctor report keeps a bounded web scroll viewport', () => {
 
   assert.match(report, /safeArea:\s*\{[\s\S]*?flex:\s*1,[\s\S]*?minHeight:\s*0,/);
   assert.match(report, /showsVerticalScrollIndicator=\{Platform\.OS === 'web'\}/);
-  assert.match(report, /height:\s*'100vh',[\s\S]*?maxHeight:\s*'100vh',[\s\S]*?overflow:\s*'hidden'/);
+  assert.match(report, /height:\s*'100%',[\s\S]*?maxHeight:\s*'100%',[\s\S]*?overflow:\s*'hidden'/);
   assert.match(report, /scroll:\s*\{[\s\S]*?flex:\s*1,[\s\S]*?minHeight:\s*0,[\s\S]*?height:\s*'100%'[\s\S]*?overflowY:\s*'auto'/);
 
   const navigation = fs.readFileSync(
@@ -108,7 +108,7 @@ test('doctor report keeps a bounded web scroll viewport', () => {
 test('profile keeps a bounded web scroll viewport', () => {
   const profile = read('src/screens/ProfileScreen.js');
   assert.match(profile, /showsVerticalScrollIndicator=\{Platform\.OS === 'web'\}/);
-  assert.match(profile, /safeArea:\s*\{[\s\S]*?flex:\s*1,[\s\S]*?minHeight:\s*0,[\s\S]*?height:\s*'100vh',[\s\S]*?overflow:\s*'hidden'/);
+  assert.match(profile, /safeArea:\s*\{[\s\S]*?flex:\s*1,[\s\S]*?minHeight:\s*0,[\s\S]*?height:\s*'100%',[\s\S]*?overflow:\s*'hidden'/);
   assert.match(profile, /screen:\s*\{[\s\S]*?flex:\s*1,[\s\S]*?minHeight:\s*0,[\s\S]*?height:\s*'100%'[\s\S]*?overflowY:\s*'auto'/);
 
   const navigation = read('src/navigation/RootNavigator.js');
@@ -127,22 +127,33 @@ test('primary navigation replaces Insights with feature-flagged Strength', () =>
 test('custom bottom navigation clears the mobile keyboard and protects narrow labels', () => {
   const tabs = read('src/navigation/MainTabNavigator.js');
 
-  assert.match(tabs, /Keyboard\.addListener/);
+  assert.match(tabs, /useKeyboardVisible/);
+  assert.match(read('src/components/useKeyboardVisible.js'), /Keyboard\.addListener/);
   assert.match(tabs, /if \(keyboardVisible\) return null/);
   assert.match(tabs, /numberOfLines=\{1\}/);
   assert.match(tabs, /adjustsFontSizeToFit/);
   assert.match(tabs, /maxFontSizeMultiplier=\{1\.35\}/);
 });
 
-test('Strength camera startup exits reset the launch lock before another attempt', () => {
-  const session = read('src/features/strength/useStrengthSession.web.js');
-  const screen = read('src/features/strength/StrengthScreen.web.js');
+test('Strength web defaults to pose tracking with a reachable guided fallback; native stays camera-free guided', () => {
+  const webScreen = read('src/features/strength/StrengthScreen.web.js');
+  const nativeScreen = read('src/features/strength/StrengthScreen.js');
+  const eng = read('src/features/strength/guidedSessionEngine.js');
 
-  assert.match(session, /const leaveCamera = useCallback\(\(nextPhase = 'permission'\) => \{\s*resetRuntime\(\);\s*setPhase\(nextPhase\);/);
-  assert.match(session, /beginCamera, cameraReady, cameraError, leaveCamera,/);
-  assert.match(screen, /onBack=\{\(\) => session\.leaveCamera\('permission'\)\}/);
-  assert.match(screen, /onPress=\{\(\) => session\.leaveCamera\('fallback'\)\}/);
-  assert.match(screen, /onFallback=\{\(\) => session\.leaveCamera\('fallback'\)\}/);
+  // Web is pose-first: it drives the camera + engine, not a bare guided re-export.
+  assert.match(webScreen, /TrackedStrengthScreen/);
+  assert.doesNotMatch(webScreen, /^export \{ default \} from '\.\/GuidedStrengthScreen'/);
+  // ...but the camera-free guided session stays reachable as an explicit fallback.
+  assert.match(webScreen, /SessionPlayer/);
+  assert.match(webScreen, /handleFallbackGuided/);
+  // Native resolves to the camera-free guided experience (no native pose module).
+  assert.match(nativeScreen, /GuidedStrengthScreen/);
+  // The live guided engine must not try to acquire/release a camera or rep-velocity lock.
+  assert.doesNotMatch(eng, /leaveCamera|resetRuntime|requestCamera|getUserMedia|CameraView/);
+  // A guided session must be resettable and rest-skippable so a retry never holds stale state.
+  assert.match(eng, /case 'RESET':/);
+  assert.match(eng, /case 'SKIP_REST':/);
+  assert.match(eng, /case 'RESUME':/);
 });
 
 test('Diet v3.1 is a bounded, scrollable single tab with sheet-owned depth', () => {

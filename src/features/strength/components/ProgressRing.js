@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, View } from 'react-native';
+import { Animated, Platform, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
 import { COLORS } from '../../../utils/constants';
 
@@ -45,7 +45,7 @@ export default function ProgressRing({
       toValue: 1,
       friction: 5,
       tension: 120,
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
     });
     animation.start();
     return () => animation.stop();
@@ -82,8 +82,7 @@ export default function ProgressRing({
         </G>
       </Svg>
       <View
-        pointerEvents="none"
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}
       >
         {children}
       </View>

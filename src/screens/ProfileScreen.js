@@ -4,10 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../components/Icon';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import { COLORS, createThemedStyles, ELEVATION, LAYOUT, WEB_FOCUS } from '../utils/constants';
+import { COLORS, createThemedStyles, ELEVATION, LAYOUT, TYPOGRAPHY, WEB_FOCUS } from '../utils/constants';
 import ScreenHeader from '../components/ScreenHeader';
 import Card from '../components/Card';
 import Button from '../components/Button';
+import IconButton from '../components/IconButton';
 import { LotusMark } from '../components/BrandMark';
 import { preferredDisplayName } from '../utils/displayName';
 
@@ -104,6 +105,11 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <View style={styles.backBar}>
+        <IconButton icon='chevron-back' accessibilityLabel='Back to Bloom' onPress={() => navigation.goBack()} />
+        <Text style={styles.backTitle}>Profile</Text>
+        <View style={styles.backSpacer} />
+      </View>
       <ScrollView
         style={styles.screen}
         contentContainerStyle={styles.scrollContent}
@@ -349,14 +355,17 @@ export default function ProfileScreen({ navigation }) {
 }
 
 const styles = createThemedStyles({
+  backBar: { width: '100%', maxWidth: 600, alignSelf: 'center', minHeight: 60, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  backTitle: { ...TYPOGRAPHY.componentTitle, color: COLORS.ink },
+  backSpacer: { width: 48 },
   safeArea: {
     flex: 1,
     minHeight: 0,
     backgroundColor: COLORS.canvas,
     ...Platform.select({
       web: {
-        height: '100vh',
-        maxHeight: '100vh',
+        height: '100%',
+        maxHeight: '100%',
         overflow: 'hidden',
       },
       default: {},
@@ -378,7 +387,7 @@ const styles = createThemedStyles({
   scrollContent: { paddingBottom: 40 },
   inner: {
     width: '100%',
-    maxWidth: LAYOUT.phoneMaxWidth,
+    maxWidth: 600,
     alignSelf: 'center',
     paddingHorizontal: LAYOUT.screenPadding,
     paddingTop: 24,
@@ -400,15 +409,12 @@ const styles = createThemedStyles({
   },
   profileCopy: { flex: 1 },
   name: {
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: '600',
+    ...TYPOGRAPHY.sectionTitle,
     color: COLORS.ink,
   },
   profileMeta: {
     marginTop: 2,
-    fontSize: 13,
-    lineHeight: 18,
+    ...TYPOGRAPHY.supporting,
     color: COLORS.muted,
   },
   modeBadge: {
@@ -423,9 +429,7 @@ const styles = createThemedStyles({
     backgroundColor: COLORS.brandSoft,
   },
   modeText: {
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: '700',
+    ...TYPOGRAPHY.eyebrow,
     color: COLORS.brand,
   },
   activitySection: {
@@ -437,8 +441,7 @@ const styles = createThemedStyles({
   activityTitle: { marginBottom: 0 },
   activityCaption: {
     marginTop: 2,
-    fontSize: 12,
-    lineHeight: 17,
+    ...TYPOGRAPHY.caption,
     color: COLORS.muted,
   },
   statsGrid: {
@@ -461,15 +464,12 @@ const styles = createThemedStyles({
   statDivider: { borderRightWidth: 1, borderRightColor: COLORS.hairline },
   statRowDivider: { borderBottomWidth: 1, borderBottomColor: COLORS.hairline },
   statValue: {
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: '600',
+    ...TYPOGRAPHY.sectionTitle,
     color: COLORS.ink,
   },
   statLabel: {
     marginTop: 3,
-    fontSize: 12,
-    lineHeight: 16,
+    ...TYPOGRAPHY.caption,
     color: COLORS.muted,
   },
   privacyNote: {
@@ -488,22 +488,18 @@ const styles = createThemedStyles({
     backgroundColor: COLORS.white,
   },
   noteTitle: {
-    fontSize: 15,
-    lineHeight: 21,
-    fontWeight: '600',
+    ...TYPOGRAPHY.componentTitle,
     color: COLORS.ink,
   },
   noteText: {
     marginTop: 4,
-    fontSize: 13,
-    lineHeight: 19,
+    ...TYPOGRAPHY.supporting,
     color: COLORS.body,
   },
   menuSection: { marginTop: 28 },
   sectionTitle: {
     marginBottom: 10,
-    fontSize: 14,
-    lineHeight: 19,
+    ...TYPOGRAPHY.supporting,
     fontWeight: '600',
     color: COLORS.ink,
   },
@@ -537,18 +533,15 @@ const styles = createThemedStyles({
   },
   menuText: { flex: 1, paddingRight: 10 },
   menuTitle: {
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '600',
+    ...TYPOGRAPHY.componentTitle,
     color: COLORS.ink,
   },
   menuSubtitle: {
     marginTop: 3,
-    fontSize: 12,
-    lineHeight: 17,
+    ...TYPOGRAPHY.caption,
     color: COLORS.muted,
   },
-  logoutError: { marginTop: 8, fontSize: 13, lineHeight: 18, color: COLORS.error },
+  logoutError: { marginTop: 8, ...TYPOGRAPHY.supporting, color: COLORS.error },
   dataSection: { marginTop: 28 },
   accountDeleteSection: { marginTop: 12 },
   deleteTrigger: {

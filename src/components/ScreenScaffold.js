@@ -28,6 +28,8 @@ export default function ScreenScaffold({
           style={styles.scroll}
           contentContainerStyle={[styles.scrollContent, contentContainerStyle]}
           keyboardShouldPersistTaps={keyboardShouldPersistTaps}
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           showsVerticalScrollIndicator={showsVerticalScrollIndicator}
         >
           {content}
@@ -46,8 +48,8 @@ const styles = createThemedStyles({
     backgroundColor: COLORS.canvas,
     ...Platform.select({
       web: {
-        height: '100vh',
-        maxHeight: '100vh',
+        height: '100%',
+        maxHeight: '100%',
         overflow: 'hidden',
       },
     }),

@@ -26,13 +26,12 @@ export default function ExerciseCard({ exercise, onPress, testID }) {
         pressed && styles.cardPressed,
       ]}
     >
-      <View style={[styles.accent, { backgroundColor: COLORS[levelColorKey] }]} />
       <View style={styles.iconWrap}>
         <Icon name={exercise.icon} size={24} color={COLORS.brand} />
       </View>
       <View style={styles.body}>
         <View style={styles.titleRow}>
-          <Text style={styles.name} numberOfLines={1}>{exercise.name}</Text>
+          <Text style={styles.name}>{exercise.name}</Text>
           <View style={[styles.levelPill, { backgroundColor: COLORS.surfaceStrong }]}>
             <View style={[styles.levelDot, { backgroundColor: COLORS[levelColorKey] }]} />
             <Text style={styles.levelText}>{level.label}</Text>
@@ -57,7 +56,6 @@ const styles = createThemedStyles({
     backgroundColor: COLORS.canvas, borderRadius: 16, padding: 14, paddingLeft: 18,
     borderWidth: 1, borderColor: COLORS.hairline, overflow: 'hidden',
   },
-  accent: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, borderTopLeftRadius: 16, borderBottomLeftRadius: 16 },
   cardHover: { borderColor: COLORS.borderStrong, backgroundColor: COLORS.surfaceSoft },
   cardFocused: { borderColor: COLORS.brand },
   cardPressed: { backgroundColor: COLORS.surfaceStrong, transform: [{ scale: 0.99 }] },
@@ -65,13 +63,13 @@ const styles = createThemedStyles({
     width: 46, height: 46, borderRadius: 13, backgroundColor: COLORS.brandSoft,
     alignItems: 'center', justifyContent: 'center',
   },
-  body: { flex: 1, gap: 5 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  body: { flex: 1, minWidth: 0, gap: 8 },
+  titleRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   name: { ...TYPOGRAPHY.componentTitle, color: COLORS.ink, flexShrink: 1 },
   levelPill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   levelDot: { width: 6, height: 6, borderRadius: 3 },
   levelText: { ...TYPOGRAPHY.caption, color: COLORS.body, fontSize: 11 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  metaRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 5 },
   meta: { ...TYPOGRAPHY.supporting, color: COLORS.muted },
   metaDot: { color: COLORS.muted, marginHorizontal: 1 },
 });

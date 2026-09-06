@@ -1,6 +1,6 @@
 import React from 'react';
-import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { SafeAreaFrameContext, SafeAreaInsetsContext } from 'react-native-safe-area-context';
+import { Platform, StyleSheet, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Modest web safe-area insets: a little breathing room at top/bottom so screens
 // that use SafeAreaView edges don't hug the very edge of the browser window.
@@ -13,18 +13,9 @@ export const IPHONE_METRICS = {
   insets: { top: 59, left: 0, right: 0, bottom: 34 },
 };
 
-// Feed the safe-area contexts the real window frame plus modest fixed insets,
-// so the app fills the browser and never gets remeasured to a phone size.
+// Measure browser safe-area env() values, including notches and home indicators.
 export function SafeAreaShim({ children }) {
-  const { width, height } = useWindowDimensions();
-  const frame = { x: 0, y: 0, width, height };
-  return (
-    <SafeAreaFrameContext.Provider value={frame}>
-      <SafeAreaInsetsContext.Provider value={WEB_SAFE_AREA_INSETS}>
-        {children}
-      </SafeAreaInsetsContext.Provider>
-    </SafeAreaFrameContext.Provider>
-  );
+  return <SafeAreaProvider>{children}</SafeAreaProvider>;
 }
 
 // Web: run normally — the app fills the full browser viewport. No phone frame.
@@ -46,11 +37,33 @@ function BackdropStyles() {
     const style = document.createElement('style');
     style.id = id;
     style.textContent = `
-      html, body, #root { height: 100%; margin: 0; }
-      body { background: #ffffff; }
+      html, body, #root { height: 100%; margin: 0; overflow: hidden; }
+      #root { height: var(--bloom-viewport-height, 100dvh); }
+      body { overscroll-behavior: none; }
+      textarea, input { caret-color: #b52f50; }
+      ::selection { background: #fbe5ea; color: #222222; }
+      :focus-visible { outline: 2px solid #b52f50; outline-offset: 2px; }
+      @media (pointer: fine) { * { scrollbar-width: thin; scrollbar-color: #b7afb3 transparent; } }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0s !important; }
+      }
     `;
     document.head.appendChild(style);
-    return () => {};
+    const viewport = window.visualViewport;
+    const updateHeight = () => {
+      // Preserve pinch zoom; resize only for keyboard and browser chrome.
+      if (viewport && viewport.scale !== 1) return;
+      document.documentElement.style.setProperty('--bloom-viewport-height', `${viewport?.height || window.innerHeight}px`);
+    };
+    updateHeight();
+    viewport?.addEventListener('resize', updateHeight);
+    window.addEventListener('resize', updateHeight);
+    return () => {
+      style.remove();
+      viewport?.removeEventListener('resize', updateHeight);
+      window.removeEventListener('resize', updateHeight);
+      document.documentElement.style.removeProperty('--bloom-viewport-height');
+    };
   }, []);
   return null;
 }
@@ -58,7 +71,8 @@ function BackdropStyles() {
 const styles = StyleSheet.create({
   stage: {
     flex: 1,
-    // @ts-ignore web-only
-    minHeight: Platform.OS === 'web' ? '100vh' : undefined,
+    minHeight: 0,
+    height: '100%',
+    overflow: 'hidden',
   },
 });

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, Text, View } from 'react-native';
 import Icon from '../components/Icon';
 import { useApp } from '../context/AppContext';
-import { COLORS, createThemedStyles, LAYOUT, WEB_FOCUS } from '../utils/constants';
+import { COLORS, createThemedStyles, LAYOUT, TYPOGRAPHY, WEB_FOCUS } from '../utils/constants';
 import { exportService } from '../services/export';
 import ScreenHeader from '../components/ScreenHeader';
 import Button from '../components/Button';
@@ -127,18 +127,18 @@ const styles = createThemedStyles({
   scrollContent: { paddingBottom: 40 },
   content: { maxWidth: LAYOUT.phoneMaxWidth, paddingTop: 12 },
   backButton: { minHeight: 44, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 2, marginLeft: -6, marginBottom: 8, paddingHorizontal: 6 },
-  backText: { fontSize: 15, fontWeight: '600', color: COLORS.ink },
+  backText: { ...TYPOGRAPHY.supporting, fontWeight: '600', color: COLORS.ink },
   pressed: { opacity: 0.65 },
   infoCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 8, padding: 16, borderRadius: LAYOUT.controlRadius },
   privacyBand: { backgroundColor: COLORS.sageLight },
   infoIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: COLORS.canvas, alignItems: 'center', justifyContent: 'center' },
   infoCopy: { flex: 1 },
-  infoTitle: { fontSize: 16, lineHeight: 21, fontWeight: '600', color: COLORS.ink },
-  infoText: { marginTop: 4, fontSize: 13, lineHeight: 19, color: COLORS.body },
+  infoTitle: { ...TYPOGRAPHY.componentTitle, color: COLORS.ink },
+  infoText: { marginTop: 4, ...TYPOGRAPHY.supporting, color: COLORS.body },
   doctorSection: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 28, paddingVertical: 20, borderBottomWidth: 1, borderBottomColor: COLORS.hairline },
   doctorIcon: { backgroundColor: COLORS.brandSoft },
   doctorButton: { marginTop: 14 },
-  sectionLabel: { marginBottom: 10, fontSize: 13, lineHeight: 18, fontWeight: '700', color: COLORS.muted },
+  sectionLabel: { marginBottom: 10, ...TYPOGRAPHY.supporting, fontWeight: '700', color: COLORS.muted },
   formatList: { borderWidth: 1, borderColor: COLORS.hairline, borderRadius: LAYOUT.cardRadius, overflow: 'hidden', backgroundColor: COLORS.canvas },
   formatRow: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: COLORS.hairline },
   lastRow: { borderBottomWidth: 0 },
@@ -151,16 +151,16 @@ const styles = createThemedStyles({
   disabledRow: { opacity: 0.5 },
   formatIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: COLORS.brandSoft, alignItems: 'center', justifyContent: 'center' },
   formatCopy: { flex: 1 },
-  formatLabel: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: COLORS.ink },
-  formatDesc: { marginTop: 2, fontSize: 13, lineHeight: 18, color: COLORS.muted },
+  formatLabel: { ...TYPOGRAPHY.componentTitle, color: COLORS.ink },
+  formatDesc: { marginTop: 2, ...TYPOGRAPHY.supporting, color: COLORS.muted },
   successNote: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, paddingHorizontal: 4 },
-  successText: { fontSize: 13, color: COLORS.sage },
+  successText: { ...TYPOGRAPHY.supporting, color: COLORS.sage },
   summarySection: { marginTop: 28, paddingTop: 24, borderTopWidth: 1, borderTopColor: COLORS.hairline },
-  summaryTitle: { fontSize: 18, lineHeight: 24, fontWeight: '600', color: COLORS.ink },
-  summaryHelp: { maxWidth: 560, marginTop: 4, marginBottom: 10, fontSize: 13, lineHeight: 19, color: COLORS.muted },
+  summaryTitle: { ...TYPOGRAPHY.screenTitle, color: COLORS.ink },
+  summaryHelp: { maxWidth: 560, marginTop: 4, marginBottom: 10, ...TYPOGRAPHY.supporting, color: COLORS.muted },
   summaryRow: { minHeight: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderBottomWidth: 1, borderBottomColor: COLORS.hairline },
-  summaryLabel: { flex: 1, fontSize: 14, color: COLORS.body },
-  summaryValue: { fontSize: 14, fontWeight: '700', color: COLORS.ink },
+  summaryLabel: { flex: 1, ...TYPOGRAPHY.supporting, color: COLORS.body },
+  summaryValue: { ...TYPOGRAPHY.supporting, fontWeight: '700', color: COLORS.ink },
   backButtonHovered: { backgroundColor: COLORS.surfaceSoft, borderRadius: 10 },
   backButtonFocused: {
     backgroundColor: COLORS.brandSoft,

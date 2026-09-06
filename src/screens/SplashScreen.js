@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, View } from 'react-native';
+import { Animated, Easing, Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BrandMark from '../components/BrandMark';
 import { useReducedMotion } from '../components/Motion';
@@ -36,14 +36,14 @@ export default function SplashScreen({ ready, onFinish }) {
       toValue: 1,
       duration: reduceMotion ? 0 : 1400,
       easing: Easing.bezier(0.25, 1, 0.5, 1),
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
       isInteraction: false,
     });
     const loaderAnimation = Animated.timing(loaderProgress, {
       toValue: 1,
       duration: reduceMotion ? REDUCED_MOTION_DURATION : SPLASH_DURATION,
       easing: Easing.bezier(0.4, 0, 0.2, 1),
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
       isInteraction: false,
     });
 

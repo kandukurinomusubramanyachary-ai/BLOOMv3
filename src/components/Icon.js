@@ -1,5 +1,5 @@
 import React from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Path } from 'react-native-svg';
 import { KOBOYO_ICONS } from './koboyoIcons';
 
@@ -21,7 +21,6 @@ const IONICON_TO_KOBOYO = {
   checkbox: 'square-check',
   close: 'x',
   'close-circle': 'circle-x',
-  remove: 'x',
   add: 'plus',
   'add-circle': 'plus-circle',
   'alert-circle': 'circle-alert',

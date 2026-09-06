@@ -20,6 +20,7 @@ import {
 } from '../utils/constants';
 import BrandMark from '../components/BrandMark';
 import Button from '../components/Button';
+import IconButton from '../components/IconButton';
 import { MotionScrollView, Parallax, ScrollReveal } from '../components/Motion';
 
 const PHASES = ['Menstruation', 'Follicular', 'Ovulation', 'Luteal'];
@@ -85,7 +86,6 @@ function CycleContext({ state, navigation }) {
   if (!latestPeriod || !cycleDay) {
     return (
       <View style={styles.cycleCard}>
-        <Text style={styles.cycleEyebrow}>CURRENT PHASE</Text>
         <View style={styles.phaseTitleRow}>
           <Icon name='water-outline' size={22} color={COLORS.brand} />
           <Text style={styles.phaseTitle}>Cycle context is ready when you are</Text>
@@ -106,7 +106,7 @@ function CycleContext({ state, navigation }) {
   return (
     <View style={styles.cycleCard}>
       <View style={styles.cycleHeaderRow}>
-        <Text style={styles.cycleEyebrow}>CURRENT PHASE</Text>
+        <Text style={styles.cycleEyebrow}>Your cycle</Text>
         <View style={styles.dayPill}>
           <Text style={styles.dayPillText}>Day {cycleDay}</Text>
         </View>
@@ -132,7 +132,7 @@ function CycleContext({ state, navigation }) {
         </View>
         <View style={styles.phaseLabels}>
           {PHASES.map((phase, index) => (
-            <Text key={phase} numberOfLines={1} style={[styles.phaseLabel, index === activePhase && styles.phaseLabelActive]}>{phase}</Text>
+            <Text key={phase} style={[styles.phaseLabel, index === activePhase && styles.phaseLabelActive]}>{index === 0 ? 'Period' : phase}</Text>
           ))}
         </View>
       </View>
@@ -311,19 +311,25 @@ export default function TodayScreen({ navigation }) {
               <BrandMark size='small' showWordmark={false} decorative />
               <Text style={styles.brandName}>Bloom</Text>
             </View>
+            <IconButton
+              icon='person-outline'
+              onPress={() => navigation.navigate('Profile')}
+              accessibilityLabel='Open your profile'
+              variant='outline'
+            />
             <Pressable
               onPress={() => navigation.navigate('Timeline')}
               accessibilityRole='button'
               accessibilityLabel='Open calendar timeline'
-              style={({ pressed, focused }) => [styles.iconButton, focused && styles.focusRing, pressed && styles.pressed]}
+              style={({ pressed, focused }) => [styles.iconButton, styles.calendarShortcut, focused && styles.focusRing, pressed && styles.pressed]}
             >
               <Icon name='calendar-outline' size={20} color={COLORS.brand} />
             </Pressable>
           </View>
 
           <View style={styles.hero}>
-            <Text style={styles.dateLabel}>{dateLabel}</Text>
             <Text style={styles.greeting}>{greeting}</Text>
+            <Text style={styles.dateLabel}>{dateLabel}</Text>
           </View>
 
           {state.lastError ? (
@@ -386,7 +392,7 @@ const styles = createThemedStyles({
     flex: 1,
     minHeight: 0,
     backgroundColor: COLORS.canvas,
-    ...Platform.select({ web: { height: '100vh', maxHeight: '100vh', overflow: 'hidden' } }),
+    ...Platform.select({ web: { height: '100%', maxHeight: '100%', overflow: 'hidden' } }),
   },
   screen: {
     flex: 1,
@@ -395,18 +401,19 @@ const styles = createThemedStyles({
     ...Platform.select({ web: { overflowY: 'auto', overscrollBehavior: 'contain' } }),
   },
   scrollContent: { flexGrow: 1, paddingBottom: SIZES.xl },
-  inner: { width: '100%', maxWidth: LAYOUT.phoneMaxWidth, alignSelf: 'center', paddingHorizontal: LAYOUT.gutter },
+  inner: { width: '100%', maxWidth: 600, alignSelf: 'center', paddingHorizontal: LAYOUT.screenPadding, paddingTop: 12 },
   flex: { flex: 1 },
 
   brandRow: { minHeight: LAYOUT.touchTarget, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: -4 },
-  brandIdentity: { flexDirection: 'row', alignItems: 'center', gap: SIZES.sm },
+  brandIdentity: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: SIZES.sm },
+  calendarShortcut: { marginLeft: 8 },
   brandName: { fontSize: 18, lineHeight: 24, fontWeight: '700', color: COLORS.brand },
   iconButton: { width: LAYOUT.touchTarget, height: LAYOUT.touchTarget, borderRadius: LAYOUT.touchTarget / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.surfaceSoft, ...Platform.select({ web: { cursor: 'pointer', outlineStyle: 'none' } }) },
   focusRing: Platform.select({ web: { outlineStyle: 'solid', outlineWidth: 2, outlineColor: COLORS.brand, outlineOffset: 2 }, default: {} }),
   pressed: { opacity: 0.72, transform: [{ scale: 0.98 }] },
 
-  hero: { alignItems: 'stretch', paddingTop: SIZES.lg, paddingBottom: SIZES.md },
-  dateLabel: { ...TYPOGRAPHY.caption, textTransform: 'uppercase', letterSpacing: 1, color: COLORS.muted },
+  hero: { alignItems: 'stretch', paddingTop: 28, paddingBottom: 24 },
+  dateLabel: { ...TYPOGRAPHY.supporting, marginTop: 8, color: COLORS.muted },
   greeting: { marginTop: SIZES.xs, ...TYPOGRAPHY.screenTitle, letterSpacing: -0.4, color: COLORS.ink },
 
   launchError: { marginTop: SIZES.compact, ...TYPOGRAPHY.supporting, color: COLORS.error, textAlign: 'center' },
@@ -417,7 +424,7 @@ const styles = createThemedStyles({
   checkinCard: { padding: SIZES.lg, borderRadius: LAYOUT.cardRadius, backgroundColor: COLORS.brandSoft },
   checkinPrompt: { ...TYPOGRAPHY.sectionTitle, color: COLORS.ink },
   checkinHint: { marginTop: SIZES.xs, ...TYPOGRAPHY.supporting, color: COLORS.body },
-  checkinButton: { width: '100%', marginTop: SIZES.md, borderRadius: 999 },
+  checkinButton: { width: '100%', marginTop: 20, borderRadius: LAYOUT.controlRadius },
 
   // Check-in completed summary
   summaryCard: { padding: SIZES.lg, borderRadius: LAYOUT.cardRadius, backgroundColor: COLORS.sageLight },
@@ -432,7 +439,7 @@ const styles = createThemedStyles({
   // Cycle context
   cycleCard: { marginTop: SIZES.md, paddingHorizontal: SIZES.lg, paddingVertical: SIZES.lg, borderRadius: LAYOUT.cardRadius, backgroundColor: COLORS.surfaceWarm },
   cycleHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cycleEyebrow: { ...TYPOGRAPHY.caption, fontWeight: '700', letterSpacing: 1, color: COLORS.muted },
+  cycleEyebrow: { ...TYPOGRAPHY.componentTitle, color: COLORS.body },
   phaseTitleRow: { flexDirection: 'row', alignItems: 'center', gap: SIZES.compact, marginTop: SIZES.compact },
   phaseIconWrap: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.brandSoft },
   phaseTitle: { flexShrink: 1, ...TYPOGRAPHY.sectionTitle, color: COLORS.ink },
@@ -447,11 +454,11 @@ const styles = createThemedStyles({
   phaseSegmentPast: { backgroundColor: COLORS.borderStrong },
   phaseSegmentActive: { backgroundColor: COLORS.brand },
   phaseLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: SIZES.sm },
-  phaseLabel: { width: '25%', fontSize: 10, lineHeight: 14, color: COLORS.muted, textAlign: 'center' },
+  phaseLabel: { flex: 1, minWidth: 0, fontSize: 11, lineHeight: 16, color: COLORS.muted, textAlign: 'center' },
   phaseLabelActive: { color: COLORS.ink, fontWeight: '700' },
 
   // Affirmation + gentle tip
-  careCard: { marginTop: SIZES.md, padding: SIZES.lg, borderRadius: LAYOUT.cardRadius, borderWidth: 1, borderColor: COLORS.hairline, backgroundColor: COLORS.canvas },
+  careCard: { marginTop: 24, paddingVertical: 12, paddingHorizontal: 4, backgroundColor: COLORS.canvas },
   affirmation: { ...TYPOGRAPHY.body, fontStyle: 'italic', color: COLORS.ink },
   tipRow: { flexDirection: 'row', gap: SIZES.compact, marginTop: SIZES.md, paddingTop: SIZES.md, borderTopWidth: 1, borderTopColor: COLORS.hairline },
   tipIcon: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.sageLight },
@@ -461,7 +468,7 @@ const styles = createThemedStyles({
   snapshotSection: { marginTop: SIZES.xl },
   sectionTitle: { marginBottom: SIZES.compact, ...TYPOGRAPHY.componentTitle, color: COLORS.ink },
   snapshotGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: SIZES.compact },
-  metricCard: { width: '48%', flexGrow: 1, minHeight: 104, justifyContent: 'space-between', padding: SIZES.md, borderRadius: LAYOUT.cardRadius, backgroundColor: COLORS.surfaceSoft },
+  metricCard: { flexBasis: '45%', flexGrow: 1, minWidth: 0, minHeight: 136, gap: 12, justifyContent: 'space-between', padding: SIZES.md, borderRadius: LAYOUT.cardRadius, backgroundColor: COLORS.surfaceSoft },
   metricIcon: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.brandSoft },
   metricValue: { fontSize: 22, lineHeight: 28, fontWeight: '700', color: COLORS.ink },
   metricSuffix: { ...TYPOGRAPHY.supporting, fontWeight: '400', color: COLORS.muted },

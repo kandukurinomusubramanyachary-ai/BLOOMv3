@@ -304,7 +304,10 @@ export function createLocalMegApiProvider({
       const qaTiming = request?.qaTiming;
       const message = normalizeText(request?.message);
       const currentUser = auth?.currentUser;
-      if (!currentUser) {
+      // Use the screen's active auth session (including explicit local dev auth).
+      // This callback is never serialized into provider context or the body.
+      const getIdToken = request?.getIdToken || (currentUser ? () => currentUser.getIdToken() : null);
+      if (typeof getIdToken !== 'function') {
         qaTiming?.setFailure(MEG_QA_FAILURE_CATEGORY.AUTH);
         throw new Error('Please sign in before messaging Meg.');
       }
@@ -312,7 +315,7 @@ export function createLocalMegApiProvider({
       const tokenStartedAt = qaTiming?.mark();
       let idToken;
       try {
-        idToken = await currentUser.getIdToken();
+        idToken = await getIdToken();
         qaTiming?.recordDuration('client_token_acquisition_ms', tokenStartedAt);
       } catch (error) {
         qaTiming?.recordDuration('client_token_acquisition_ms', tokenStartedAt);

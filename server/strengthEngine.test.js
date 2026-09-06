@@ -251,3 +251,283 @@ test('outbox keeps only allowlisted summaries and expires old retries', () => {
     { summary: { ...summary, id: 'expired' }, queuedAt: now - 8 * 24 * 60 * 60 * 1000, attempts: 4 },
   ], now), queue);
 });
+
+// ---------------------------------------------------------------------------
+// Squat robustness regression suite (deterministic; does not alter the
+// behaviors asserted by the 23 tests above).
+// ---------------------------------------------------------------------------
+
+const squat = EXERCISES.find((e) => e.id === 'bodyweight-squat-v1');
+const squatBaseline = { activeSide: 'left', hipX: 0.5, shoulderMid: { x: 0.5 } };
+
+function squatEngine() {
+  return createRepStateMachine(squat, squatBaseline);
+}
+
+function m(kneeAngle, hipAngle = 180, hipX = 0.5, kneeVelocity = 0) {
+  return { kneeAngle, hipAngle, hipX, kneeVelocity };
+}
+
+// A valid engine frame carries measurements in a nested `measurements` field.
+function fm(measurement) {
+  return { measurements: measurement };
+}
+
+// Build a timestamped stream from [frame, count] phases.
+function stream(phases, stepMs = 100) {
+  const frames = [];
+  let ts = 0;
+  for (const [frame, count] of phases) {
+    for (let i = 0; i < count; i += 1) { ts += stepMs; frames.push({ ...frame, ts }); }
+  }
+  return frames;
+}
+
+function run(engine, frames) {
+  const events = [];
+  for (const frame of frames) {
+    const payload = { ...frame };
+    if (payload.measurements) payload.confident = payload.confident !== false;
+    events.push(...engine.process(payload).events);
+  }
+  return { events };
+}
+
+// 1. Ankle loss: dropping the ankle landmark mid-rep must pause (low
+//    confidence) and never phantom-count, while preserving the in-flight cycle.
+test('bodyweight-squat-v1 holds state and does not phantom-count when the ankle is lost mid-rep', () => {
+  const engine = squatEngine();
+  const build = (kA) => {
+    const L = 0.45, knee = { x: 0.5, y: 0.5 }, hip = { x: 0.5, y: 0.95 }, sho = { x: 0.5, y: 1.3 };
+    const a = kA * Math.PI / 180;
+    const ankle = { x: knee.x + L * Math.sin(a), y: knee.y + L * Math.cos(a) };
+    const lm = Array.from({ length: 33 }, () => ({ x: 0.5, y: 1.0, visibility: 0.9 }));
+    const set = (id, p) => { lm[id] = { x: p.x, y: p.y, visibility: 0.9 }; };
+    set(11, sho); set(12, { x: 0.46, y: 0.98 }); set(23, hip); set(24, { x: 0.54, y: 0.93 });
+    set(25, knee); set(27, ankle); set(29, { x: ankle.x, y: ankle.y + 0.05 });
+    set(26, { x: 0.46, y: 0.5 }); set(28, { x: 0.54, y: 0.5 }); set(30, { x: 0.46, y: 0.4 });
+    return lm;
+  };
+  const standing = build(170);
+  const down = build(100);
+  // Drop the ankle (landmarks 27 / 29) to invisibility mid-rep.
+  const dropped = down.map((p, i) => (i === 27 || i === 29 ? { ...p, visibility: 0 } : p));
+  const frames = stream([
+    [{ landmarks: standing }, 3],
+    [{ landmarks: down }, 3],
+    [{ landmarks: dropped }, 30],
+    [{ landmarks: standing }, 8],
+  ]);
+  const { events } = run(engine, frames);
+  assert.equal(events.filter((e) => e.type === 'pauseRequested' && e.reason === 'low_confidence').length >= 1, true);
+  assert.equal(events.filter((e) => e.type === 'repAccepted').length, 0);
+  assert.equal(engine.snapshot().reps, 0);
+  // The engine only ever reports a valid squat state — never a corrupted one.
+  assert.equal(['standing', 'descending', 'bottom', 'rising'].includes(engine.snapshot().state), true);
+});
+
+// 2. Visibility recovery/loss: confident=false frames pause, then recovery
+//    resumes and the in-flight rep still completes.
+test('bodyweight-squat-v1 pauses on visibility loss and resumes without dropping an in-flight rep', () => {
+  const engine = squatEngine();
+  const frames = stream([
+    [fm(m(170)), 5],
+    [fm(m(150)), 5],
+    [fm(m(100)), 5],
+    [fm(m(145)), 5],
+    [fm(m(150)), 3],
+    [{ measurements: m(150), confident: false }, 20],
+    [fm(m(150)), 5],
+    [fm(m(170)), 5],
+  ]);
+  const { events } = run(engine, frames);
+  assert.equal(events.filter((e) => e.type === 'pauseRequested' && e.reason === 'low_confidence').length >= 1, true);
+  assert.equal(events.some((e) => e.type === 'stateChanged' && e.from === 'paused'), true);
+  assert.equal(events.filter((e) => e.type === 'repAccepted').length, 1);
+});
+
+// 3. Deep squat well past the bottom threshold counts exactly one rep.
+test('bodyweight-squat-v1 counts a single rep for a deep squat well past the bottom', () => {
+  const engine = squatEngine();
+  const frames = stream([
+    [fm(m(170)), 5], [fm(m(150)), 5], [fm(m(70)), 5], [fm(m(145)), 5], [fm(m(170)), 5],
+  ]);
+  const { events } = run(engine, frames);
+  assert.equal(events.filter((e) => e.type === 'repAccepted').length, 1);
+  assert.equal(engine.snapshot().reps, 1);
+});
+
+// 4. Direction: a cycle must descend -> bottom -> rise -> stand. Knees that
+//    only extend (never crossing the descent threshold) produce no rep.
+test('bodyweight-squat-v1 respects movement direction and rejects a reverse cycle', () => {
+  const engine = squatEngine();
+  const frames = stream([
+    [fm(m(170)), 3],
+    [fm(m(168)), 2],
+    [fm(m(172)), 2],
+    [fm(m(168)), 2],
+    [fm(m(170)), 4],
+  ]);
+  const { events } = run(engine, frames);
+  assert.equal(events.filter((e) => e.type === 'repAccepted').length, 0);
+  assert.equal(engine.snapshot().reps, 0);
+  assert.equal(engine.snapshot().state, 'standing');
+});
+
+// 5. Seeded noise around thresholds still yields exactly one clean rep.
+test('bodyweight-squat-v1 is robust to seeded measurement noise and still counts one clean rep', () => {
+  let seed = 123456789;
+  const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const noise = (value, amp) => value + (rand() - 0.5) * 2 * amp;
+  const noisy = (v) => m(noise(v, 4), noise(180, 3), noise(0.5, 0.01), noise(0, 20));
+  const engine = squatEngine();
+  const frames = stream([
+    [fm(noisy(170)), 5],
+    [fm(noisy(130)), 5],
+    [fm(noisy(100)), 5],
+    [fm(noisy(145)), 5],
+    [fm(noisy(170)), 5],
+  ]);
+  const { events } = run(engine, frames);
+  assert.equal(events.filter((e) => e.type === 'repAccepted').length, 1);
+  assert.equal(engine.snapshot().reps, 1);
+});
+
+// 6. Incomplete rep after visibility loss is not retroactively counted.
+test('bodyweight-squat-v1 does not count an incomplete rep after visibility is lost before the bottom', () => {
+  const engine = squatEngine();
+  const frames = stream([
+    [fm(m(170)), 3],
+    [fm(m(140)), 2],
+    [{ measurements: m(140), confident: false }, 20],
+    [fm(m(170)), 8],
+  ]);
+  const { events } = run(engine, frames);
+  assert.equal(events.filter((e) => e.type === 'repAccepted').length, 0);
+  assert.equal(engine.snapshot().reps, 0);
+});
+
+// 7. Two partial descents that never return to standing never sum to a rep.
+test('bodyweight-squat-v1 never phantom-counts partial descents that never finish standing', () => {
+  const engine = squatEngine();
+  const frames = stream([
+    [fm(m(170)), 3],
+    [fm(m(120)), 4],
+    [fm(m(150)), 2],
+    [fm(m(120)), 4],
+    [fm(m(170)), 3],
+    [fm(m(120)), 4],
+    [fm(m(150)), 2],
+    [fm(m(120)), 4],
+    [fm(m(170)), 3],
+  ]);
+  const { events } = run(engine, frames);
+  assert.equal(events.filter((e) => e.type === 'repAccepted').length, 0);
+  assert.equal(engine.snapshot().reps, 0);
+});
+
+// 8. Stale / duplicated timestamps must not throw or prematurely satisfy a
+//    transition, and a valid cycle still counts once when timestamps resume.
+test('bodyweight-squat-v1 tolerates stale and duplicated timestamps without premature counting', () => {
+  const engine = squatEngine();
+  // Stuck (frozen) then backward timestamps must not throw nor corrupt state.
+  const stuck = [fm(m(170)), fm(m(100)), fm(m(100)), fm(m(100)), fm(m(170))]
+    .map((frame) => ({ ...frame, ts: 1000 }));
+  assert.doesNotThrow(() => run(engine, [...stuck, { ...fm(m(170)), ts: 0 }]));
+  // Then a valid monotonic cycle still counts exactly one rep.
+  const engine2 = squatEngine();
+  const valid = stream([
+    [fm(m(170)), 5], [fm(m(150)), 5], [fm(m(100)), 5], [fm(m(145)), 5], [fm(m(170)), 5],
+  ]);
+  const { events } = run(engine2, valid);
+  assert.equal(events.filter((e) => e.type === 'repAccepted').length, 1);
+  assert.equal(engine.snapshot().reps, 0);
+});
+
+// ---------------------------------------------------------------------------
+// Additional squat robustness coverage (brief/long visibility, landmark noise,
+// impossible geometry). Deterministic; additive only.
+// ---------------------------------------------------------------------------
+
+// Build a copy of the squat landmark layout so we can perturb specific joints.
+function squatLandmarksAt(kneeAngle) {
+  const L = 0.45, knee = { x: 0.5, y: 0.5 }, hip = { x: 0.5, y: 0.95 }, sho = { x: 0.5, y: 1.3 };
+  const a = kneeAngle * Math.PI / 180;
+  const ankle = { x: knee.x + L * Math.sin(a), y: knee.y + L * Math.cos(a) };
+  const lm = Array.from({ length: 33 }, () => ({ x: 0.5, y: 1.0, visibility: 0.9 }));
+  const set = (id, p) => { lm[id] = { x: p.x, y: p.y, visibility: 0.9 }; };
+  set(11, sho); set(12, { x: 0.46, y: 0.98 }); set(23, hip); set(24, { x: 0.54, y: 0.93 });
+  set(25, knee); set(27, ankle); set(29, { x: ankle.x, y: ankle.y + 0.05 });
+  set(26, { x: 0.46, y: 0.5 }); set(28, { x: 0.54, y: 0.5 }); set(30, { x: 0.46, y: 0.4 });
+  return lm;
+}
+
+const dropAnkle = (lm) => lm.map((p, i) => ((i === 27 || i === 29) ? { ...p, visibility: 0 } : p));
+const dropAllButHip = (lm) => lm.map((p, i) => (i === 23 ? p : { ...p, visibility: 0 }));
+
+// Brief ankle loss (a few frames) must recover without counting a phantom rep.
+test('bodyweight-squat-v1 recovers from a brief ankle loss without a phantom rep', () => {
+  const engine = squatEngine();
+  const frames = stream([
+    [{ landmarks: squatLandmarksAt(170) }, 5],
+    [{ landmarks: squatLandmarksAt(150) }, 5],
+    [{ landmarks: squatLandmarksAt(100) }, 5],
+    [{ landmarks: dropAnkle(squatLandmarksAt(100)) }, 3],   // brief loss (< lowConfidenceMs)
+    [{ landmarks: squatLandmarksAt(145) }, 5],
+    [{ landmarks: squatLandmarksAt(170) }, 5],
+  ]);
+  const { events } = run(engine, frames);
+  // Brief (<1500ms) loss does not force a pause; the rep still completes once.
+  assert.equal(events.filter((e) => e.type === 'pauseRequested').length, 0);
+  assert.equal(events.filter((e) => e.type === 'repAccepted').length, 1);
+});
+
+// Long visibility loss pauses, then a clean recovery completes the rep.
+test('bodyweight-squat-v1 pauses on a long visibility loss and still completes the rep on recovery', () => {
+  const engine = squatEngine();
+  const frames = stream([
+    [fm(m(170)), 5],
+    [fm(m(150)), 5],
+    [fm(m(100)), 5],
+    [{ measurements: m(100), confident: false }, 20],
+    [fm(m(145)), 5],   // re-entry (reentryFrames=5)
+    [fm(m(170)), 12],  // bottom -> rising -> standing, with hold time
+  ]);
+  const { events } = run(engine, frames);
+  assert.equal(events.filter((e) => e.type === 'pauseRequested' && e.reason === 'low_confidence').length >= 1, true);
+  assert.equal(events.filter((e) => e.type === 'repAccepted').length, 1);
+});
+
+// Landmark-level jitter (not measurement-level) still yields exactly one rep.
+test('bodyweight-squat-v1 is robust to noisy landmarks and counts one clean rep', () => {
+  let seed = 987654321;
+  const rand = () => { seed = (seed * 1103515245 + 12345) >>> 0; return seed / 4294967296; };
+  const jitter = (lm, amp) => lm.map((p) => ({
+    ...p, x: p.x + (rand() - 0.5) * amp, y: p.y + (rand() - 0.5) * amp,
+  }));
+  const engine = squatEngine();
+  const frames = stream([
+    [{ landmarks: jitter(squatLandmarksAt(170), 0.01) }, 5],
+    [{ landmarks: jitter(squatLandmarksAt(130), 0.01) }, 5],
+    [{ landmarks: jitter(squatLandmarksAt(100), 0.01) }, 5],
+    [{ landmarks: jitter(squatLandmarksAt(145), 0.01) }, 5],
+    [{ landmarks: jitter(squatLandmarksAt(170), 0.01) }, 5],
+  ]);
+  const { events } = run(engine, frames);
+  assert.equal(events.filter((e) => e.type === 'repAccepted').length, 1);
+  assert.equal(engine.snapshot().reps, 1);
+});
+
+// Impossible geometry (degenerate / zero-length limbs) must not crash or count.
+test('bodyweight-squat-v1 handles impossible geometry without crashing or phantom-counting', () => {
+  const engine = squatEngine();
+  // All landmarks superimposed -> zero-length joint vectors -> null angles.
+  const degenerate = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, visibility: 0.9 }));
+  const frames = stream([
+    [{ landmarks: degenerate }, 10],
+    [{ landmarks: dropAllButHip(degenerate) }, 10],
+    [{ landmarks: squatLandmarksAt(170) }, 5],
+  ]);
+  assert.doesNotThrow(() => run(engine, frames));
+  assert.equal(engine.snapshot().reps, 0);
+});

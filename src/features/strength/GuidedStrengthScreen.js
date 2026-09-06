@@ -144,6 +144,7 @@ export default function StrengthScreen() {
 const styles = createThemedStyles({
   safe: { flex: 1, backgroundColor: COLORS.canvas },
   topBar: {
+    width: '100%', maxWidth: LAYOUT.maxContentWidth, alignSelf: 'center',
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: LAYOUT.screenPadding, paddingTop: SIZES.sm, paddingBottom: SIZES.compact,
   },
@@ -157,6 +158,8 @@ const styles = createThemedStyles({
   filterWrap: { marginBottom: -SIZES.sm },
   filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SIZES.sm },
   chip: {
+    minHeight: 48,
+    justifyContent: 'center',
     paddingHorizontal: 16, paddingVertical: 9, borderRadius: 999,
     backgroundColor: COLORS.surfaceSoft, borderWidth: 1, borderColor: COLORS.hairline,
   },

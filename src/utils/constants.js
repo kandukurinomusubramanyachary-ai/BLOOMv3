@@ -37,6 +37,16 @@ export const LIGHT_COLORS = Object.freeze({
   success: '#60745C',
   warning: '#9A651E',
   error: '#B42318',
+  // V3 additive tokens (aliases + feedback tints). Adding keys here is safe:
+  // createThemedStyles derives dark equivalents automatically.
+  accent: '#B52F50',
+  accentSoft: '#FBE5EA',
+  focus: '#B52F50',
+  successSoft: '#E7ECE4',
+  warningSoft: '#F6EBDD',
+  errorSoft: '#FCEBE8',
+  danger: '#B42318',
+  dangerSoft: '#FCEBE8',
 });
 
 export const DARK_COLORS = Object.freeze({
@@ -76,6 +86,15 @@ export const DARK_COLORS = Object.freeze({
   success: '#9DB296',
   warning: '#F0B45C',
   error: '#FF8B81',
+  // V3 additive tokens (dark equivalents).
+  accent: '#EE718B',
+  accentSoft: '#321C23',
+  focus: '#EE718B',
+  successSoft: '#1E2920',
+  warningSoft: '#2A251C',
+  errorSoft: '#321C20',
+  danger: '#FF8B81',
+  dangerSoft: '#321C20',
 });
 
 const THEME_NAMES = new Set(['light', 'dark']);
@@ -185,8 +204,16 @@ function themedValue(value, equivalents, property) {
 }
 
 export function createThemedStyles(definitions) {
-  const lightStyles = StyleSheet.create(themedValue(definitions, LIGHT_COLOR_BY_DARK));
-  const darkStyles = StyleSheet.create(themedValue(definitions, DARK_COLOR_BY_LIGHT));
+  // Text styles share the same platform font, even outside the typography scale.
+  // Keep explicit faces (for example icon fonts) intact.
+  const normalized = Object.fromEntries(Object.entries(definitions).map(([key, style]) => [
+    key,
+    style && typeof style === 'object' && 'fontSize' in style
+      ? { fontFamily: FONTS.body, ...style }
+      : style,
+  ]));
+  const lightStyles = StyleSheet.create(themedValue(normalized, LIGHT_COLOR_BY_DARK));
+  const darkStyles = StyleSheet.create(themedValue(normalized, DARK_COLOR_BY_LIGHT));
   return new Proxy({}, {
     get(_target, property) {
       return (activeTheme === 'dark' ? darkStyles : lightStyles)[property];
@@ -221,6 +248,9 @@ export const FONTS = {
 };
 
 export const TYPOGRAPHY = {
+  // V3 additive tiers. Existing keys are preserved so nothing breaks.
+  display: { fontSize: 40, lineHeight: 46, fontWeight: '700' },
+  title: { fontSize: 34, lineHeight: 40, fontWeight: '700' },
   screenTitle: { fontSize: 28, lineHeight: 34, fontWeight: '700' },
   sectionTitle: { fontSize: 20, lineHeight: 26, fontWeight: '600' },
   componentTitle: { fontSize: 16, lineHeight: 22, fontWeight: '600' },
@@ -228,6 +258,9 @@ export const TYPOGRAPHY = {
   supporting: { fontSize: 14, lineHeight: 20, fontWeight: '400' },
   caption: { fontSize: 12, lineHeight: 16, fontWeight: '500' },
   button: { fontSize: 16, lineHeight: 20, fontWeight: '600' },
+  eyebrow: { fontSize: 11, lineHeight: 14, fontWeight: '700', letterSpacing: 0.08 },
+  microcopy: { fontSize: 11, lineHeight: 15, fontWeight: '400' },
+  metricValue: { fontSize: 24, lineHeight: 30, fontWeight: '700' },
 };
 
 export const SIZES = {
@@ -251,6 +284,37 @@ export const LAYOUT = {
   touchTarget: 48,
   tabBarHeight: 58,
 };
+
+// V3 additive radius family (soft organic geometry, restrained).
+export const RADIUS = Object.freeze({
+  sm: 10,
+  md: 12,
+  lg: 16,
+  xl: 22,
+  pill: 999,
+});
+// cardRadius/controlRadius stay in LAYOUT for back-compat.
+
+// V3 additive spacing family. SIZES remains the canonical scale used today;
+// SPACING is the same unit system under one name for new components.
+export const SPACING = Object.freeze({
+  xs: 4,
+  sm: 8,
+  compact: 12,
+  md: 16,
+  gutter: 20,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
+});
+
+// V3 additive focus ring used by WEB_FOCUS for keyboard focus on custom controls.
+export const FOCUS_RING = Object.freeze({
+  outlineStyle: 'solid',
+  outlineWidth: 2,
+  outlineColor: COLORS.focus,
+  outlineOffset: 2,
+});
 
 export const MOTION = {
   duration: {

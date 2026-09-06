@@ -9,7 +9,10 @@ class OllamaProvider {
     try {
       const response = await fetch(`${this.url}/api/chat`, {
         method: 'POST', headers: providerHeaders({ Accept: 'application/x-ndjson' }), signal,
-        body: JSON.stringify({ model: this.model, messages, stream: true, options: { temperature, num_predict: maxTokens } }),
+        // Meg needs a visible answer within the client timeout. Reasoning-capable
+        // local models otherwise spend most of that budget emitting hidden
+        // `thinking` tokens before any response content is available.
+        body: JSON.stringify({ model: this.model, messages, stream: true, think: false, options: { temperature, num_predict: maxTokens } }),
       });
       await assertOk(response, this.name);
       const decoder = new TextDecoder();

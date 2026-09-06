@@ -16,7 +16,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../components/Icon';
 import { useApp } from '../context/AppContext';
-import { COLORS, createThemedStyles, LAYOUT, WEB_FOCUS } from '../utils/constants';
+import { useAuth } from '../context/AuthContext';
+import { COLORS, createThemedStyles, LAYOUT, TYPOGRAPHY, WEB_FOCUS } from '../utils/constants';
 import {
   MEG_MODES,
   buildMegContext,
@@ -439,6 +440,7 @@ function StatusBanner({ type, text, actionLabel, onAction, actionDisabled = fals
 }
 
 export default function MegScreen({ route, navigation }) {
+  const { user } = useAuth();
   const {
     state,
     saveSettings,
@@ -718,6 +720,7 @@ export default function MegScreen({ route, navigation }) {
         : [];
       const providerStartedAt = Date.now();
       const result = await megService.send({
+        getIdToken: user ? () => user.getIdToken() : undefined,
         message: request.message,
         conversationId: request.conversationId,
         messageId: request.messageId,
@@ -1033,7 +1036,7 @@ export default function MegScreen({ route, navigation }) {
             >
               <Icon name='time-outline' size={22} color={COLORS.muted} />
             </Pressable>
-            <View style={styles.centeredHeaderTitle} pointerEvents='none'>
+            <View style={styles.centeredHeaderTitle}>
               <Text style={styles.title}>Meg</Text>
             </View>
             <Pressable
@@ -1095,6 +1098,14 @@ export default function MegScreen({ route, navigation }) {
             {!hasConversation ? (
               <Entrance distance={8} duration={240}>
                 <View style={styles.welcome}>
+                  <View style={styles.presence} accessibilityRole='status'>
+                    <View style={styles.presenceIcon}>
+                      <LotusMark size={26} color={COLORS.logo} />
+                    </View>
+                    <Text style={styles.presenceCaption}>
+                      {selectedModeLabel ? `${selectedModeLabel} — I'll follow your lead.` : 'Ready when you are. I\'ll follow your lead.'}
+                    </Text>
+                  </View>
                   <View style={styles.welcomeCopy}>
                     <Text style={styles.welcomeTitle}>What&apos;s on your mind?</Text>
                     <Text style={styles.welcomeBody}>Cycle, cravings, energy, or just today.</Text>
@@ -1508,7 +1519,7 @@ const styles = createThemedStyles({
   nonInteractive: { pointerEvents: 'none' },
 
   header: {
-    minHeight: 56,
+    minHeight: 68,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1524,7 +1535,7 @@ const styles = createThemedStyles({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  centeredHeaderTitle: {
+  centeredHeaderTitle: { pointerEvents: 'none',
     position: 'absolute',
     left: 64,
     right: 64,
@@ -1621,22 +1632,37 @@ const styles = createThemedStyles({
   welcome: {
     alignItems: 'stretch',
     width: '100%',
-    paddingTop: 4,
+    paddingTop: 24,
     paddingBottom: 4,
+  },
+  presence: {
+    alignItems: 'center',
+    gap: 8,
+    paddingBottom: 20,
+  },
+  presenceIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.brandSoft,
+  },
+  presenceCaption: {
+    ...TYPOGRAPHY.caption,
+    color: COLORS.muted,
+    textAlign: 'center',
+    maxWidth: 360,
   },
   welcomeCopy: {
     alignItems: 'center',
     gap: 4,
     paddingHorizontal: 16,
-    paddingVertical: 15,
-    borderWidth: 1,
-    borderColor: COLORS.hairlineSoft,
-    borderRadius: 18,
-    backgroundColor: COLORS.ivory,
+    paddingVertical: 12,
   },
   welcomeTitle: {
-    fontSize: 22,
-    lineHeight: 28,
+    fontSize: 28,
+    lineHeight: 36,
     fontWeight: '700',
     color: COLORS.ink,
     letterSpacing: -0.5,
@@ -1644,8 +1670,8 @@ const styles = createThemedStyles({
   },
   welcomeBody: {
     maxWidth: 390,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 15,
+    lineHeight: 23,
     color: COLORS.muted,
     textAlign: 'center',
   },
@@ -1658,7 +1684,7 @@ const styles = createThemedStyles({
     justifyContent: 'center',
     gap: 5,
   },
-  quickLink: { minHeight: 28, justifyContent: 'center', paddingHorizontal: 1, borderRadius: 4 },
+  quickLink: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 8, borderRadius: 8 },
   quickLinkPressed: { opacity: 0.58 },
   quickLinkText: { fontSize: 14, lineHeight: 20, color: '#5F5E5E' },
   quickLinkDivider: { fontSize: 14, lineHeight: 20, color: '#E5E2E0' },
@@ -1753,7 +1779,7 @@ const styles = createThemedStyles({
     justifyContent: 'center',
     backgroundColor: COLORS.brandSoft,
   },
-  promptText: { fontSize: 13, lineHeight: 18, fontWeight: '600', color: COLORS.ink },
+  promptText: { fontSize: 14, lineHeight: 21, fontWeight: '600', color: COLORS.ink, flexShrink: 1 },
 
   modeSection: { width: '100%', alignItems: 'center', marginTop: 24 },
   modePrompt: {
@@ -1855,7 +1881,7 @@ const styles = createThemedStyles({
     borderRadius: 12,
     backgroundColor: COLORS.surfaceWarm,
   },
-  messageText: { fontSize: 15, lineHeight: 23, color: COLORS.ink },
+  messageText: { fontSize: 16, lineHeight: 25, color: COLORS.ink },
   replyCursor: { color: COLORS.brand, fontWeight: '700' },
   replyingText: { marginTop: 7, fontSize: 11, lineHeight: 16, color: COLORS.muted },
   deliveryStatus: { marginTop: 4, fontSize: 10.5, lineHeight: 15, color: COLORS.muted },
@@ -1944,38 +1970,29 @@ const styles = createThemedStyles({
     paddingVertical: 5,
     borderWidth: 1,
     borderColor: COLORS.hairline,
-    borderRadius: 28,
-    backgroundColor: COLORS.white,
-    ...Platform.select({
-      web: { boxShadow: '0 2px 8px rgba(0,0,0,0.07)' },
-      ios: {
-        shadowColor: '#2C1F21',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-      },
-      android: { elevation: 2 },
-    }),
+    borderRadius: 16,
+    backgroundColor: COLORS.surfaceSoft,
   },
   inlineComposer: { width: '100%', marginTop: 18 },
   composerFocused: { borderColor: COLORS.brand },
   composerLifted: { transform: [{ translateY: -1 }] },
   input: {
     flex: 1,
+    minWidth: 0,
     minHeight: 44,
     maxHeight: 116,
     paddingTop: 10,
     paddingBottom: 8,
     paddingHorizontal: 10,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 16,
+    lineHeight: 24,
     color: COLORS.ink,
     ...Platform.select({ web: { outlineStyle: 'none' }, default: {} }),
   },
   sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.brand,
@@ -2051,7 +2068,7 @@ const styles = createThemedStyles({
   drawerRecentScroll: { flex: 1, minHeight: 0 },
   recentList: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 18, gap: 6 },
   recentLabel: { marginBottom: 2, fontSize: 12, lineHeight: 16, fontWeight: '700', color: '#888382', letterSpacing: 0.5 },
-  recentItem: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 8, borderRadius: 8 },
+  recentItem: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 8, borderRadius: 8 },
   recentItemActive: { backgroundColor: '#F7F7F7' },
   recentText: { fontSize: 14, lineHeight: 20, fontWeight: '500', color: '#D4CFCD' },
   recentTextActive: { color: '#2A2726' },

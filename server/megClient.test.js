@@ -163,3 +163,23 @@ test('megService.send preserves request context when calling its provider', asyn
   assert.equal(received.mode, 'listen');
   assert.deepEqual(received.context, context);
 });
+
+test('Meg uses the active screen session without serializing authentication callbacks', async () => {
+  const meg = loadMegModule(null);
+  const originalFetch = global.fetch;
+  let captured;
+  global.fetch = async (_url, options) => {
+    captured = options;
+    return { ok: true, status: 200, json: async () => ({ message: 'Hello' }) };
+  };
+  try {
+    const provider = meg.createLocalMegApiProvider({ baseUrl: 'http://127.0.0.1:3001', timeoutMs: 1000 });
+    await assert.rejects(provider.reply({ message: 'Hello' }), /sign in/);
+    const reply = await provider.reply({ message: 'Hello', getIdToken: async () => 'test-session-token' });
+    assert.equal(reply.text, 'Hello');
+    assert.equal(captured.headers.Authorization, 'Bearer test-session-token');
+    assert.doesNotMatch(captured.body, /getIdToken|test-session-token/);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});

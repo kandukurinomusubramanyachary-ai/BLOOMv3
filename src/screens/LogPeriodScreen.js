@@ -394,7 +394,7 @@ export default function LogPeriodScreen({ navigation, route }) {
 }
 
 const styles = createThemedStyles({
-  safeArea: { flex: 1, minHeight: 0, backgroundColor: COLORS.canvas, ...Platform.select({ web: { height: '100vh', maxHeight: '100vh', overflow: 'hidden' } }) },
+  safeArea: { flex: 1, minHeight: 0, backgroundColor: COLORS.canvas, ...Platform.select({ web: { height: '100%', maxHeight: '100%', overflow: 'hidden' } }) },
   scrollView: { flex: 1, minHeight: 0, ...Platform.select({ web: { height: '100%', maxHeight: '100%', overflowY: 'auto', overscrollBehaviorY: 'contain' } }) },
   scrollContent: { flexGrow: 1, paddingBottom: 28 },
   inner: {

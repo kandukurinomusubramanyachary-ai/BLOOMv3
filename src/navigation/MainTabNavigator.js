@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Keyboard, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Platform, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import Icon from '../components/Icon';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, createThemedStyles } from '../utils/constants';
 import { useReducedMotion } from '../components/Motion';
+import useKeyboardVisible from '../components/useKeyboardVisible';
 import { LotusMark } from '../components/BrandMark';
 import TodayScreen from '../screens/TodayScreen';
 import TimelineScreen from '../screens/TimelineScreen';
@@ -70,10 +71,12 @@ function TabIcon({ icon, label, focused, reduceMotion }) {
 function BloomTabBar({ state, descriptors, navigation }) {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const keyboardVisible = useKeyboardVisible();
+  const { width } = useWindowDimensions();
+  const wide = width >= 900;
   const [dockWidth, setDockWidth] = useState(0);
   const activeIndex = useRef(new Animated.Value(state.index)).current;
-  const segmentWidth = dockWidth ? dockWidth / state.routes.length : 0;
+  const segmentWidth = dockWidth ? (dockWidth - 4) / state.routes.length : 0;
   const focusedOptions = descriptors[state.routes[state.index]?.key]?.options || {};
 
   useEffect(() => {
@@ -85,27 +88,13 @@ function BloomTabBar({ state, descriptors, navigation }) {
     }).start();
   }, [activeIndex, reduceMotion, state.index]);
 
-  useEffect(() => {
-    if (Platform.OS === 'web') return undefined;
-
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const showSubscription = Keyboard.addListener(showEvent, () => setKeyboardVisible(true));
-    const hideSubscription = Keyboard.addListener(hideEvent, () => setKeyboardVisible(false));
-
-    return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
-    };
-  }, []);
-
   if (keyboardVisible) return null;
   if (focusedOptions.tabBarStyle?.display === 'none') return null;
 
   return (
-    <View style={[styles.tabBarFrame, { paddingBottom: Math.max(insets.bottom, 4) }]}>
-      <View style={styles.tabBar} onLayout={(event) => setDockWidth(event.nativeEvent.layout.width)}>
-        {segmentWidth ? (
+    <View style={[styles.tabBarFrame, { paddingBottom: Math.max(insets.bottom, 8) }, wide && styles.railFrame]}>
+      <View style={[styles.tabBar, wide && styles.rail]} onLayout={(event) => setDockWidth(event.nativeEvent.layout.width)}>
+        {segmentWidth && !wide ? (
           <Animated.View
             style={[
               styles.activeSurface,
@@ -145,6 +134,8 @@ function BloomTabBar({ state, descriptors, navigation }) {
               accessibilityState={{ selected: focused }}
               style={({ pressed, hovered, focused: keyboardFocused }) => [
                 styles.tabButton,
+                wide && styles.railButton,
+                wide && focused && styles.railButtonSelected,
                 hovered && !focused && styles.tabButtonHovered,
                 keyboardFocused && styles.tabButtonFocused,
                 pressed && !reduceMotion && styles.tabButtonPressed,
@@ -160,13 +151,14 @@ function BloomTabBar({ state, descriptors, navigation }) {
 }
 
 export default function MainTabNavigator() {
+  const { width } = useWindowDimensions();
   return (
     <Tab.Navigator
+      sceneContainerStyle={[styles.scene, width >= 900 && styles.railScene]}
       tabBar={(props) => <BloomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,
-        sceneContainerStyle: styles.scene,
       }}
     >
       {tabs.map((tab) => (
@@ -183,6 +175,11 @@ export default function MainTabNavigator() {
 
 const styles = createThemedStyles({
   scene: { backgroundColor: COLORS.canvas },
+  railScene: { marginLeft: 96 },
+  railFrame: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 96, paddingTop: 28, borderTopWidth: 0, borderRightWidth: 1, borderRightColor: COLORS.hairlineSoft },
+  rail: { height: 'auto', flexDirection: 'column', gap: 12, overflow: 'visible' },
+  railButton: { flex: 0, minHeight: 64, width: '100%', borderRadius: 16 },
+  railButtonSelected: { backgroundColor: COLORS.brandSoft },
   tabBarFrame: {
     width: '100%',
     alignItems: 'center',
@@ -195,8 +192,8 @@ const styles = createThemedStyles({
   tabBar: {
     position: 'relative',
     width: '100%',
-    maxWidth: 720,
-    height: 58,
+    maxWidth: 600,
+    height: 64,
     flexDirection: 'row',
     alignItems: 'stretch',
     padding: 2,
@@ -208,8 +205,8 @@ const styles = createThemedStyles({
     position: 'absolute',
     top: 2,
     left: 2,
-    height: 54,
-    borderRadius: 18,
+    height: 60,
+    borderRadius: 16,
     backgroundColor: COLORS.brandSoft,
   },
   nonInteractive: { pointerEvents: 'none' },
@@ -257,8 +254,8 @@ const styles = createThemedStyles({
   activeDotHidden: { opacity: 0 },
   tabLabel: {
     marginTop: 1,
-    fontSize: 10,
-    lineHeight: 13,
+    fontSize: 11,
+    lineHeight: 16,
     maxWidth: '100%',
     textAlign: 'center',
     color: COLORS.muted,

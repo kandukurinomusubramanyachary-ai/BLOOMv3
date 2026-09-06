@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 import Icon from '../components/Icon';
 import { useApp } from '../context/AppContext';
-import { COLORS, createThemedStyles, LAYOUT, WEB_FOCUS } from '../utils/constants';
+import { COLORS, createThemedStyles, LAYOUT, TYPOGRAPHY, WEB_FOCUS } from '../utils/constants';
 import { notifications } from '../services/notifications';
 import ScreenHeader from '../components/ScreenHeader';
 import ScreenScaffold from '../components/ScreenScaffold';
@@ -309,12 +309,12 @@ const styles = createThemedStyles({
   scrollContent: { paddingBottom: 48 },
   content: { maxWidth: LAYOUT.phoneMaxWidth, paddingTop: 12 },
   backButton: { minHeight: 48, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 2, marginLeft: -6, marginBottom: 8, paddingHorizontal: 6 },
-  backText: { fontSize: 15, fontWeight: '600', color: COLORS.ink },
+  backText: { ...TYPOGRAPHY.supporting, fontWeight: '600', color: COLORS.ink },
   pressed: { opacity: 0.65, transform: [{ scale: 0.98 }] },
   errorState: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, marginBottom: 12, padding: 14, borderRadius: LAYOUT.controlRadius, backgroundColor: '#FFF7F6' },
-  errorText: { flex: 1, fontSize: 13, lineHeight: 19, color: COLORS.error },
+  errorText: { flex: 1, ...TYPOGRAPHY.supporting, color: COLORS.error },
   successState: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, marginBottom: 12, padding: 14, borderRadius: LAYOUT.controlRadius, backgroundColor: COLORS.sageLight },
-  successText: { flex: 1, fontSize: 13, lineHeight: 19, color: COLORS.body },
+  successText: { flex: 1, ...TYPOGRAPHY.supporting, color: COLORS.body },
   list: {
     overflow: 'hidden',
     borderWidth: 1,
@@ -333,8 +333,8 @@ const styles = createThemedStyles({
   },
   iconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: COLORS.brandSoft, alignItems: 'center', justifyContent: 'center' },
   reminderCopy: { flex: 1 },
-  reminderLabel: { fontSize: 15, lineHeight: 20, fontWeight: '600', color: COLORS.ink },
-  reminderDesc: { marginTop: 2, fontSize: 12, lineHeight: 17, color: COLORS.muted },
+  reminderLabel: { ...TYPOGRAPHY.componentTitle, color: COLORS.ink },
+  reminderDesc: { marginTop: 2, ...TYPOGRAPHY.caption, color: COLORS.muted },
   switchTrack: { width: 50, height: 28, justifyContent: 'center', paddingHorizontal: 2, borderRadius: 14, backgroundColor: COLORS.hairline },
   switchTrackActive: { backgroundColor: COLORS.brand },
   switchKnob: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.canvas },
@@ -347,10 +347,10 @@ const styles = createThemedStyles({
     ...Platform.select({ web: WEB_FOCUS, default: {} }),
   },
   timeCopy: { minWidth: 98, alignItems: 'center' },
-  timeLabel: { fontSize: 11, lineHeight: 15, color: COLORS.muted },
+  timeLabel: { ...TYPOGRAPHY.eyebrow, color: COLORS.muted },
   timeText: { marginTop: 2, fontSize: 20, lineHeight: 25, fontWeight: '700', color: COLORS.ink, fontVariant: ['tabular-nums'] },
   note: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingHorizontal: 4, paddingVertical: 20 },
-  noteText: { flex: 1, fontSize: 13, lineHeight: 19, color: COLORS.muted },
+  noteText: { flex: 1, ...TYPOGRAPHY.supporting, color: COLORS.muted },
   backButtonHovered: { backgroundColor: COLORS.surfaceSoft, borderRadius: 10 },
   backButtonFocused: {
     backgroundColor: COLORS.brandSoft,

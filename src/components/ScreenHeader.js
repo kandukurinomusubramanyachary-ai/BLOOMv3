@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, createThemedStyles } from '../utils/constants';
+import { View, Text } from 'react-native';
+import { COLORS, createThemedStyles, TYPOGRAPHY } from '../utils/constants';
 import { Entrance } from './Motion';
 
 export default function ScreenHeader({
@@ -8,7 +8,7 @@ export default function ScreenHeader({
   subtitle,
   action,
   style,
-  animated = true,
+  animated = false,
   motionDelay = 0,
 }) {
   return (
@@ -38,11 +38,10 @@ const styles = createThemedStyles({
   },
   copy: {
     flex: 1,
+    minWidth: 0,
   },
   title: {
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: '700',
+    ...TYPOGRAPHY.screenTitle,
     color: COLORS.ink,
     letterSpacing: -0.5,
   },

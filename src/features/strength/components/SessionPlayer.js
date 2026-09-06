@@ -171,7 +171,7 @@ export default function SessionPlayer({ exercise, sets, onExit, onComplete }) {
           color={ringColor}
           trackColor={COLORS.surfaceStrong}
           pulseKey={state.mode === 'reps' && state.lastEvent === 'rep' ? state.eventNonce : null}
-          animated={state.phase !== 'active' || state.mode !== 'reps' ? true : true}
+          animated
         >
           <Text style={[styles.bigLabel, isRest && styles.bigLabelRest]}>{bigLabel}</Text>
           <Text style={styles.smallLabel}>{smallLabel}</Text>

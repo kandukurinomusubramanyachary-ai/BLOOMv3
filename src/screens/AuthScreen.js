@@ -343,8 +343,8 @@ const styles = createThemedStyles({
     backgroundColor: COLORS.splash,
     ...Platform.select({
       web: {
-        height: '100vh',
-        maxHeight: '100vh',
+        height: '100%',
+        maxHeight: '100%',
         overflow: 'hidden',
       },
       default: {},

@@ -4,6 +4,8 @@ require('./megUrlPolicy.test');
 require('./megLocalQueue.test');
 require('./megReveal.test');
 require('./strengthEngine.test');
+require('./strengthContract.test');
+require('./guidedSessionEngine.test');
 require('./mobileStorage.test');
 require('./startupHardening.test');
 require('./dietData.test');

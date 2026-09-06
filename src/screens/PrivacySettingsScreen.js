@@ -11,7 +11,7 @@ import {
 import Icon from '../components/Icon';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useApp } from '../context/AppContext';
-import { COLORS, createThemedStyles, LAYOUT, WEB_FOCUS } from '../utils/constants';
+import { COLORS, createThemedStyles, LAYOUT, TYPOGRAPHY, WEB_FOCUS } from '../utils/constants';
 import Button from '../components/Button';
 import ScreenHeader from '../components/ScreenHeader';
 import ScreenScaffold from '../components/ScreenScaffold';
@@ -307,22 +307,22 @@ const styles = createThemedStyles({
   scrollContent: { paddingBottom: 40 },
   content: { maxWidth: LAYOUT.phoneMaxWidth, paddingTop: 12 },
   backButton: { minHeight: 44, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 2, marginLeft: -6, marginBottom: 8, paddingHorizontal: 6 },
-  backText: { fontSize: 15, fontWeight: '600', color: COLORS.ink },
+  backText: { ...TYPOGRAPHY.supporting, fontWeight: '600', color: COLORS.ink },
   pressed: { opacity: 0.65 },
   section: { paddingVertical: 24, borderTopWidth: 1, borderTopColor: COLORS.hairline },
   sectionHeading: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   iconBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.brandSoft },
   headingCopy: { flex: 1, paddingTop: 1 },
-  sectionTitle: { fontSize: 16, lineHeight: 21, fontWeight: '600', color: COLORS.ink },
-  sectionDesc: { marginTop: 3, fontSize: 13, lineHeight: 19, color: COLORS.muted },
+  sectionTitle: { ...TYPOGRAPHY.componentTitle, color: COLORS.ink },
+  sectionDesc: { marginTop: 3, ...TYPOGRAPHY.supporting, color: COLORS.muted },
   lockActions: { marginTop: 18, gap: 10 },
   activeLock: { marginTop: 18, minHeight: 64, paddingHorizontal: 14, borderRadius: LAYOUT.controlRadius, backgroundColor: COLORS.sageLight, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   activeLockCopy: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   activeTextWrap: { flex: 1 },
-  activeTitle: { fontSize: 14, fontWeight: '700', color: COLORS.ink },
-  activeDesc: { marginTop: 1, fontSize: 12, color: COLORS.muted },
+  activeTitle: { ...TYPOGRAPHY.supporting, fontWeight: '700', color: COLORS.ink },
+  activeDesc: { marginTop: 1, ...TYPOGRAPHY.caption, color: COLORS.muted },
   textButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
-  textButtonLabel: { fontSize: 14, fontWeight: '700', color: COLORS.brand },
+  textButtonLabel: { ...TYPOGRAPHY.supporting, fontWeight: '700', color: COLORS.brand },
   textButtonHovered: { backgroundColor: COLORS.surfaceWarm, borderRadius: 9 },
   textButtonFocused: {
     backgroundColor: COLORS.brandSoft,
@@ -330,16 +330,16 @@ const styles = createThemedStyles({
     ...Platform.select({ web: WEB_FOCUS, default: {} }),
   },
   pinSetup: { marginTop: 18, padding: 16, borderRadius: LAYOUT.controlRadius, backgroundColor: COLORS.surfaceSoft, gap: 10 },
-  inputLabel: { fontSize: 14, fontWeight: '600', color: COLORS.ink },
+  inputLabel: { ...TYPOGRAPHY.supporting, fontWeight: '600', color: COLORS.ink },
   pinInput: { minHeight: 54, borderWidth: 1, borderColor: COLORS.hairline, borderRadius: LAYOUT.controlRadius, backgroundColor: COLORS.canvas, paddingHorizontal: 16, color: COLORS.ink, fontSize: 20, letterSpacing: 8, textAlign: 'center' },
-  supportingText: { fontSize: 12, lineHeight: 18, color: COLORS.muted, marginBottom: 2 },
+  supportingText: { ...TYPOGRAPHY.caption, color: COLORS.muted, marginBottom: 2 },
   settingRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
   settingIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.brandSoft },
   settingCopy: { flex: 1 },
   memoryFooter: { minHeight: 50, marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.hairline, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  memoryCount: { flex: 1, fontSize: 12, lineHeight: 17, color: COLORS.muted },
+  memoryCount: { flex: 1, ...TYPOGRAPHY.caption, color: COLORS.muted },
   clearConfirmation: { marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  clearChatError: { marginTop: 10, fontSize: 12, lineHeight: 17, color: COLORS.error },
+  clearChatError: { marginTop: 10, ...TYPOGRAPHY.caption, color: COLORS.error },
   clearChatButton: { minHeight: 44, justifyContent: 'center' },
   clearChatHovered: { backgroundColor: '#FFF7F6', borderRadius: 9, paddingHorizontal: 6 },
   clearChatFocused: {
@@ -348,7 +348,7 @@ const styles = createThemedStyles({
     paddingHorizontal: 6,
     ...Platform.select({ web: WEB_FOCUS, default: {} }),
   },
-  clearChatText: { fontSize: 13, fontWeight: '700', color: COLORS.error },
+  clearChatText: { ...TYPOGRAPHY.supporting, fontWeight: '700', color: COLORS.error },
   disabledText: { color: COLORS.muted },
   timeoutOptions: { flexDirection: 'row', gap: 8, marginTop: 18 },
   timeoutOption: { minWidth: 72, minHeight: 44, paddingHorizontal: 14, borderRadius: LAYOUT.controlRadius, borderWidth: 1, borderColor: COLORS.hairline, backgroundColor: COLORS.canvas, alignItems: 'center', justifyContent: 'center' },
@@ -358,10 +358,10 @@ const styles = createThemedStyles({
     borderColor: COLORS.brand,
     ...Platform.select({ web: WEB_FOCUS, default: {} }),
   },
-  timeoutText: { fontSize: 14, fontWeight: '600', color: COLORS.body },
+  timeoutText: { ...TYPOGRAPHY.supporting, fontWeight: '600', color: COLORS.body },
   timeoutTextSelected: { color: COLORS.brand },
   localNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingHorizontal: 4, paddingVertical: 12 },
-  localNoteText: { flex: 1, fontSize: 13, lineHeight: 19, color: COLORS.muted },
+  localNoteText: { flex: 1, ...TYPOGRAPHY.supporting, color: COLORS.muted },
   backButtonHovered: { backgroundColor: COLORS.surfaceSoft, borderRadius: 10 },
   backButtonFocused: {
     backgroundColor: COLORS.brandSoft,

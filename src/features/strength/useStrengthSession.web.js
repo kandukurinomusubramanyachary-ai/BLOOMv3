@@ -7,6 +7,7 @@ import { midpoint, point } from './engine/jointAngles';
 import { createCueScheduler } from './engine/cueScheduler';
 import { createPositioningCoach } from './engine/positioningCoach';
 import { createRepStateMachine } from './engine/repStateMachine';
+import { normalizeSetCount, resolveTargetReps } from './poseCapability';
 import { buildStrengthFocus, buildStrengthObservation } from './engine/strengthSummary';
 import { createVoiceCoach } from './services/voiceCoach';
 import { flushStrengthOutbox, saveStrengthSummary } from './services/strengthStorage';
@@ -27,12 +28,33 @@ function baselineFrom(landmarks) {
   };
 }
 
-export default function useStrengthSession({ uid, navigation }) {
+export default function useStrengthSession({
+  uid,
+  exerciseId: requestedExerciseId,
+  sets = 1,
+  targetReps: requestedTargetReps,
+}) {
+  // exerciseId is the pose ENGINE id (e.g. bodyweight-squat-v1), passed
+  // explicitly by the screen. It is NOT defaulted to squat here: if it is
+  // invalid/unsupported the hook reports `unsupported` instead of silently
+  // running the squat engine.
   const [phase, setPhase] = useState('select');
-  const [exerciseId, setExerciseId] = useState('bodyweight-squat-v1');
+  const [currentSet, setCurrentSet] = useState(1);
+  const exerciseId = requestedExerciseId;
   const [instruction, setInstruction] = useState('Looking for you…');
   const [calibrationGood, setCalibrationGood] = useState(false);
   const [countdown, setCountdown] = useState(3);
+  const exercise = useMemo(() => exerciseById(exerciseId), [exerciseId]);
+  const targetReps = useMemo(() => resolveTargetReps(exercise, requestedTargetReps, STRENGTH_DEFAULTS.targetReps), [exercise, requestedTargetReps]);
+  const totalSets = normalizeSetCount(sets);
+  const currentSetRef = useRef(1);
+  const totalSetsRef = useRef(totalSets);
+  const targetRepsRef = useRef(targetReps);
+  const totalRepsRef = useRef(0);
+  totalSetsRef.current = totalSets;
+  targetRepsRef.current = targetReps;
+  // Set orchestration lives OUTSIDE the rep engine (which handles one set).
+  const unsupported = !exercise;
   const [reps, setReps] = useState(0);
   const [pauseReason, setPauseReason] = useState(null);
   const [muted, setMuted] = useState(false);
@@ -49,7 +71,6 @@ export default function useStrengthSession({ uid, navigation }) {
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
   const voice = useRef(createVoiceCoach({ rate: STRENGTH_DEFAULTS.speechRate, pitch: STRENGTH_DEFAULTS.speechPitch }));
-  const exercise = useMemo(() => exerciseById(exerciseId), [exerciseId]);
 
   useEffect(() => { voice.current.setMuted(muted); }, [muted]);
   useEffect(() => {
@@ -70,6 +91,7 @@ export default function useStrengthSession({ uid, navigation }) {
     cameraLaunchLock.current = false;
     setCameraFailure(null);
     voice.current.cancel(); setReps(0); setCueText(''); setPauseReason(null); setCalibrationGood(false); setInstruction('Looking for you…');
+    currentSetRef.current = 1; setCurrentSet(1); totalRepsRef.current = 0;
   }, []);
 
   const persistPendingSummary = useCallback(async (pending) => {
@@ -100,6 +122,7 @@ export default function useStrengthSession({ uid, navigation }) {
   }, [uid]);
 
   const finish = useCallback(async (completionState = 'stopped', acceptedReps = reps) => {
+    if (!exercise) return;
     const current = runtime.current;
     if (current.ended || !current.startedAt) { setPhase('select'); return; }
     current.ended = true;
@@ -110,7 +133,7 @@ export default function useStrengthSession({ uid, navigation }) {
       id: sessionId(), exerciseId: exercise.id, exerciseVersion: exercise.exerciseVersion,
       startedAt: current.startedAt.toISOString(), completedAt: completedAt.toISOString(),
       durationSeconds: Math.max(1, Math.round((completedAt - current.startedAt) / 1000)),
-      targetReps: STRENGTH_DEFAULTS.targetReps, acceptedReps,
+      targetReps, acceptedReps, totalSets, completedSets: currentSetRef.current - 1,
       pauseCount: current.pauseCount, cueCounts: current.scheduler?.snapshot() || {},
       completionState, platform: Platform.OS, privacyVersion: 1,
     };
@@ -118,13 +141,14 @@ export default function useStrengthSession({ uid, navigation }) {
       summary: safeSummary,
       repDurations: [...current.repDurations],
       eventName: completionState === 'completed' ? 'strength_session_completed' : 'strength_session_stopped',
-      eventProperties: { exerciseId: exercise.id, completionState, acceptedReps, targetReps: STRENGTH_DEFAULTS.targetReps, platform: Platform.OS },
+      eventProperties: { exerciseId: exercise.id, completionState, acceptedReps, targetReps, totalSets, platform: Platform.OS },
     };
     pendingSummary.current = pending;
     await persistPendingSummary(pending);
-  }, [exercise, persistPendingSummary, reps]);
+  }, [exercise, persistPendingSummary, reps, targetReps, totalSets]);
 
   const onFrame = useCallback((frame) => {
+    if (!exercise) return;
     const current = runtime.current;
     if (phase === 'calibrating') {
       if (!current.positioning) {
@@ -163,7 +187,22 @@ export default function useStrengthSession({ uid, navigation }) {
       }
       if (event.type === 'repAccepted') {
         current.repDurations.push(event.durationMs); setReps(event.count); voice.current.speak(String(event.count));
-        if (event.count >= STRENGTH_DEFAULTS.targetReps) void finish('completed', event.count);
+        // Set orchestration happens OUTSIDE the rep engine. `event.count` is
+        // the number of reps completed in THIS set (the engine is recreated per
+        // set), so compare it against the per-set targetReps.
+        if (event.count >= targetRepsRef.current) {
+          totalRepsRef.current += event.count;
+          if (currentSetRef.current < totalSetsRef.current) {
+            // Advanced to the next set: fresh engine, reset rep counter.
+            current.engine = createRepStateMachine(exercise, current.baseline);
+            current.scheduler = createCueScheduler();
+            currentSetRef.current += 1; setCurrentSet(currentSetRef.current);
+            setReps(0); setPauseReason(null); setCueText(`${currentSetRef.current}/${totalSetsRef.current} — press Continue when ready.`);
+            setPhase('between_sets');
+          } else {
+            void finish('completed', totalRepsRef.current);
+          }
+        }
       }
       if (event.type === 'cueCondition') candidates.push(event.cue);
     });
@@ -174,18 +213,21 @@ export default function useStrengthSession({ uid, navigation }) {
   }, [exercise, finish, pauseReason, phase]);
 
   const beginCamera = useCallback(() => {
+    if (!exercise) return;
     if (cameraLaunchLock.current) return;
     resetRuntime();
     cameraLaunchLock.current = true;
     setPhase('loading');
     trackStrengthEvent('strength_camera_requested', { exerciseId: exercise.id, platform: Platform.OS });
-  }, [exercise.id, resetRuntime]);
+  }, [exercise, resetRuntime]);
   const cameraReady = useCallback(() => {
+    if (!exercise) return;
     cameraLaunchLock.current = false;
     setPhase('calibrating');
     trackStrengthEvent('strength_camera_result', { exerciseId: exercise.id, result: 'granted', platform: Platform.OS });
-  }, [exercise.id]);
+  }, [exercise]);
   const cameraError = useCallback((error) => {
+    if (!exercise) return;
     cameraLaunchLock.current = false;
     const denied = ['NotAllowedError', 'SecurityError'].includes(error?.name);
     const busy = error?.name === 'NotReadableError';
@@ -194,7 +236,7 @@ export default function useStrengthSession({ uid, navigation }) {
     setCameraFailure({ kind: denied ? 'denied' : busy ? 'busy' : 'failed', message });
     setPhase('permission');
     trackStrengthEvent('strength_camera_result', { exerciseId: exercise.id, result: denied ? 'denied' : 'failed', platform: Platform.OS });
-  }, [exercise.id]);
+  }, [exercise]);
   const leaveCamera = useCallback((nextPhase = 'permission') => {
     resetRuntime();
     setPhase(nextPhase);
@@ -204,7 +246,9 @@ export default function useStrengthSession({ uid, navigation }) {
   useEffect(() => {
     if (phase !== 'countdown') return undefined;
     if (countdown <= 0) {
-      runtime.current.startedAt = new Date(); runtime.current.ended = false; setPhase('active'); setCueText('Move when you are ready.');
+      // Keep the session's start time across multiple sets; only re-arm `ended`.
+      if (!runtime.current.startedAt) runtime.current.startedAt = new Date();
+      runtime.current.ended = false; setPhase('active'); setCueText('Move when you are ready.');
       trackStrengthEvent('strength_session_started', { exerciseId: exercise.id, exerciseVersion: exercise.exerciseVersion, platform: Platform.OS });
       return undefined;
     }
@@ -234,10 +278,13 @@ export default function useStrengthSession({ uid, navigation }) {
   }, [phase]);
 
   return {
-    phase, setPhase, exercise, exerciseId, setExerciseId, instruction, calibrationGood,
+    phase, setPhase, exercise, exerciseId, instruction, calibrationGood,
     countdown, reps, pauseReason, muted, setMuted, showSkeleton, setShowSkeleton, cueText,
     summaryResult, summaryError, savingSummary, cameraFailure,
+    unsupported,
+    currentSet, totalSets, targetReps,
     beginCamera, cameraReady, cameraError, leaveCamera, onFrame, startCountdown, togglePause,
+    continueSet: startCountdown,
     stop: () => void finish('stopped'),
     retrySummary: () => void persistPendingSummary(pendingSummary.current),
     discardPendingSummary: () => { pendingSummary.current = null; setSummaryError(null); resetRuntime(); setPhase('select'); },

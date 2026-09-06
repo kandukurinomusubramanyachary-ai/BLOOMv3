@@ -1,7 +1,38 @@
-import React from 'react';
-import { Platform, Pressable, Text, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { Animated, Easing, Platform, Pressable, Text, View } from 'react-native';
 import Icon from './Icon';
-import { COLORS, createThemedStyles, TYPOGRAPHY, WEB_FOCUS } from '../utils/constants';
+import { useReducedMotion } from './Motion';
+import { COLORS, createThemedStyles, TYPOGRAPHY, WEB_FOCUS, RADIUS } from '../utils/constants';
+
+// Small inline spinner so a button's busy state is visible, not just a label swap.
+function ButtonSpinner({ color }) {
+  const reduceMotion = useReducedMotion();
+  const spin = React.useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (reduceMotion) return undefined;
+    const loop = Animated.loop(
+      Animated.timing(spin, {
+        toValue: 1,
+        duration: 850,
+        easing: Easing.linear,
+        useNativeDriver: Platform.OS !== 'web',
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [spin, reduceMotion]);
+  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  return (
+    <View
+      style={{ width: 18, height: 18 }}
+      accessibilityLiveRegion="polite"
+    >
+      <Animated.View style={{ transform: [{ rotate }] }}>
+        <Icon name="sync-outline" size={18} color={color} />
+      </Animated.View>
+    </View>
+  );
+}
 
 export default function Button({
   title,
@@ -9,6 +40,7 @@ export default function Button({
   variant = 'primary',
   disabled = false,
   loading = false,
+  success = false,
   icon,
   style,
   accessibilityLabel,
@@ -16,9 +48,13 @@ export default function Button({
   onPressIn,
   onPressOut,
   loadingLabel = 'Saving…',
+  successLabel = 'Done',
   ...pressableProps
 }) {
-  const isDisabled = disabled || loading;
+  const reduceMotion = useReducedMotion();
+  const isDisabled = disabled || loading || success;
+  const isUnavailable = disabled && !loading && !success;
+  const label = loading ? loadingLabel : success ? successLabel : title;
 
   return (
     <Pressable
@@ -28,31 +64,39 @@ export default function Button({
       onPressOut={onPressOut}
       disabled={isDisabled}
       accessibilityRole='button'
-      accessibilityLabel={accessibilityLabel || title}
+      accessibilityLabel={accessibilityLabel || label}
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       style={(state) => {
         const { pressed, hovered, focused } = state;
         return [
           styles.button,
-          styles[variant] || styles.primary,
+          success && styles.success,
+          variant !== 'primary' && !success && (styles[variant] || styles.primary),
+          variant === 'primary' && !success && styles.primary,
           hovered && !isDisabled && styles[`${variant}Hover`],
           focused && !isDisabled && styles.focused,
           pressed && !isDisabled && styles[`${variant}Pressed`],
-          pressed && !isDisabled && styles.pressed,
-          isDisabled && styles.disabled,
+          pressed && !isDisabled && !reduceMotion && styles.pressed,
+          isUnavailable && styles.disabled,
           isDisabled && styles.disabledWeb,
           typeof style === 'function' ? style(state) : style,
         ];
       }}
     >
       <View style={styles.content}>
-        {icon ? (
+        {success ? (
+          <Icon name="checkmark-circle" size={19} color={COLORS.onBrand} />
+        ) : loading ? (
+          <ButtonSpinner
+            color={variant === 'primary' ? COLORS.onBrand : COLORS.ink}
+          />
+        ) : icon ? (
           <Icon
             name={icon}
             size={19}
             color={
-              isDisabled
+              isUnavailable
                 ? COLORS.muted
                 : variant === 'primary'
                   ? COLORS.onBrand
@@ -68,11 +112,12 @@ export default function Button({
             styles.text,
             variant === 'primary' && styles.primaryText,
             variant === 'danger' && styles.dangerText,
-            variant !== 'primary' && variant !== 'danger' && styles.secondaryText,
-            isDisabled && styles.disabledText,
+            success && styles.successText,
+            variant !== 'primary' && variant !== 'danger' && !success && styles.secondaryText,
+            isUnavailable && styles.disabledText,
           ]}
         >
-          {loading ? loadingLabel : title}
+          {label}
         </Text>
       </View>
     </Pressable>
@@ -81,18 +126,24 @@ export default function Button({
 
 const styles = createThemedStyles({
   button: {
-    minHeight: 48,
+    minHeight: 52,
+    minWidth: 48,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 22,
-    borderRadius: 12,
+    borderRadius: RADIUS.md,
     ...Platform.select({
       web: { cursor: 'pointer' },
       default: {},
     }),
   },
+  success: {
+    backgroundColor: COLORS.success,
+    borderColor: COLORS.success,
+  },
   content: {
+    maxWidth: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -158,8 +209,13 @@ const styles = createThemedStyles({
   },
   text: {
     ...TYPOGRAPHY.button,
+    flexShrink: 1,
+    textAlign: 'center',
   },
   primaryText: {
+    color: COLORS.onBrand,
+  },
+  successText: {
     color: COLORS.onBrand,
   },
   secondaryText: {

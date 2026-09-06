@@ -377,6 +377,7 @@ function miniDayStyle(day, model) {
 }
 
 function MiniMonth({ month, model, current, onPress }) {
+  const { width } = useWindowDimensions();
   const start = startOfMonth(month);
   const days = eachDayOfInterval({ start, end: endOfMonth(month) });
   const emptyDays = Array.from({ length: start.getDay() });
@@ -388,6 +389,7 @@ function MiniMonth({ month, model, current, onPress }) {
       accessibilityLabel={`Open ${format(month, 'MMMM yyyy')}`}
       style={({ pressed }) => [
         styles.miniMonth,
+        width >= 700 && styles.miniMonthWide,
         current && styles.miniMonthCurrent,
         pressed && styles.miniMonthPressed,
       ]}
@@ -668,7 +670,7 @@ function EditPeriodButton({ onPress, title = 'Log period dates', icon = 'water' 
         accessibilityRole='button'
         style={({ pressed }) => [styles.editButton, pressed && styles.editButtonPressed]}
       >
-        <Icon name={icon} size={20} color={COLORS.white} />
+        <Icon name={icon} size={20} color={COLORS.onBrand} />
         <Text style={styles.editButtonText}>{title}</Text>
       </Pressable>
     </View>
@@ -777,22 +779,23 @@ const styles = createThemedStyles({
   safeArea: {
     flex: 1,
     minHeight: 0,
-    backgroundColor: COLORS.surfaceWarm,
-    ...Platform.select({ web: { height: '100vh', maxHeight: '100vh', overflow: 'hidden' } }),
+    backgroundColor: COLORS.canvas,
+    ...Platform.select({ web: { height: '100%', maxHeight: '100%', overflow: 'hidden' } }),
   },
   phoneShell: {
     flex: 1,
+    minHeight: 0,
     width: '100%',
     maxWidth: PHONE_MAX_WIDTH,
     alignSelf: 'center',
-    backgroundColor: COLORS.surfaceWarm,
+    backgroundColor: COLORS.canvas,
   },
   yearShell: { maxWidth: 720 },
   header: {
     paddingHorizontal: 16,
     paddingTop: 0,
     paddingBottom: 8,
-    backgroundColor: COLORS.surfaceWarm,
+    backgroundColor: COLORS.canvas,
   },
   brandBar: {
     minHeight: 48,
@@ -849,7 +852,7 @@ const styles = createThemedStyles({
     position: 'relative',
     width: 204,
     flexShrink: 1,
-    height: 44,
+    height: 52,
     flexDirection: 'row',
     alignItems: 'center',
     padding: 4,
@@ -863,7 +866,7 @@ const styles = createThemedStyles({
     top: 4,
     left: 4,
     width: 98,
-    height: 34,
+    height: 44,
     borderRadius: 17,
     backgroundColor: COLORS.white,
     ...Platform.select({ web: { boxShadow: '0 2px 6px rgba(34,34,34,0.08)' } }),
@@ -872,7 +875,7 @@ const styles = createThemedStyles({
   toggleOption: {
     zIndex: 1,
     flex: 1,
-    height: 34,
+    height: 44,
     borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
@@ -934,7 +937,7 @@ const styles = createThemedStyles({
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 6,
-    paddingBottom: 104,
+    paddingBottom: 28,
   },
   scrollContentNarrow: {
     paddingHorizontal: 14,
@@ -1033,17 +1036,17 @@ const styles = createThemedStyles({
     backgroundColor: COLORS.blush,
   },
   loggedDay: {
-    backgroundColor: COLORS.cycle,
+    backgroundColor: COLORS.brandSoft,
   },
   selectedDay: {
     backgroundColor: COLORS.brand,
   },
   loggedText: {
-    color: COLORS.white,
+    color: COLORS.brand,
     fontWeight: '800',
   },
   selectedDayText: {
-    color: COLORS.white,
+    color: COLORS.onBrand,
     fontWeight: '800',
   },
   indicatorSlot: {
@@ -1098,8 +1101,8 @@ const styles = createThemedStyles({
     rowGap: 10,
   },
   miniMonth: {
-    width: '31.8%',
-    minHeight: 151,
+    width: '48%',
+    minHeight: 190,
     paddingHorizontal: 7,
     paddingTop: 9,
     paddingBottom: 8,
@@ -1108,6 +1111,7 @@ const styles = createThemedStyles({
     borderColor: COLORS.hairline,
     backgroundColor: COLORS.white,
   },
+  miniMonthWide: { width: '31.8%' },
   miniMonthCurrent: {
     borderColor: '#D8B2A6',
     backgroundColor: COLORS.surfaceWarm,
@@ -1131,8 +1135,8 @@ const styles = createThemedStyles({
   },
   miniWeekLabel: {
     width: `${100 / 7}%`,
-    fontSize: 6.5,
-    lineHeight: 9,
+    fontSize: 11,
+    lineHeight: 16,
     fontWeight: '700',
     color: COLORS.muted,
     textAlign: 'center',
@@ -1143,21 +1147,21 @@ const styles = createThemedStyles({
   },
   miniDayCell: {
     width: `${100 / 7}%`,
-    height: 15,
+    height: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
   miniDayCircle: {
     position: 'relative',
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: 19,
+    height: 19,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   miniDayText: {
-    fontSize: 7,
-    lineHeight: 9,
+    fontSize: 11,
+    lineHeight: 16,
     fontWeight: '500',
     color: COLORS.body,
   },
@@ -1168,14 +1172,14 @@ const styles = createThemedStyles({
     backgroundColor: COLORS.sageLight,
   },
   miniLogged: {
-    backgroundColor: COLORS.cycle,
+    backgroundColor: COLORS.brandSoft,
   },
   miniPmsText: {
     color: COLORS.sage,
     fontWeight: '800',
   },
   miniLoggedText: {
-    color: COLORS.white,
+    color: COLORS.brand,
     fontWeight: '800',
   },
   legend: {
@@ -1549,7 +1553,7 @@ const styles = createThemedStyles({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    borderRadius: 999,
+    borderRadius: 12,
     backgroundColor: COLORS.brand,
   },
   editButtonPressed: {
@@ -1560,6 +1564,6 @@ const styles = createThemedStyles({
     fontSize: 15,
     lineHeight: 20,
     fontWeight: '700',
-    color: COLORS.white,
+    color: COLORS.onBrand,
   },
 });

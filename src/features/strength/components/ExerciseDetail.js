@@ -122,10 +122,10 @@ export default function ExerciseDetail({ exercise, onBack, onStart }) {
 const styles = createThemedStyles({
   safe: { flex: 1, backgroundColor: COLORS.canvas },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: SIZES.md, paddingVertical: SIZES.compact },
-  iconButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  iconButton: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.6 },
   headerTitle: { ...TYPOGRAPHY.componentTitle, color: COLORS.ink },
-  content: { padding: SIZES.gutter, gap: SIZES.lg, paddingBottom: SIZES.xxl },
+  content: { width: '100%', maxWidth: 600, alignSelf: 'center', padding: SIZES.gutter, gap: SIZES.lg, paddingBottom: SIZES.xxl },
   hero: { alignItems: 'center', gap: SIZES.sm },
   heroIcon: { width: 76, height: 76, borderRadius: 22, backgroundColor: COLORS.brandSoft, alignItems: 'center', justifyContent: 'center' },
   heroName: { ...TYPOGRAPHY.screenTitle, color: COLORS.ink, textAlign: 'center' },
