@@ -278,6 +278,12 @@ export default function DailyCheckInScreen({ route, navigation }) {
   );
 
   const [step, setStep] = useState(0);
+  const scrollRef = useRef(null);
+  useEffect(() => {
+    // A new step starts at its first field, regardless of the previous scroll.
+    const frame = requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
+    return () => cancelAnimationFrame(frame);
+  }, [step]);
   const [hasChangedStep, setHasChangedStep] = useState(false);
   const [flow, setFlow] = useState(existingCheckin?.flow ?? null);
   const [symptoms, setSymptoms] = useState(existingCheckin?.symptoms || []);
@@ -467,6 +473,7 @@ export default function DailyCheckInScreen({ route, navigation }) {
         </View>
 
         <ScrollView
+          ref={scrollRef}
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps='handled'

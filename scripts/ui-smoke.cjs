@@ -44,7 +44,8 @@ async function checkLayout(page, name) {
   await fs.mkdir(output, { recursive: true });
   const browser = await chromium.launch({ channel: process.env.BLOOM_BROWSER_CHANNEL || 'msedge', headless: true });
   try {
-    for (const item of cases) {
+    const selectedCases = process.argv.includes('--meg') ? cases.filter(item => item.name === 'phone') : cases;
+    for (const item of selectedCases) {
       const context = await browser.newContext({ viewport: { width: item.width, height: item.height }, reducedMotion: 'reduce' });
       await context.addInitScript(theme => {
         localStorage.setItem('@bloom_user:v1:dev-user:bloom_settings', JSON.stringify({ theme }));
@@ -73,6 +74,18 @@ async function checkLayout(page, name) {
         await page.getByRole('button', { name: 'Go back', exact: true }).click();
       }
       await page.getByRole('button', { name: 'Back to Bloom', exact: true }).click();
+      if (item.name === 'phone' && process.argv.includes('--meg')) {
+        await page.getByRole('tab', { name: 'Meg', exact: true }).click();
+        await page.getByRole('textbox', { name: 'Message Meg', exact: true }).fill('Hello. Please greet me in one short sentence.');
+        const responsePromise = page.waitForResponse(response => response.url().endsWith('/api/meg/chat') && response.request().method() === 'POST', { timeout: 100000 });
+        await page.getByRole('button', { name: 'Send message to Meg', exact: true }).click();
+        const response = await responsePromise;
+        assert.equal(response.status(), 200, 'Meg chat HTTP response');
+        const reply = await response.json();
+        assert.ok(reply.message?.trim(), 'Meg response must contain text');
+        assert.doesNotMatch(reply.message, /trouble reaching|unavailable|lost the connection/i, 'Meg must return a model response');
+        console.log('PASS Meg: actual UI send returned a model response');
+      }
       if (item.name === 'phone' || item.name === 'small-phone') {
         await page.getByRole('tab', { name: 'Timeline', exact: true }).click();
         await page.getByRole('tab', { name: 'Year', exact: true }).click();
