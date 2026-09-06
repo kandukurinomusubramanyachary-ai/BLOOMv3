@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "Bloom Strength",
+    "slug": "bloom-strength",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "platforms": ["ios", "android"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bloom.strength",
+      "infoPlist": {"ITSAppUsesNonExemptEncryption": false}
+    },
+    "android": {
+      "package": "com.bloom.strength",
+      "permissions": ["android.permission.CAMERA"],
+      "blockedPermissions": ["android.permission.RECORD_AUDIO"]
+    },
+    "plugins": [
+      "expo-dev-client",
+      ["expo-camera", {
+        "cameraPermission": "Bloom uses your camera to count squats on your device. Video is never recorded or uploaded.",
+        "microphonePermission": false,
+        "recordAudioAndroid": false,
+        "barcodeScannerEnabled": false
+      }]
+    ]
+  }
+}
