@@ -1,29 +1,74 @@
 {
   "expo": {
-    "name": "Bloom Strength",
-    "slug": "bloom-strength",
-    "version": "1.0.0",
+    "name": "Bloom",
+    "slug": "bloom",
+    "version": "1.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
-    "platforms": ["ios", "android"],
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFDFE"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "androidStatusBar": {
+      "barStyle": "dark-content",
+      "backgroundColor": "#FFFDFE",
+      "translucent": false
+    },
+    "androidNavigationBar": {
+      "barStyle": "dark-content",
+      "backgroundColor": "#FFFDFE"
+    },
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.bloom.strength",
-      "infoPlist": {"ITSAppUsesNonExemptEncryption": false}
+      "supportsTablet": false,
+      "bundleIdentifier": "com.bloom.app",
+      "buildNumber": "2",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Allow Bloom to use Face ID to protect your private health records."
+      }
     },
     "android": {
-      "package": "com.bloom.strength",
-      "permissions": ["android.permission.CAMERA"],
-      "blockedPermissions": ["android.permission.RECORD_AUDIO"]
+      "softwareKeyboardLayoutMode": "resize",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFDFE"
+      },
+      "package": "com.bloomhealth.app",
+      "versionCode": 4,
+      "permissions": [
+        "SCHEDULE_EXACT_ALARM",
+        "RECEIVE_BOOT_COMPLETED",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "name": "Bloom Web Beta"
     },
     "plugins": [
-      "expo-dev-client",
-      ["expo-camera", {
-        "cameraPermission": "Bloom uses your camera to count squats on your device. Video is never recorded or uploaded.",
-        "microphonePermission": false,
-        "recordAudioAndroid": false,
-        "barcodeScannerEnabled": false
-      }]
-    ]
+      "expo-splash-screen",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow Bloom to use Face ID to protect your private health records."
+        }
+      ],
+      "expo-notifications",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "94819776-182f-45d0-bfb1-6c8cc06ea821"
+      }
+    },
+    "owner": "subramanya10s-team"
   }
 }
