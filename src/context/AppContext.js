@@ -7,7 +7,8 @@ import React, {
   useRef,
 } from 'react';
 import { differenceInCalendarDays, isValid, parseISO } from 'date-fns';
-import { KEYS, storage } from '../services/storage';
+import { KEYS, storage as sharedStorage } from '../services/storage';
+const accountWork = require('../services/accountWork');
 import { useAuth } from './AuthContext';
 import {
   deleteAllCurrentUserTrackingData,
@@ -64,6 +65,7 @@ import { buildSampleCheckins, buildSamplePeriods } from '../services/devSampleDa
 import { setStartupStage } from '../diagnostics/startupDiagnostics';
 import { logCheckinEvent } from '../diagnostics/checkinDiagnostics';
 import { cleanThemePreference, setActiveTheme } from '../utils/constants';
+import { WATER_REMINDER_DEFAULTS, normalizeWaterReminderSettings } from '../services/waterReminders';
 
 const AppContext = createContext();
 
@@ -124,6 +126,7 @@ const initialState = {
   settings: {
     ...DEFAULT_TRACKING_PREFERENCES,
     reminders: defaultReminders,
+    waterReminders: WATER_REMINDER_DEFAULTS,
   },
   bookmarks: [],
   privacy: {
@@ -204,9 +207,17 @@ function derivedValues(state) {
 export function AppProvider({ children }) {
   const { user } = useAuth();
   if (!user?.uid) throw new Error('AppProvider requires a signed-in Bloom account.');
+  sharedStorage.setUserScope(user.uid);
+  // Provider callbacks retain their own scope even if a different account signs in
+  // while a Firestore request or multi-step local mutation is pending.
+  const storage = useMemo(() => sharedStorage.forUser(user.uid), [user.uid]);
   storage.setUserScope(user.uid);
   const [state, dispatch] = useReducer(appReducer, initialState);
   const activeUidRef = useRef(user.uid);
+  const accountEpoch = accountWork.epoch(user.uid);
+  const megDataRevisionRef = useRef(0);
+  const megDataRevision = megDataRevisionRef.current;
+  const deletingMegRef = useRef(false);
   const dietMutationRevisionRef = useRef(0);
   activeUidRef.current = user.uid;
   const resolvedTheme = cleanThemePreference(state.settings?.theme);
@@ -225,7 +236,12 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     storage.setUserScope(user.uid);
-    return () => storage.clearUserScope(user.uid);
+    return () => {
+      activeUidRef.current = null;
+      accountWork.invalidate(user.uid);
+      storage.clearUserScope(user.uid);
+      sharedStorage.clearUserScope(user.uid);
+    };
   }, [user.uid]);
 
   async function hydrateDietData(expectedUid, localMeals, localSettings, expectedRevision) {
@@ -395,6 +411,7 @@ export function AppProvider({ children }) {
           ...initialState.settings,
           ...loadedSettings,
           reminders: { ...defaultReminders, ...(loadedSettings.reminders || {}) },
+          waterReminders: normalizeWaterReminderSettings(loadedSettings.waterReminders),
         },
       });
       dispatch({ type: 'SET_BOOKMARKS', payload: Array.isArray(bookmarks) ? bookmarks : [] });
@@ -445,9 +462,11 @@ export function AppProvider({ children }) {
   }
 
   async function persist(operation) {
+    if (activeUidRef.current !== user.uid) throw new Error('Your sign-in changed. Please retry.');
     dispatch({ type: 'SET_SAVE_STATE', payload: { status: 'saving' } });
     try {
       const result = await operation();
+      if (activeUidRef.current !== user.uid) throw new Error('Your sign-in changed. Please retry.');
       dispatch({ type: 'SET_SAVE_STATE', payload: { status: 'saved' } });
       return result;
     } catch (error) {
@@ -515,6 +534,7 @@ export function AppProvider({ children }) {
   }
 
   async function refreshPlan(date, overrides = {}) {
+    if (activeUidRef.current !== user.uid || !accountWork.isCurrent(user.uid, accountEpoch)) return null;
     const checkin = overrides.checkin !== undefined
       ? overrides.checkin
       : state.checkins.find((item) => item.date === date) || null;
@@ -528,6 +548,7 @@ export function AppProvider({ children }) {
   }
 
   async function syncBleedingToPeriod(checkin) {
+    if (activeUidRef.current !== user.uid || !accountWork.isCurrent(user.uid, accountEpoch)) return state.periods;
     if (!['light', 'medium', 'heavy'].includes(checkin.flow)) return state.periods;
     const target = parseISO(checkin.date);
     if (!isValid(target) || target > new Date()) return state.periods;
@@ -774,28 +795,40 @@ export function AppProvider({ children }) {
   }
 
   async function saveMegConversation(conversation) {
+    if (activeUidRef.current !== user.uid || !accountWork.isCurrent(user.uid, accountEpoch) || deletingMegRef.current || megDataRevision !== megDataRevisionRef.current) {
+      throw new Error('Meg history changed. Please open a new conversation.');
+    }
     const current = state.megConversations.filter((item) => item.id !== conversation.id);
     const next = [...current, conversation];
-    await storage.setMegConversations(next);
+    await storage.setMegConversations(next, user.uid);
     dispatch({ type: 'SET_MEG_CONVERSATIONS', payload: next });
     return conversation;
   }
 
   async function deleteMegConversation(id) {
-    await persist(() => deleteCurrentUserMegConversation(id));
+    const resume = accountWork.pause(user.uid);
+    megDataRevisionRef.current += 1;
+    deletingMegRef.current = true;
+    try { await persist(() => deleteCurrentUserMegConversation(id)); }
+    finally { deletingMegRef.current = false; resume(); }
     const conversations = state.megConversations.filter((item) => item.id !== id);
-    await storage.setMegConversations(conversations);
+    await storage.setMegConversations(conversations, user.uid);
     dispatch({ type: 'SET_MEG_CONVERSATIONS', payload: conversations });
     return conversations;
   }
 
   async function clearMegHistory() {
-    await persist(() => deleteAllCurrentUserMegData());
-    await storage.setMegConversations([]);
+    const resume = accountWork.pause(user.uid);
+    megDataRevisionRef.current += 1;
+    deletingMegRef.current = true;
+    try { await persist(() => deleteAllCurrentUserMegData()); }
+    finally { deletingMegRef.current = false; resume(); }
+    await storage.setMegConversations([], user.uid);
     dispatch({ type: 'SET_MEG_CONVERSATIONS', payload: [] });
   }
 
   async function saveMegFeedback(conversationId, messageId, feedback) {
+    const version = accountWork.epoch(user.uid);
     await persist(() => updateCurrentUserMegFeedback(conversationId, messageId, feedback));
     const conversations = state.megConversations.map((conversation) => (
       conversation.id !== conversationId
@@ -807,7 +840,8 @@ export function AppProvider({ children }) {
             )),
           }
     ));
-    await storage.setMegConversations(conversations);
+    if (activeUidRef.current !== user.uid || !accountWork.isCurrent(user.uid, version)) return;
+    await storage.setMegConversations(conversations, user.uid);
     dispatch({ type: 'SET_MEG_CONVERSATIONS', payload: conversations });
   }
 
@@ -836,23 +870,27 @@ export function AppProvider({ children }) {
   }
 
   async function resetAllData() {
-    await persist(() => Promise.all([
+    const resume = accountWork.pause(user.uid);
+    megDataRevisionRef.current += 1;
+    try { await persist(async () => {
+      await deleteAllCurrentUserMegData();
+      await Promise.all([
       deleteAllCurrentUserTrackingData(),
-      deleteAllCurrentUserMegData(),
       deleteAllCurrentUserDietData(user.uid),
-      storage.deleteAllData(),
-    ]));
+      ]);
+      await storage.deleteAllData(user.uid);
+    }); } finally { resume(); }
     dispatch({ type: 'RESET_FOR_USER' });
     await loadInitialData();
   }
 
   async function deleteAllAccountData() {
+    megDataRevisionRef.current += 1;
     await persist(async () => {
       await Promise.all([
         deleteAllCurrentUserTrackingData(),
-        deleteAllCurrentUserMegData(),
+        deleteAllCurrentUserMegData({ serverAlreadyDeleted: true }),
         deleteAllCurrentUserDietData(user.uid),
-        storage.deleteAllData(),
       ]);
       await deleteCurrentUserProfileDocument();
     });

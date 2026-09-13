@@ -81,13 +81,37 @@ class InMemoryBackend {
     const memories = this.memories.filter((item) => item.userId === userId && item.conversationId === conversationId).length;
     this.messages = this.messages.filter((item) => !(item.userId === userId && item.conversationId === conversationId));
     this.memories = this.memories.filter((item) => !(item.userId === userId && item.conversationId === conversationId));
-    this.conversations.delete(conversationId);
+    if (this.conversations.get(conversationId)?.userId === userId) this.conversations.delete(conversationId);
+    this.deleteRequests(userId, conversationId);
     return { messages, memories };
+  }
+  deleteRequests(userId, conversationId) {
+    const traces = new Set();
+    for (const [key, item] of this.requests) {
+      if (item.userId === userId && (!conversationId || item.conversationId === conversationId)) {
+        if (item.responseMeta?.traceId) traces.add(item.responseMeta.traceId);
+        this.requests.delete(key);
+      }
+    }
+    this.providerMetrics = this.providerMetrics.filter((item) => !traces.has(item.traceId)
+      && !(item.userId === userId && (!conversationId || item.conversationId === conversationId)));
+  }
+  deleteUserData({ userId }) {
+    this.deleteRequests(userId);
+    this.messages = this.messages.filter((item) => item.userId !== userId);
+    this.memories = this.memories.filter((item) => item.userId !== userId);
+    for (const [id, item] of this.conversations) {
+      if (item.userId === userId) this.conversations.delete(id);
+    }
+    this.users.delete(userId);
   }
   exportUserData({ userId }) {
     return {
+      user: this.users.get(userId) || null,
+      conversations: [...this.conversations.values()].filter((item) => item.userId === userId),
       messages: this.messages.filter((item) => item.userId === userId),
-      memories: this.listMemories({ userId, limit: 10000 }),
+      memories: this.memories.filter((item) => item.userId === userId),
+      requests: [...this.requests.values()].filter((item) => item.userId === userId),
     };
   }
   close() {}
@@ -121,6 +145,7 @@ class JsonBackend extends InMemoryBackend {
   saveProviderMetric(metric) { super.saveProviderMetric(metric); this.persist(); }
   clearMemories(item) { const result = super.clearMemories(item); this.persist(); return result; }
   deleteConversation(item) { const result = super.deleteConversation(item); this.persist(); return result; }
+  deleteUserData(item) { super.deleteUserData(item); this.persist(); }
 }
 
 class MemoryStore {
@@ -151,6 +176,7 @@ class MemoryStore {
   saveProviderMetric(...args) { return this.backend.saveProviderMetric(...args); }
   clearMemories(...args) { return this.backend.clearMemories(...args); }
   deleteConversation(...args) { return this.backend.deleteConversation(...args); }
+  deleteUserData(...args) { return this.backend.deleteUserData(...args); }
   exportUserData(...args) { return this.backend.exportUserData(...args); }
   close() { return this.backend.close(); }
 }

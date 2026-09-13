@@ -6,6 +6,13 @@ import { COLORS, createThemedStyles, LAYOUT, TYPOGRAPHY, WEB_FOCUS } from '../ut
 import { notifications } from '../services/notifications';
 import ScreenHeader from '../components/ScreenHeader';
 import ScreenScaffold from '../components/ScreenScaffold';
+import {
+  generateWaterReminderTimes,
+  normalizeWaterReminderSettings,
+  waterReminderService,
+} from '../services/waterReminders';
+
+const WATER_INTERVALS = [2, 3, 4];
 
 const DEFAULT_REMINDERS = {
   checkin: { enabled: true, time: '20:00' },
@@ -85,9 +92,30 @@ function mergeReminders(saved = {}) {
   );
 }
 
+function formatClock(value) {
+  const [hour, minute] = String(value).split(':').map(Number);
+  const period = hour >= 12 ? 'PM' : 'AM';
+  return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${period}`;
+}
+
+function shiftClock(value, hours) {
+  const [hour, minute] = String(value).split(':').map(Number);
+  const total = Math.max(0, Math.min(23 * 60 + 59, hour * 60 + minute + hours * 60));
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+
+function waterScheduleSummary(settings) {
+  try {
+    return `${generateWaterReminderTimes(settings).length} quiet reminders daily · ${formatClock(settings.startTime)}–${formatClock(settings.endTime)}`;
+  } catch {
+    return 'Choose an end time later than the start time.';
+  }
+}
+
 export default function RemindersScreen({ navigation }) {
   const { state, saveSettings } = useApp();
   const [reminders, setReminders] = useState(() => mergeReminders(state.settings?.reminders));
+  const [water, setWater] = useState(() => normalizeWaterReminderSettings(state.settings?.waterReminders));
   const [busyKey, setBusyKey] = useState(null);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
@@ -99,6 +127,81 @@ export default function RemindersScreen({ navigation }) {
       }
     });
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function initializeWaterReminders() {
+      if (Platform.OS === 'web') return;
+      const current = normalizeWaterReminderSettings(state.settings?.waterReminders);
+      try {
+        let permission = await waterReminderService.permissionStatus();
+        let next = current;
+        if (current.enabled && !permission.granted && !current.permissionRequested) {
+          permission = await waterReminderService.requestNotificationPermission();
+          next = { ...current, permissionRequested: true, enabled: permission.granted };
+        } else if (current.enabled && !permission.granted) {
+          next = { ...current, enabled: false };
+        }
+        if (next.enabled && permission.granted) {
+          next = await waterReminderService.reconcileWaterReminders(next);
+        }
+        if (!active) return;
+        if (JSON.stringify(next) !== JSON.stringify(current)) {
+          await saveSettings({ waterReminders: next });
+        }
+        setWater(next);
+        if (!permission.granted && current.enabled) {
+          setError(permission.canAskAgain
+            ? 'Bloom needs notification permission before water reminders can turn on.'
+            : 'Notifications are blocked for Bloom. Enable them in your device settings, then try again.');
+        }
+      } catch {
+        if (active) setError('Bloom could not prepare water reminders. Your settings are still here.');
+      }
+    }
+    void initializeWaterReminders();
+    return () => { active = false; };
+  }, []);
+
+  async function updateWater(nextValue, successMessage, requestPermission = false) {
+    if (busyKey) return;
+    setBusyKey('water');
+    setError('');
+    setStatus('');
+    const previous = water;
+    try {
+      let next = normalizeWaterReminderSettings({ ...previous, ...nextValue });
+      generateWaterReminderTimes(next);
+      if (requestPermission && next.enabled) {
+        const permission = await waterReminderService.requestNotificationPermission();
+        next = { ...next, permissionRequested: true };
+        if (!permission.granted) {
+          next = { ...next, enabled: false, notificationIds: [], scheduleSignature: null };
+          await saveSettings({ waterReminders: next });
+          setWater(next);
+          setError(permission.canAskAgain
+            ? 'Bloom needs notification permission before water reminders can turn on.'
+            : 'Notifications are blocked for Bloom. Enable them in your device settings, then try again.');
+          return;
+        }
+      }
+      const scheduled = await waterReminderService.rescheduleWaterReminders(next, previous);
+      try {
+        await saveSettings({ waterReminders: scheduled });
+      } catch (saveError) {
+        await waterReminderService.rescheduleWaterReminders(previous, scheduled).catch(() => undefined);
+        throw saveError;
+      }
+      setWater(scheduled);
+      setStatus(successMessage);
+    } catch (updateError) {
+      setError(updateError?.message === 'End time must be later than the start time.'
+        ? updateError.message
+        : 'Bloom could not update water reminders. Please try again.');
+    } finally {
+      setBusyKey(null);
+    }
+  }
 
   async function schedule(key, reminder) {
     const config = REMINDER_CONFIGS.find((item) => item.key === key);
@@ -191,6 +294,59 @@ export default function RemindersScreen({ navigation }) {
               <Text style={styles.successText}>{status}</Text>
             </View>
           ) : null}
+
+          <View style={styles.waterIntro}>
+            <View style={styles.waterIntroIcon}><Icon name='water-outline' size={21} color={COLORS.sage} /></View>
+            <View style={styles.reminderCopy}>
+              <Text style={styles.waterIntroTitle}>Stay gently hydrated</Text>
+              <Text style={styles.waterIntroText}>Bloom can send quiet reminders during the day so you don’t have to remember on your own.</Text>
+            </View>
+          </View>
+
+          <View style={styles.waterCard}>
+            <Pressable
+              onPress={() => updateWater(
+                { enabled: !water.enabled },
+                `Water reminders turned ${water.enabled ? 'off' : 'on'}.`,
+                !water.enabled
+              )}
+              disabled={Boolean(busyKey) || Platform.OS === 'web'}
+              accessibilityRole='switch'
+              accessibilityLabel='Water reminders'
+              accessibilityState={{ checked: water.enabled, disabled: Boolean(busyKey) || Platform.OS === 'web', busy: busyKey === 'water' }}
+              style={({ pressed, hovered, focused }) => [styles.waterHeader, hovered && styles.headerHovered, focused && styles.headerFocused, pressed && styles.headerPressed]}
+            >
+              <View style={styles.iconBox}><Icon name='water-outline' size={20} color={COLORS.brand} /></View>
+              <View style={styles.reminderCopy}>
+                <Text style={styles.reminderLabel}>Water reminders</Text>
+                <Text style={styles.reminderDesc}>{Platform.OS === 'web' ? 'Available in the Bloom mobile app' : 'Quiet prompts within your active hours'}</Text>
+              </View>
+              <View style={[styles.switchTrack, water.enabled && styles.switchTrackActive]}>
+                <View style={[styles.switchKnob, water.enabled && styles.switchKnobActive]}>
+                  {water.enabled ? <Icon name='checkmark' size={12} color={COLORS.brand} /> : null}
+                </View>
+              </View>
+            </Pressable>
+
+            <View style={[styles.waterControls, !water.enabled && styles.controlsDisabled]} pointerEvents={water.enabled ? 'auto' : 'none'}>
+              <Text style={styles.controlLabel}>Remind me every</Text>
+              <View style={styles.intervalRow} accessibilityRole='radiogroup'>
+                {WATER_INTERVALS.map((hours) => {
+                  const selected = water.intervalHours === hours;
+                  return <Pressable key={hours} onPress={() => updateWater({ intervalHours: hours }, `Water reminders will arrive every ${hours} hours.`)} disabled={Boolean(busyKey)} accessibilityRole='radio' accessibilityState={{ checked: selected, disabled: Boolean(busyKey) }} style={({ pressed, focused }) => [styles.intervalButton, selected && styles.intervalButtonSelected, focused && styles.focusedControl, pressed && styles.pressed]}><Text style={[styles.intervalText, selected && styles.intervalTextSelected]}>{hours} hours</Text></Pressable>;
+                })}
+              </View>
+
+              <Text style={styles.controlLabel}>Active hours</Text>
+              <View style={styles.activeHours}>
+                <TimeControl label='Start' value={water.startTime} disabled={Boolean(busyKey)} onEarlier={() => updateWater({ startTime: shiftClock(water.startTime, -1) }, `Active hours now begin at ${formatClock(shiftClock(water.startTime, -1))}.`)} onLater={() => updateWater({ startTime: shiftClock(water.startTime, 1) }, `Active hours now begin at ${formatClock(shiftClock(water.startTime, 1))}.`)} />
+                <TimeControl label='End' value={water.endTime} disabled={Boolean(busyKey)} onEarlier={() => updateWater({ endTime: shiftClock(water.endTime, -1) }, `Active hours now end at ${formatClock(shiftClock(water.endTime, -1))}.`)} onLater={() => updateWater({ endTime: shiftClock(water.endTime, 1) }, `Active hours now end at ${formatClock(shiftClock(water.endTime, 1))}.`)} />
+              </View>
+              <Text style={styles.scheduleSummary}>{waterScheduleSummary(water)}</Text>
+            </View>
+          </View>
+
+          <Text style={styles.otherHeading}>Other reminders</Text>
 
           <View style={styles.list}>
             {REMINDER_CONFIGS.map((config, index) => {
@@ -285,6 +441,19 @@ export default function RemindersScreen({ navigation }) {
   );
 }
 
+function TimeControl({ label, value, disabled, onEarlier, onLater }) {
+  return (
+    <View style={styles.timeControl}>
+      <Text style={styles.timeControlLabel}>{label}</Text>
+      <View style={styles.timeControlRow}>
+        <Pressable onPress={onEarlier} disabled={disabled} accessibilityRole='button' accessibilityLabel={`Move ${label.toLowerCase()} time one hour earlier`} style={({ pressed, focused }) => [styles.compactTimeButton, focused && styles.focusedControl, pressed && styles.pressed]}><Icon name='remove' size={18} color={COLORS.ink} /></Pressable>
+        <Text style={styles.waterTime}>{formatClock(value)}</Text>
+        <Pressable onPress={onLater} disabled={disabled} accessibilityRole='button' accessibilityLabel={`Move ${label.toLowerCase()} time one hour later`} style={({ pressed, focused }) => [styles.compactTimeButton, focused && styles.focusedControl, pressed && styles.pressed]}><Icon name='add' size={18} color={COLORS.ink} /></Pressable>
+      </View>
+    </View>
+  );
+}
+
 function BackButton({ onPress }) {
   return (
     <Pressable
@@ -315,6 +484,28 @@ const styles = createThemedStyles({
   errorText: { flex: 1, ...TYPOGRAPHY.supporting, color: COLORS.error },
   successState: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, marginBottom: 12, padding: 14, borderRadius: LAYOUT.controlRadius, backgroundColor: COLORS.sageLight },
   successText: { flex: 1, ...TYPOGRAPHY.supporting, color: COLORS.body },
+  waterIntro: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 14, padding: 16, borderRadius: LAYOUT.cardRadius, backgroundColor: COLORS.sageLight },
+  waterIntroIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.canvas },
+  waterIntroTitle: { ...TYPOGRAPHY.componentTitle, color: COLORS.ink },
+  waterIntroText: { marginTop: 3, ...TYPOGRAPHY.supporting, color: COLORS.body },
+  waterCard: { overflow: 'hidden', marginBottom: 24, borderWidth: 1, borderColor: COLORS.hairline, borderRadius: LAYOUT.cardRadius, backgroundColor: COLORS.canvas },
+  waterHeader: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 14 },
+  waterControls: { gap: 12, padding: 16, borderTopWidth: 1, borderTopColor: COLORS.hairline, backgroundColor: COLORS.surfaceSoft },
+  controlsDisabled: { opacity: 0.5 },
+  controlLabel: { ...TYPOGRAPHY.supporting, fontWeight: '700', color: COLORS.ink },
+  intervalRow: { flexDirection: 'row', gap: 8 },
+  intervalButton: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.hairline, borderRadius: LAYOUT.controlRadius, backgroundColor: COLORS.canvas },
+  intervalButtonSelected: { borderColor: COLORS.brand, backgroundColor: COLORS.brandSoft },
+  intervalText: { ...TYPOGRAPHY.supporting, fontWeight: '600', color: COLORS.body },
+  intervalTextSelected: { color: COLORS.brand },
+  activeHours: { gap: 10 },
+  timeControl: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  timeControlLabel: { ...TYPOGRAPHY.supporting, color: COLORS.body },
+  timeControlRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  compactTimeButton: { width: 44, height: 44, borderWidth: 1, borderColor: COLORS.hairline, borderRadius: LAYOUT.controlRadius, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.canvas },
+  waterTime: { width: 74, ...TYPOGRAPHY.supporting, fontWeight: '700', color: COLORS.ink, textAlign: 'center', fontVariant: ['tabular-nums'] },
+  scheduleSummary: { ...TYPOGRAPHY.caption, color: COLORS.muted },
+  otherHeading: { marginBottom: 10, ...TYPOGRAPHY.sectionTitle, color: COLORS.ink },
   list: {
     overflow: 'hidden',
     borderWidth: 1,

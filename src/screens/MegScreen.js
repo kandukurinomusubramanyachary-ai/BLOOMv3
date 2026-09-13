@@ -720,6 +720,7 @@ export default function MegScreen({ route, navigation }) {
         : [];
       const providerStartedAt = Date.now();
       const result = await megService.send({
+        accountUid: user?.uid,
         getIdToken: user ? () => user.getIdToken() : undefined,
         message: request.message,
         conversationId: request.conversationId,

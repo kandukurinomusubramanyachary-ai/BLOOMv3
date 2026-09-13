@@ -1,5 +1,7 @@
 # Bloom Strength
 
+Phone setup and the current browser validation procedure: [PHONE_TESTING.md](../../../docs/strength/PHONE_TESTING.md).
+
 Strength replaces the former Insights tab when `EXPO_PUBLIC_BLOOM_STRENGTH=1` on web. When disabled, the primary navigation contains four tabs.
 
 ## Reachable flows (current)

@@ -14,6 +14,7 @@ function exportPayload(state = {}) {
     MEDICATIONS: Array.isArray(state.medications) ? state.medications : [],
     DAILY_PLANS: Array.isArray(state.dailyPlans) ? state.dailyPlans : [],
     MEG_CONVERSATIONS: Array.isArray(state.megConversations) ? state.megConversations : [],
+    MEG_V2: state.megV2Data || null,
     DOCTOR_REPORT_SETTINGS: state.doctorReportSettings || null,
     SETTINGS: state.settings || null,
     AFFIRMATIONS: null,
@@ -24,7 +25,8 @@ function exportPayload(state = {}) {
 
 function csvCell(value) {
   const text = Array.isArray(value) ? value.join(';') : String(value ?? '');
-  return `"${text.replace(/"/g, '""')}"`;
+  const safeText = /^[\s]*[=+@-]/.test(text) ? `'${text}` : text;
+  return `"${safeText.replace(/"/g, '""')}"`;
 }
 
 function ascii(value) {

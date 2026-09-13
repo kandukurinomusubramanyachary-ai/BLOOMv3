@@ -4,6 +4,11 @@
 .git
 .expo
 node_modules
+**/node_modules
+meg-engine-v2/data
+**/*.db
+**/*.db-wal
+**/*.db-shm
 dist
 web-build
 coverage

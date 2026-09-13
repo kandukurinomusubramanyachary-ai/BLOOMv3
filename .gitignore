@@ -1,5 +1,6 @@
 node_modules/
 .expo/
+.impeccable/review/
 dist/
 dist-*/
 web-build/

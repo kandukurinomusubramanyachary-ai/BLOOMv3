@@ -21,15 +21,30 @@ export function configureNotificationHandler() {
 }
 
 class NotificationService {
-  async requestPermissions() {
+  async getPermissionStatus() {
     configureNotificationHandler();
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-    return finalStatus === 'granted';
+    const permission = await Notifications.getPermissionsAsync();
+    return {
+      status: permission.status,
+      granted: permission.granted === true || permission.status === 'granted',
+      canAskAgain: permission.canAskAgain !== false,
+    };
+  }
+
+  async requestPermission() {
+    configureNotificationHandler();
+    const existing = await this.getPermissionStatus();
+    if (existing.granted || !existing.canAskAgain) return existing;
+    const permission = await Notifications.requestPermissionsAsync();
+    return {
+      status: permission.status,
+      granted: permission.granted === true || permission.status === 'granted',
+      canAskAgain: permission.canAskAgain !== false,
+    };
+  }
+
+  async requestPermissions() {
+    return (await this.requestPermission()).granted;
   }
 
   async scheduleReminder(identifier, title, body, hour, minute, repeats = true, weekday = null) {
@@ -82,6 +97,25 @@ class NotificationService {
     return Notifications.getAllScheduledNotificationsAsync();
   }
 
+  async scheduleDailyReminder({ identifier, title, body, hour, minute, channelId, data }) {
+    configureNotificationHandler();
+    const trigger = { hour, minute, repeats: true };
+    if (Platform.OS === 'android' && channelId) trigger.channelId = channelId;
+    return Notifications.scheduleNotificationAsync({
+      identifier,
+      content: {
+        title,
+        body,
+        data,
+        sound: false,
+        ...(Platform.OS === 'android'
+          ? { priority: Notifications.AndroidNotificationPriority.DEFAULT }
+          : {}),
+      },
+      trigger,
+    });
+  }
+
   async setupAndroidChannel() {
     configureNotificationHandler();
     if (Platform.OS === 'android') {
@@ -92,6 +126,20 @@ class NotificationService {
         lightColor: '#C0755A',
         sound: null,
         enableVibrate: false,
+      });
+    }
+  }
+
+  async setupWaterReminderChannel() {
+    configureNotificationHandler();
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('bloom-water-reminders', {
+        name: 'Water reminders',
+        importance: Notifications.AndroidImportance.DEFAULT,
+        sound: null,
+        enableVibrate: false,
+        vibrationPattern: [0],
+        lightColor: '#C0755A',
       });
     }
   }

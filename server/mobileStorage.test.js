@@ -50,6 +50,31 @@ function loadStorageModule(storageBackend, secureBackend = createMemorySecureSto
   return moduleValue.exports;
 }
 
+test('account cleanup after sign-out targets the captured UID, never the newly signed-in account', async () => {
+  const backend = createMemoryStorage();
+  const { storage } = loadStorageModule(backend);
+  storage.setUserScope('alice');
+  await storage.setMegConversations([{ id: 'alice-chat' }]);
+  storage.setUserScope('bob');
+  await storage.setMegConversations([{ id: 'bob-chat' }]);
+  await storage.deleteAllData('alice');
+  assert.deepEqual(await storage.getMegConversations(), [{ id: 'bob-chat' }]);
+  storage.setUserScope('alice');
+  assert.equal(await storage.getMegConversations(), null);
+});
+
+test('UID-bound storage keeps multi-step callbacks isolated after a global account switch', async () => {
+  const backend = createMemoryStorage();
+  const { storage } = loadStorageModule(backend);
+  const alice = storage.forUser('alice');
+  storage.setUserScope('bob');
+  await storage.setSettings({ theme: 'dark' });
+  await alice.setSettings({ theme: 'light' });
+  await alice.setMegConversations([{ id: 'private' }]);
+  assert.deepEqual(await storage.getSettings(), { theme: 'dark' });
+  assert.equal(await storage.getMegConversations(), null);
+});
+
 test('storage JSON and AsyncStorage safety helpers return controlled fallbacks', async () => {
   const backend = createMemoryStorage();
   const helpers = loadStorageModule(backend);
@@ -159,4 +184,20 @@ test('theme preference and Strength outbox remain isolated by signed-in UID', as
   storage.setUserScope('user-a');
   assert.equal((await storage.getSettings()).theme, 'dark');
   assert.equal((await storage.getStrengthOutbox())[0].summary.id, 'strength-a');
+});
+
+test('water reminder settings persist in existing account-scoped settings storage', async () => {
+  const backend = createMemoryStorage();
+  const { storage } = loadStorageModule(backend);
+  storage.setUserScope('water-user');
+  const waterReminders = {
+    enabled: true,
+    intervalHours: 3,
+    startTime: '08:00',
+    endTime: '23:00',
+    notificationIds: ['bloom-water-reminders-example'],
+  };
+
+  await storage.setSettings({ waterReminders });
+  assert.deepEqual((await storage.getSettings()).waterReminders, waterReminders);
 });

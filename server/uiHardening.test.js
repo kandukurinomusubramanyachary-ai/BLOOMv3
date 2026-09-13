@@ -138,16 +138,23 @@ test('custom bottom navigation clears the mobile keyboard and protects narrow la
 test('Strength web defaults to pose tracking with a reachable guided fallback; native stays camera-free guided', () => {
   const webScreen = read('src/features/strength/StrengthScreen.web.js');
   const nativeScreen = read('src/features/strength/StrengthScreen.js');
+  const experience = read('src/features/strength/StrengthExperience.js');
+  const guidedEntry = read('src/features/strength/GuidedStrengthScreen.js');
   const eng = read('src/features/strength/guidedSessionEngine.js');
 
   // Web is pose-first: it drives the camera + engine, not a bare guided re-export.
   assert.match(webScreen, /TrackedStrengthScreen/);
   assert.doesNotMatch(webScreen, /^export \{ default \} from '\.\/GuidedStrengthScreen'/);
   // ...but the camera-free guided session stays reachable as an explicit fallback.
-  assert.match(webScreen, /SessionPlayer/);
-  assert.match(webScreen, /handleFallbackGuided/);
+  assert.match(webScreen, /TrackedPlayer=\{TrackedStrengthScreen\}/);
+  assert.match(experience, /import SessionPlayer from '\.\/components\/SessionPlayer'/);
+  assert.match(experience, /TrackedPlayer && !run\.guided && modeForExercise\(exercise\.id\) === 'pose'/);
+  assert.match(experience, /const Player = pose \? TrackedPlayer : SessionPlayer/);
+  assert.match(experience, /onFallback=\{\(\) => setRun\(current => \(\{ \.\.\.current, guided: true \}\)\)\}/);
   // Native resolves to the camera-free guided experience (no native pose module).
   assert.match(nativeScreen, /GuidedStrengthScreen/);
+  assert.match(guidedEntry, /export \{ default \} from '\.\/StrengthExperience'/);
+  assert.doesNotMatch(guidedEntry, /TrackedPlayer/);
   // The live guided engine must not try to acquire/release a camera or rep-velocity lock.
   assert.doesNotMatch(eng, /leaveCamera|resetRuntime|requestCamera|getUserMedia|CameraView/);
   // A guided session must be resettable and rest-skippable so a retry never holds stale state.

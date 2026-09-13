@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import { AppState, Platform } from 'react-native';
 import { reducer, initialState, COUNTDOWN_SEC, TICK_MS } from './guidedSessionEngine';
 
 // Deterministic, camera-free guided-workout timing engine.
@@ -46,11 +47,28 @@ export function useGuidedSession(exercise, sets) {
   const pause = useCallback(() => dispatch({ type: 'PAUSE' }), []);
   const resume = useCallback(() => dispatch({ type: 'RESUME' }), []);
   const skipRest = useCallback(() => dispatch({ type: 'SKIP_REST' }), []);
+  const addRest = useCallback(() => dispatch({ type: 'ADD_REST' }), []);
   const reset = useCallback(() => dispatch({ type: 'RESET', exercise, sets }), [exercise, sets]);
 
+  // Backgrounded time is never presented as exercise completed. Returning
+  // to Bloom leaves the session paused until the user explicitly resumes.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (next) => {
+      if (next !== 'active') pause();
+    });
+    const document = Platform.OS === 'web' ? globalThis.document : null;
+    const onVisibility = () => { if (document?.hidden) pause(); };
+    document?.addEventListener('visibilitychange', onVisibility);
+    onVisibility();
+    return () => {
+      subscription.remove();
+      document?.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [pause]);
+
   const controls = useMemo(
-    () => ({ start, pause, resume, skipRest, reset }),
-    [start, pause, resume, skipRest, reset]
+    () => ({ start, pause, resume, skipRest, addRest, reset }),
+    [start, pause, resume, skipRest, addRest, reset]
   );
 
   return { state, controls };

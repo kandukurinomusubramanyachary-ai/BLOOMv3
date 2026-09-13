@@ -115,7 +115,13 @@ function createRepStateMachine(exerciseConfig, baseline = {}, options = {}) {
     return { events, state, reps, measurements };
   }
 
-  return { process, reset, snapshot: () => ({ state, reps, pausedReason }) };
+  function interrupt() {
+    const accepted = reps;
+    reset();
+    reps = accepted;
+  }
+
+  return { process, reset, interrupt, snapshot: () => ({ state, reps, pausedReason }) };
 }
 
 module.exports = { createRepStateMachine };

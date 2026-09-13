@@ -99,7 +99,17 @@ test('Today launch and check-in save retain duplicate and recoverable-error guar
   assert.match(checkinSource, /typeof existingCheckin\?\.medication\?\.name === 'string'/);
   assert.match(checkinSource, /Try saving again/);
   assert.ok(
-    checkinSource.indexOf('try {\n      const movementValue = movement.trim();') >= 0,
+    /try \{\r?\n      const movementValue = movement\.trim\(\);/.test(checkinSource),
     'draft preparation must remain inside the recoverable save boundary'
   );
+});
+
+test('Today header keeps profile access without duplicating Timeline calendar access', () => {
+  const todaySource = fs.readFileSync(
+    path.join(projectRoot, 'src/screens/TodayScreen.js'),
+    'utf8'
+  );
+
+  assert.match(todaySource, /accessibilityLabel='Open your profile'/);
+  assert.doesNotMatch(todaySource, /accessibilityLabel='Open calendar timeline'/);
 });

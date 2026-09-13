@@ -1,16 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
-import { createThemedStyles } from '../../../utils/constants';
-import { STRENGTH_COPY, STRENGTH_DEFAULTS } from '../constants';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import Icon from '../../../components/Icon';
+import { STRENGTH_COPY } from '../constants';
 import { createLandmarkSmoother, estimateBodyHeight } from '../engine/landmarkSmoothing';
 import { createPoseDetector } from '../services/PoseDetector.web';
+import { startCameraSession } from '../services/cameraSession';
 import PoseOverlay from './PoseOverlay.web';
 
 export default function CameraStage({ active, inferenceActive, showSkeleton = true, showIndicator = true, style, onFrame, onReady, onError }) {
   const videoRef = useRef(null);
   const overlayRef = useRef(null);
-  const streamRef = useRef(null);
-  const detectorRef = useRef(null);
   const callbackRef = useRef({ onFrame, onReady, onError });
   const settingsRef = useRef({ inferenceActive, showSkeleton });
   const [loading, setLoading] = useState(false);
@@ -19,109 +18,48 @@ export default function CameraStage({ active, inferenceActive, showSkeleton = tr
 
   useEffect(() => {
     if (!active) return undefined;
-    let cancelled = false;
-    let fatalErrorReported = false;
-    let animationFrame = null;
-    let lastSampleAt = -Infinity;
     const smoother = createLandmarkSmoother();
     setLoading(true);
-
-    const reportFatalError = (error) => {
-      if (cancelled || fatalErrorReported) return;
-      fatalErrorReported = true;
-      callbackRef.current.onError?.(error);
-    };
-
-    async function start() {
-      try {
-        if (!navigator.mediaDevices?.getUserMedia) throw new Error('unsupported');
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: 'user', width: { ideal: 960 }, height: { ideal: 720 } } });
-        streamRef.current = stream;
-        const detector = await createPoseDetector();
-        if (cancelled) { stream.getTracks().forEach((track) => track.stop()); detector.close(); return; }
-        detectorRef.current = detector;
-        const video = videoRef.current;
-        video.srcObject = stream;
-        await video.play();
-        setLoading(false);
-        callbackRef.current.onReady?.();
-
-        const sample = (now) => {
-          if (cancelled || fatalErrorReported) return;
-          animationFrame = window.requestAnimationFrame(sample);
-          const interval = 1000 / STRENGTH_DEFAULTS.sampleRate;
-          if (now - lastSampleAt < interval) return;
-          lastSampleAt = now;
-          if (settingsRef.current.inferenceActive && video.readyState >= 2 && video.videoWidth > 0) {
-            try {
-              const result = detector.detect(video, now);
-              const raw = result.poses[0] || [];
-              const landmarks = smoother.smooth(raw, now, estimateBodyHeight(raw));
-              if (settingsRef.current.showSkeleton) {
-                overlayRef.current?.draw({
-                  landmarks,
-                  sourceWidth: result.sourceWidth,
-                  sourceHeight: result.sourceHeight,
-                  mirrored: true,
-                });
-              } else overlayRef.current?.clear();
-              callbackRef.current.onFrame?.({
-                ts: now,
-                poseCount: result.poses.length,
-                poses: result.poses,
-                landmarks,
-                latencyMs: result.latencyMs,
-                sourceWidth: result.sourceWidth,
-                sourceHeight: result.sourceHeight,
-              });
-            } catch (error) {
-              reportFatalError(error);
-            }
-          } else overlayRef.current?.clear();
-        };
-        animationFrame = window.requestAnimationFrame(sample);
-      } catch (error) {
-        streamRef.current?.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-        if (cancelled) return;
-        setLoading(false);
-        reportFatalError(error);
-      }
-    }
-    start();
-    return () => {
-      cancelled = true;
-      if (animationFrame) window.cancelAnimationFrame(animationFrame);
-      detectorRef.current?.close(); detectorRef.current = null;
-      smoother.reset();
-      streamRef.current?.getTracks().forEach((track) => track.stop()); streamRef.current = null;
-      if (videoRef.current) videoRef.current.srcObject = null;
-    };
+    const session = startCameraSession({
+      video: videoRef.current,
+      createDetector: createPoseDetector,
+      settings: () => settingsRef.current,
+      onReady: () => { setLoading(false); callbackRef.current.onReady?.(); },
+      onError: error => { setLoading(false); callbackRef.current.onError?.(error); },
+      onFrame: result => {
+        const raw = result.poses[0] || [];
+        const landmarks = smoother.smooth(raw, result.ts, estimateBodyHeight(raw));
+        if (settingsRef.current.showSkeleton) {
+          overlayRef.current?.draw({ ...result, landmarks, mirrored: true, fit: 'contain' });
+        } else overlayRef.current?.clear();
+        callbackRef.current.onFrame?.({ ...result, landmarks, poseCount: result.poses.length });
+      },
+    });
+    return () => { session.stop(); smoother.reset(); overlayRef.current?.clear(); };
   }, [active]);
 
   useEffect(() => {
-    if (!showSkeleton) overlayRef.current?.clear();
-  }, [showSkeleton]);
+    if (!showSkeleton || !inferenceActive) overlayRef.current?.clear();
+  }, [showSkeleton, inferenceActive]);
 
   return (
     <View style={[styles.stage, style]} accessibilityLabel='Private camera preview'>
-      <video ref={videoRef} muted playsInline style={webStyles.video} />
+      <video ref={videoRef} muted playsInline autoPlay disablePictureInPicture style={webStyles.video} />
       <PoseOverlay ref={overlayRef} />
-      {loading ? <View style={styles.loading}><ActivityIndicator color='#F7F4F5' /><Text style={styles.loadingText}>Preparing private camera guidance…</Text></View> : null}
-      {showIndicator ? <View style={styles.indicator}><View style={styles.dot} /><Text style={styles.indicatorText}>{STRENGTH_COPY.activeCamera}</Text></View> : null}
+      {loading ? <View style={styles.loading} accessibilityState={{ busy: true }}><ActivityIndicator color='#F7F4F5' /><Text style={styles.loadingText}>Getting your movement tracker ready…</Text></View> : null}
+      {showIndicator && active && !loading ? <View style={styles.indicator} accessible accessibilityLabel={STRENGTH_COPY.activeCamera}><Icon name='shield-checkmark-outline' size={16} color='#D9E6D4' /><Text style={styles.indicatorText}>Camera on · stays on this device</Text></View> : null}
     </View>
   );
 }
 
 const webStyles = {
-  video: { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' },
+  video: { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', transform: 'scaleX(-1)' },
 };
 
-const styles = createThemedStyles({
+const styles = StyleSheet.create({
   stage: { position: 'relative', width: '100%', height: '100%', overflow: 'hidden', borderRadius: 16, backgroundColor: '#121113' },
-  loading: { position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: 'rgba(18,17,19,0.82)' },
-  loadingText: { color: '#F7F4F5', fontSize: 14, lineHeight: 20 },
-  indicator: { position: 'absolute', top: 12, left: 12, right: 12, minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 11, borderRadius: 12, backgroundColor: 'rgba(18,17,19,0.78)' },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#9DB296' },
-  indicatorText: { flex: 1, color: '#F7F4F5', fontSize: 11, lineHeight: 15, fontWeight: '600' },
+  loading: { position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 20, backgroundColor: 'rgba(18,17,19,0.82)' },
+  loadingText: { color: '#F7F4F5', fontSize: 16, lineHeight: 24, textAlign: 'center' },
+  indicator: { position: 'absolute', top: 12, left: 12, right: 12, minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: 'rgba(18,17,19,0.88)' },
+  indicatorText: { flex: 1, color: '#F7F4F5', fontSize: 13, lineHeight: 18, fontWeight: '500' },
 });

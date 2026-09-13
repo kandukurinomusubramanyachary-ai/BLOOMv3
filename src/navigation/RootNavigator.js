@@ -17,6 +17,7 @@ import MovementScreen from '../screens/MovementScreen';
 import DoctorReportScreen from '../screens/DoctorReportScreen';
 import SplashScreen from '../screens/SplashScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import LegalScreen from '../screens/LegalScreen';
 import AppLockModal from '../components/AppLockModal';
 import { useReducedMotion } from '../components/Motion';
 import { COLORS, navigationColorsForTheme } from '../utils/constants';
@@ -135,6 +136,7 @@ export default function RootNavigator() {
           }}
         >
           <Stack.Screen name="Main" component={MainTabNavigator} />
+          <Stack.Screen name="Legal" component={LegalScreen} />
           <Stack.Screen name="DayDetail" component={DayDetailScreen} />
           <Stack.Screen name="LogPeriod" component={LogPeriodScreen} />
           <Stack.Screen name="PrivacySettings" component={PrivacySettingsScreen} />

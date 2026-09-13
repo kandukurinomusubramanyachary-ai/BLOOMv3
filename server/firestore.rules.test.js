@@ -10,8 +10,10 @@ const {
 } = require('@firebase/rules-unit-testing');
 const {
   deleteDoc,
+  collection,
   doc,
   getDoc,
+  getDocs,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -362,4 +364,45 @@ test('waitlist records cannot be read, updated, or deleted by clients', async ()
   await assertFails(updateDoc(signedInReference, { firstName: 'Changed' }));
   await assertFails(deleteDoc(publicReference));
   await assertFails(deleteDoc(signedInReference));
+});
+
+test('all private paths reject another user and anonymous reads, lists, creates, updates and deletes', async () => {
+  const fixtures = [
+    ['users/user-a', { firstName: 'Asha' }],
+    ['users/user-a/cycleLogs/cycle', validCycleLog()],
+    ['users/user-a/checkIns/checkin', validCheckIn()],
+    ['users/user-a/dietProfile/main', validDietProfile()],
+    ['users/user-a/mealLogs/meal-1', validMealLog()],
+    ['users/user-a/mealReflections/meal-1', validMealReflection()],
+    ['users/user-a/dietObservations/diet-observation-steady', validDietObservation()],
+    ['users/user-a/strengthSessions/strength-1', validStrengthSession()],
+    ['users/user-a/megConversations/chat', { title: 'Private chat' }],
+    ['users/user-a/megConversations/chat/messages/message', { role: 'user', text: 'Private message' }],
+  ];
+  await testEnvironment.withSecurityRulesDisabled(async (context) => {
+    for (const [location, value] of fixtures) await setDoc(doc(context.firestore(), location), value);
+  });
+  for (const client of [testEnvironment.authenticatedContext('user-b'), testEnvironment.unauthenticatedContext()]) {
+    const db = client.firestore();
+    for (const [location, value] of fixtures) {
+      const reference = doc(db, location);
+      await assertFails(getDoc(reference));
+      await assertFails(getDocs(collection(db, location.split('/').slice(0, -1).join('/'))));
+      await assertFails(setDoc(reference, value));
+      await assertFails(updateDoc(reference, { title: 'unauthorized' }));
+      await assertFails(deleteDoc(reference));
+    }
+  }
+});
+
+test('Meg conversation/message owner can restore history, update feedback and delete it', async () => {
+  const db = testEnvironment.authenticatedContext('meg-owner').firestore();
+  const conversation = doc(db, 'users/meg-owner/megConversations/chat');
+  const message = doc(db, 'users/meg-owner/megConversations/chat/messages/one');
+  await assertSucceeds(setDoc(conversation, { title: 'My conversation' }));
+  await assertSucceeds(setDoc(message, { role: 'assistant', text: 'Fixture', feedback: null }));
+  await assertSucceeds(getDocs(collection(conversation, 'messages')));
+  await assertSucceeds(updateDoc(message, { feedback: 'helpful' }));
+  await assertSucceeds(deleteDoc(message));
+  await assertSucceeds(deleteDoc(conversation));
 });

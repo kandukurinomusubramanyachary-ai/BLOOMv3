@@ -1,6 +1,7 @@
 import { auth } from './firebase';
 import { MEG_QA_FAILURE_CATEGORY } from './megQaTiming';
 const { resolveMegApiBaseUrl } = require('./megUrlPolicy');
+const accountWork = require('./accountWork');
 
 const MODE_IDS = {
   LISTEN: 'listen',
@@ -313,6 +314,9 @@ export function createLocalMegApiProvider({
       }
 
       const tokenStartedAt = qaTiming?.mark();
+      const work = accountWork.request(request?.accountUid || currentUser?.uid || 'preview');
+      const timeout = setTimeout(work.abort, timeoutMs);
+      try {
       let idToken;
       try {
         idToken = await getIdToken();
@@ -323,9 +327,7 @@ export function createLocalMegApiProvider({
         throw error;
       }
 
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
-      try {
+      work.check();
         const httpStartedAt = qaTiming?.mark();
         let response;
         try {
@@ -346,7 +348,7 @@ export function createLocalMegApiProvider({
               context: cleanMegContextForRequest(request?.context),
               history: apiHistory([...(request?.memory || []), ...(request?.history || [])], message),
             }),
-            signal: controller.signal,
+            signal: work.signal,
           });
         } catch (error) {
           qaTiming?.recordDuration('client_http_total_ms', httpStartedAt);
@@ -368,13 +370,16 @@ export function createLocalMegApiProvider({
           qaTiming?.setFailure(response.status === 401
             ? MEG_QA_FAILURE_CATEGORY.AUTH
             : MEG_QA_FAILURE_CATEGORY.UNKNOWN);
-          throw new Error(payload?.error || `Meg V2 returned ${response.status}.`);
+          const error = new Error('Meg could not complete this request.');
+          error.status = response.status;
+          throw error;
         }
         if (typeof payload?.message !== 'string' || !payload.message.trim()) {
           qaTiming?.setFailure(MEG_QA_FAILURE_CATEGORY.PARSE);
           throw new Error('Meg V2 returned an empty response.');
         }
 
+        work.check();
         return {
           text: payload.message.trim(),
           conversationId: safeResponseString(payload.conversationId) || safeResponseString(request?.conversationId),
@@ -387,6 +392,7 @@ export function createLocalMegApiProvider({
         };
       } finally {
         clearTimeout(timeout);
+        work.close();
       }
     },
   };
@@ -426,7 +432,11 @@ export function createMegService({ provider } = {}) {
         if (!result?.text) throw new Error('Meg V2 returned an empty response.');
         return urgent ? { ...result, safety: result.safety || urgent.kind, urgent: true } : result;
       } catch (error) {
-        throw new MegServiceError("Meg couldn't respond right now. Please try again.", error);
+        const message = error?.status === 401 ? 'Please sign in again, then retry your message.'
+          : error?.status === 429 ? 'Meg needs a short pause. Wait a little, then retry your message.'
+          : isOfflineError(error) ? 'Meg could not connect. Your message is still here; check your connection and retry.'
+          : "Meg couldn't respond right now. Please try again.";
+        throw new MegServiceError(message, error);
       }
     },
   };

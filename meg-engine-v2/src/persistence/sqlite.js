@@ -3,6 +3,8 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 
 const METRIC_COLUMNS = {
+  user_id: 'TEXT',
+  conversation_id: 'TEXT',
   context_ms: 'INTEGER',
   input_token_estimate: 'INTEGER',
   output_token_estimate: 'INTEGER',
@@ -30,6 +32,7 @@ class SQLiteStore {
     this.db = new Database(resolved);
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('busy_timeout = 2500');
+    this.db.pragma('secure_delete = ON');
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS conversations (
@@ -80,7 +83,8 @@ class SQLiteStore {
     this.ensureUser(userId);
     const now = new Date().toISOString();
     this.db.prepare(`INSERT INTO conversations (id, user_id, created_at, updated_at) VALUES (?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET updated_at = excluded.updated_at`).run(conversationId, userId, now, now);
+      ON CONFLICT(id) DO UPDATE SET updated_at = excluded.updated_at
+      WHERE conversations.user_id = excluded.user_id`).run(conversationId, userId, now, now);
   }
 
   beginRequest({ userId, conversationId, messageId, requestHash, staleAfterMs = 120000 }) {
@@ -152,15 +156,15 @@ class SQLiteStore {
     this.db.prepare(`INSERT INTO provider_metrics (
       id, trace_id, provider, route, intent, provider_latency_ms, ttft_ms, total_ms, fallbacks,
       token_estimate, input_token_estimate, output_token_estimate, context_ms, memory_retrieval_ms, provider_connect_ms, generation_ms, persistence_ms,
-      retry_count, cache_hit, safety_trigger, revision_trigger, engine_version, prompt_version, router_version, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      retry_count, cache_hit, safety_trigger, revision_trigger, engine_version, prompt_version, router_version, user_id, conversation_id, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
       randomUUID(), metric.traceId, metric.provider || null, metric.route || null, metric.intent || null,
       metric.providerLatencyMs || null, metric.ttftMs || null, metric.totalMs || null, metric.fallbacks || 0,
       metric.tokenEstimate || metric.outputTokenEstimate || 0, metric.inputTokenEstimate || null, metric.outputTokenEstimate || metric.tokenEstimate || 0,
       metric.contextMs || null, metric.memoryRetrievalMs || null, metric.providerConnectMs || null,
       metric.generationMs || null, metric.persistenceMs || null, metric.retries || 0, metric.cacheHit ? 1 : 0,
       metric.safetyTriggered ? 1 : 0, metric.revisionTriggered ? 1 : 0, metric.engineVersion || null,
-      metric.promptVersion || null, metric.routerVersion || null, new Date().toISOString(),
+      metric.promptVersion || null, metric.routerVersion || null, metric.userId || null, metric.conversationId || null, new Date().toISOString(),
     );
   }
 
@@ -171,6 +175,7 @@ class SQLiteStore {
 
   deleteConversation({ userId, conversationId }) {
     const transaction = this.db.transaction(() => {
+      this.deleteRequests(userId, conversationId);
       const messages = this.db.prepare('DELETE FROM messages WHERE user_id = ? AND conversation_id = ?').run(userId, conversationId).changes;
       const memories = this.db.prepare('DELETE FROM memories WHERE user_id = ? AND conversation_id = ?').run(userId, conversationId).changes;
       this.db.prepare('DELETE FROM conversations WHERE user_id = ? AND id = ?').run(userId, conversationId);
@@ -181,9 +186,34 @@ class SQLiteStore {
 
   exportUserData({ userId }) {
     return {
+      user: this.db.prepare('SELECT * FROM users WHERE id = ?').get(userId) || null,
+      conversations: this.db.prepare('SELECT * FROM conversations WHERE user_id = ?').all(userId),
       messages: this.db.prepare('SELECT * FROM messages WHERE user_id = ? ORDER BY created_at').all(userId),
-      memories: this.listMemories({ userId, limit: 10000 }),
+      memories: this.db.prepare('SELECT * FROM memories WHERE user_id = ?').all(userId),
+      requests: this.db.prepare('SELECT * FROM request_dedup WHERE user_id = ?').all(userId),
     };
+  }
+
+  deleteRequests(userId, conversationId) {
+    const where = conversationId ? 'user_id = ? AND conversation_id = ?' : 'user_id = ?';
+    const args = conversationId ? [userId, conversationId] : [userId];
+    this.db.prepare(`DELETE FROM provider_metrics WHERE ${where}`).run(...args);
+    for (const row of this.db.prepare(`SELECT response_meta FROM request_dedup WHERE ${where}`).all(...args)) {
+      let traceId;
+      try { traceId = JSON.parse(row.response_meta || '{}').traceId; } catch {}
+      if (typeof traceId === 'string') this.db.prepare('DELETE FROM provider_metrics WHERE trace_id = ?').run(traceId);
+    }
+    this.db.prepare(`DELETE FROM request_dedup WHERE ${where}`).run(...args);
+  }
+
+  deleteUserData({ userId }) {
+    this.db.transaction(() => {
+      this.deleteRequests(userId);
+      for (const table of ['messages', 'memories', 'conversations']) {
+        this.db.prepare(`DELETE FROM ${table} WHERE user_id = ?`).run(userId);
+      }
+      this.db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+    })();
   }
 
   close() { this.db.close(); }

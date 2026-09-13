@@ -42,6 +42,10 @@ function decodeServiceAccount(encodedValue) {
 }
 
 function buildAdminOptions(environment = process.env) {
+  if (String(environment.NODE_ENV || '').trim().toLowerCase() === 'production'
+    && (environment.FIREBASE_AUTH_EMULATOR_HOST || environment.FIRESTORE_EMULATOR_HOST)) {
+    throw new Error('Firebase emulators must not be configured in production.');
+  }
   const serviceAccount = decodeServiceAccount(environment.FIREBASE_SERVICE_ACCOUNT_JSON);
   const configuredProjectId = cleanEnvironmentValue(environment.FIREBASE_PROJECT_ID);
   const projectId = configuredProjectId || serviceAccount?.project_id || undefined;
@@ -73,7 +77,7 @@ function getAdminAuth() {
 }
 
 async function verifyFirebaseIdToken(idToken) {
-  return getAdminAuth().verifyIdToken(idToken);
+  return getAdminAuth().verifyIdToken(idToken, true);
 }
 
 module.exports = {

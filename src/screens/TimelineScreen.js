@@ -206,7 +206,7 @@ function CalendarToggle({ value, onChange }) {
   );
 }
 
-function TimelineHeader({ mode, focusDate, onModeChange, onMove, onToday, onClose }) {
+function TimelineHeader({ mode, focusDate, onModeChange, onMove, onClose }) {
   const title = mode === 'month' ? format(focusDate, 'MMMM yyyy') : String(getYear(focusDate));
   const subtitle = mode === 'month'
     ? 'Tap a day to see what you recorded.'
@@ -217,16 +217,10 @@ function TimelineHeader({ mode, focusDate, onModeChange, onMove, onToday, onClos
       {mode === 'month' ? (
         <>
           <View style={styles.brandBar}>
-            <BrandMark size='small' showWordmark={false} decorative />
-            <Text style={styles.brandTitle}>Bloom</Text>
-            <Pressable
-              onPress={onToday}
-              accessibilityRole='button'
-              accessibilityLabel='Return to the current month'
-              style={({ pressed, focused }) => [styles.todayButton, focused && styles.controlFocus, pressed && styles.pressed]}
-            >
-              <Icon name='calendar-outline' size={21} color={COLORS.brand} />
-            </Pressable>
+            <View style={styles.brandLockup} accessible accessibilityRole='image' accessibilityLabel='Bloom'>
+              <BrandMark size='small' showWordmark={false} decorative />
+              <Text style={styles.brandTitle}>Bloom</Text>
+            </View>
           </View>
           <View style={styles.topBar}>
             <View style={styles.headerSpacer} />
@@ -712,13 +706,6 @@ export default function TimelineScreen({ navigation }) {
     setMode('month');
   }
 
-  function returnToCurrentMonth() {
-    const today = new Date();
-    setFocusDate(today);
-    setSelectedDate(today);
-    setMode('month');
-  }
-
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={[styles.phoneShell, mode === 'year' && styles.yearShell]}>
@@ -727,7 +714,6 @@ export default function TimelineScreen({ navigation }) {
           focusDate={focusDate}
           onModeChange={changeMode}
           onMove={movePeriod}
-          onToday={returnToCurrentMonth}
           onClose={() => navigation.navigate('Today')}
         />
 
@@ -801,27 +787,21 @@ const styles = createThemedStyles({
     minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     borderBottomWidth: 1,
     borderBottomColor: COLORS.hairline,
   },
+  brandLockup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
   brandTitle: {
-    position: 'absolute',
-    left: 44,
-    right: 44,
     fontSize: 18,
     lineHeight: 24,
     fontWeight: '700',
     color: COLORS.brand,
-    textAlign: 'center',
-    pointerEvents: 'none',
-  },
-  todayButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   topBar: {
     minHeight: 48,

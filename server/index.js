@@ -5,6 +5,7 @@ const { createRequireFirebaseAuth } = require('./firebaseAuth');
 const { verifyFirebaseIdToken } = require('./firebaseAdmin');
 const { safeLogger } = require('./safeLogger');
 const { createMegV2Bridge } = require('./megV2Bridge');
+const { RateLimiter } = require('../meg-engine-v2/src/reliability/rateLimiter');
 
 const DEFAULT_PORT = 3001;
 const DEFAULT_HOST = '127.0.0.1';
@@ -42,7 +43,7 @@ function resolveAllowedOrigins(environment = process.env) {
   return configured.map((origin) => {
     try {
       const parsed = new URL(origin);
-      if (!['http:', 'https:'].includes(parsed.protocol) || parsed.origin !== origin) {
+      if (parsed.protocol !== 'https:' || parsed.origin !== origin) {
         throw new Error('origin must not contain a path');
       }
       return origin;
@@ -63,6 +64,7 @@ function createApp({
   allowedOrigins = resolveAllowedOrigins(),
   buildStatus = resolveBuildStatus(),
   logger = safeLogger,
+  rateLimit = 60,
 } = {}) {
   const bridge = megV2Bridge || createMegV2Bridge();
   if (!bridge || typeof bridge.chat !== 'function') {
@@ -72,6 +74,8 @@ function createApp({
   const app = express();
   const originAllowlist = new Set(allowedOrigins);
   const requireFirebaseAuth = createRequireFirebaseAuth({ verifyIdToken, logger });
+  const requireVerifiedFirebaseAuth = createRequireFirebaseAuth({ verifyIdToken, logger, allowDevAuth: false });
+  const limiter = new RateLimiter({ limit: Math.max(1, Number(rateLimit) || 60) });
 
   app.disable('x-powered-by');
   app.use((request, response, next) => {
@@ -86,7 +90,7 @@ function createApp({
       return response.status(403).json({ error: 'Origin is not allowed.' });
     }
     if (origin) response.setHeader('Access-Control-Allow-Origin', origin);
-    response.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+    response.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, x-meg-trace-id');
     response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
     response.setHeader('Access-Control-Max-Age', '600');
     if (request.method === 'OPTIONS') return response.sendStatus(204);
@@ -96,21 +100,57 @@ function createApp({
 
   app.get('/health', (_request, response) => {
     const meg = typeof bridge.health === 'function' ? bridge.health() : {};
-    response.json({
-      ok: true,
-      status: 'ready',
+    const ready = meg.ready === true;
+    response.status(ready ? 200 : 503).json({
+      ok: ready,
+      status: ready ? 'ready' : 'not_ready',
       build: buildStatus,
       provider: 'meg-v2',
       engineVersion: meg.engineVersion || 'meg-v2',
       persistence: meg.persistence || 'unknown',
+      authenticationConfigured: meg.authenticationConfigured === true,
       providers: meg.providers || {},
     });
   });
 
+  // Liveness is separate from readiness: an unconfigured process is not ready.
+  app.get('/live', (_request, response) => response.json({ ok: true, provider: 'meg-v2' }));
+
+  function dataHandler(operation) {
+    return async (request, response) => {
+      response.set('Cache-Control', 'no-store');
+      try {
+        const result = await operation({ uid: request.auth.uid, conversationId: request.params.id });
+        return response.json(result ?? { ok: true });
+      } catch (error) {
+        const status = error?.status === 400 ? 400 : 503;
+        logger.warn('meg_data_operation_failed', { status });
+        return response.status(status).json({ error: status === 400
+          ? 'Choose a valid conversation.' : 'Meg data could not be updated. Please try again.' });
+      }
+    };
+  }
+  app.delete('/api/meg/data', requireVerifiedFirebaseAuth, dataHandler(async (input) => {
+    await bridge.deleteUserData(input);
+    return { ok: true };
+  }));
+  app.delete('/api/meg/conversations/:id', requireVerifiedFirebaseAuth, dataHandler(async (input) => {
+    await bridge.deleteConversation(input);
+    return { ok: true };
+  }));
+  app.get('/api/meg/data', requireVerifiedFirebaseAuth, dataHandler((input) => bridge.exportUserData(input)));
+
   app.post('/api/meg/chat', requireFirebaseAuth, async (request, response) => {
+    response.set('Cache-Control', 'no-store');
+    if (!limiter.allow(request.auth.uid)) {
+      response.set('Retry-After', '60');
+      return response.status(429).json({ error: 'Please wait a little before messaging Meg again.' });
+    }
     const controller = new AbortController();
     const abort = () => controller.abort();
     request.once('aborted', abort);
+    const onClose = () => { if (!response.writableEnded) abort(); };
+    response.once('close', onClose);
 
     try {
       const payload = await bridge.chat({
@@ -140,10 +180,12 @@ function createApp({
       });
     } finally {
       request.removeListener('aborted', abort);
+      response.removeListener('close', onClose);
     }
   });
 
   app.use((error, _request, response, _next) => {
+    if (error?.type === 'entity.too.large') return response.status(413).json({ error: 'This message is too large. Please shorten it.' });
     if (error instanceof SyntaxError) {
       return response.status(400).json({ error: 'Request body must be valid JSON.' });
     }

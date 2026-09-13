@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db, firebaseConfigurationError } from './firebase';
 import { stripUndefined } from './userData';
+import { requestMegAccountData } from './megAccountData';
 
 const BATCH_LIMIT = 450;
 
@@ -127,13 +128,15 @@ export async function deleteCurrentUserMegConversation(conversationId) {
   const { uid } = requireFirebaseUser();
   const safeConversationId = requireDocumentId(conversationId, 'conversation ID');
   const reference = doc(db, 'users', uid, 'megConversations', safeConversationId);
+  await requestMegAccountData({ method: 'DELETE', conversationId: safeConversationId, expectedUid: uid });
   const messages = await getDocs(collection(reference, 'messages'));
   await deleteReferences(messages.docs.map((message) => message.ref));
   await deleteDoc(reference);
 }
 
-export async function deleteAllCurrentUserMegData() {
+export async function deleteAllCurrentUserMegData({ serverAlreadyDeleted = false } = {}) {
   const { uid } = requireFirebaseUser();
+  if (!serverAlreadyDeleted) await requestMegAccountData({ method: 'DELETE', expectedUid: uid });
   const conversations = await getDocs(conversationsCollection(uid));
   for (const snapshot of conversations.docs) {
     await deleteConversationSnapshot(snapshot);
