@@ -15,6 +15,7 @@ import {
   reauthenticateWithCredential,
   signInWithEmailAndPassword,
   signOut,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import {
@@ -29,6 +30,11 @@ import {
   setStartupStage,
 } from '../diagnostics/startupDiagnostics';
 import { stripUndefined } from '../services/userData';
+import { storage } from '../services/storage';
+import { requestMegAccountData } from '../services/megAccountData';
+const { deleteAccountInOrder } = require('../services/accountLifecycle');
+const accountWork = require('../services/accountWork');
+const { requestPasswordRecovery } = require('../services/passwordRecovery');
 
 export const REQUIRED_DATA_CONSENT =
   'I agree that Bloom may securely store my cycle, symptom, check-in and Meg conversation data to personalise my experience.';
@@ -94,6 +100,7 @@ async function createProfileWithRetry(user, profile) {
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [accountNotice, setAccountNotice] = useState('');
   const [initializing, setInitializing] = useState(true);
   const [startupFailure, setStartupFailure] = useState(null);
   const [retryToken, setRetryToken] = useState(0);
@@ -265,6 +272,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logOut = useCallback(async () => {
+    if (user?.uid) accountWork.invalidate(user.uid);
     if (!auth) {
       setUser(null);
       return;
@@ -274,6 +282,15 @@ export function AuthProvider({ children }) {
       setUser(null);
     } catch (error) {
       throw friendlyAuthError(error);
+    }
+  }, [user]);
+
+  const resetPassword = useCallback(async (email) => {
+    if (!isValidAuthEmail(email)) throw new BloomAuthError('Enter a valid email address.', 'email');
+    if (!auth) throw new BloomAuthError('Password recovery is unavailable on this build.');
+    try { return await requestPasswordRecovery(email, (normalized) => sendPasswordResetEmail(auth, normalized)); }
+    catch (error) {
+      throw new BloomAuthError(error.message, error.field);
     }
   }, []);
 
@@ -296,20 +313,34 @@ export function AuthProvider({ children }) {
       throw friendlyAuthError(error);
     }
 
+    const resume = accountWork.pause(user.uid);
     try {
-      await beforeDelete();
-      await deleteUser(user);
+      await deleteAccountInOrder({
+        reauthenticate: async () => {}, // Completed above; keep password errors field-specific.
+        deleteMeg: () => requestMegAccountData({ method: 'DELETE', expectedUid: user.uid }),
+        deleteAppData: async () => { await beforeDelete(); },
+        deleteAuth: async () => { await deleteUser(user); },
+        clearLocal: () => storage.deleteAllData(user.uid),
+      });
+      setAccountNotice('Your Bloom account and its active data were deleted.');
       setUser(null);
     } catch (error) {
+      if (error?.accountDeleted) {
+        setAccountNotice(error.message);
+        setUser(null);
+        return;
+      }
       if (error instanceof BloomAuthError) throw error;
       throw new BloomAuthError(
-        'Bloom could not finish deleting your account. Your account remains accessible so you can try again.'
+        'Deletion did not finish. Some records may already be removed. Your account has not been deleted; please retry.'
       );
-    }
+    } finally { resume(); }
   }, [user]);
 
   const value = useMemo(() => ({
     user,
+    accountNotice,
+    resetPassword,
     initializing,
     configurationError: firebaseConfigurationError || firebaseInitializationError,
     startupFailure,
@@ -319,6 +350,8 @@ export function AuthProvider({ children }) {
     logOut,
     deleteAccount,
   }), [
+    accountNotice,
+    resetPassword,
     initializing,
     logIn,
     logOut,

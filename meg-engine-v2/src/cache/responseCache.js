@@ -23,8 +23,8 @@ class ResponseCache {
     return !safety?.triggered && CACHEABLE_INTENTS.has(intent) && EDUCATIONAL_PATTERNS.some((pattern) => pattern.test(normalize(message)));
   }
 
-  key({ intent, message, language = 'en', promptVersion = this.promptVersion, knowledgeVersion = this.knowledgeVersion }) {
-    return crypto.createHash('sha256').update(JSON.stringify({ intent, language: normalize(language), query: normalize(message), promptVersion, knowledgeVersion })).digest('hex');
+  key({ userId, conversationId, supportMode, intent, message, language = 'en', promptVersion = this.promptVersion, knowledgeVersion = this.knowledgeVersion }) {
+    return crypto.createHash('sha256').update(JSON.stringify({ userId, conversationId, supportMode, intent, language: normalize(language), query: normalize(message), promptVersion, knowledgeVersion })).digest('hex');
   }
 
   get(request) {

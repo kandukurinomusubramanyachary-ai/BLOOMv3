@@ -14,7 +14,8 @@ RUN npm ci --omit=dev --prefix meg-engine-v2 --no-audit --no-fund
 COPY server ./server
 COPY meg-engine-v2 ./meg-engine-v2
 
-RUN mkdir -p "$MEG_V2_DATA_DIR"
+RUN mkdir -p "$MEG_V2_DATA_DIR" && chown -R node:node "$MEG_V2_DATA_DIR"
+USER node
 VOLUME ["/var/lib/bloom/meg-v2"]
 
 EXPOSE 8080

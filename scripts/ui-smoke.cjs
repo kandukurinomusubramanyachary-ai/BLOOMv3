@@ -9,10 +9,11 @@ const origin = process.env.BLOOM_TEST_URL || 'http://localhost:8081';
 const output = path.join(__dirname, '..', '.expo', 'ui-review');
 const cases = [
   { name: 'small-phone', width: 320, height: 740, theme: 'light' },
-  { name: 'phone', width: 390, height: 844, theme: 'light' },
-  { name: 'phone-dark', width: 390, height: 844, theme: 'dark' },
+  { name: 'phone', width: 375, height: 812, theme: 'light' },
+  { name: 'phone-dark', width: 430, height: 932, theme: 'dark' },
   { name: 'tablet', width: 768, height: 1024, theme: 'light' },
   { name: 'desktop', width: 1280, height: 900, theme: 'light' },
+  { name: 'wide-desktop', width: 1440, height: 900, theme: 'dark' },
 ];
 
 async function checkLayout(page, name) {
@@ -53,9 +54,16 @@ async function checkLayout(page, name) {
       const page = await context.newPage();
       page.setDefaultTimeout(20000);
       const errors = [];
+      const strengthRequests = [];
+      page.on('request', request => { if (/\.wasm|pose_landmarker|\.task(?:\?|$)/i.test(request.url())) strengthRequests.push(request.url()); });
+      await context.addInitScript(() => {
+        window.__cameraRequests = 0;
+        if (navigator.mediaDevices) navigator.mediaDevices.getUserMedia = async () => { window.__cameraRequests++; throw new Error('Unexpected camera request with Strength off'); };
+      });
       page.on('pageerror', error => errors.push(error.message));
       await page.goto(origin, { waitUntil: 'domcontentloaded', timeout: 45000 });
       await page.getByRole('tab', { name: 'Today', exact: true }).waitFor();
+      assert.equal(await page.getByRole('tab', { name: 'Strength', exact: true }).count(), 0, 'Strength must be disabled in launch QA');
       for (const screen of ['Today', 'Timeline', 'Meg', 'Strength', 'Diet']) {
         const tab = page.getByRole('tab', { name: screen, exact: true });
         if (!await tab.count() && screen === 'Strength') continue;
@@ -74,6 +82,8 @@ async function checkLayout(page, name) {
         await page.getByRole('button', { name: 'Go back', exact: true }).click();
       }
       await page.getByRole('button', { name: 'Back to Bloom', exact: true }).click();
+      assert.equal(await page.evaluate(() => window.__cameraRequests), 0);
+      assert.deepEqual(strengthRequests, [], 'Strength off must not request MediaPipe assets');
       if (item.name === 'phone' && process.argv.includes('--meg')) {
         await page.getByRole('tab', { name: 'Meg', exact: true }).click();
         await page.getByRole('textbox', { name: 'Message Meg', exact: true }).fill('Hello. Please greet me in one short sentence.');

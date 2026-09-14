@@ -171,3 +171,51 @@ test('a single-set workout completes directly with no rest', () => {
   assert.equal(s.phase, 'complete');
   assert.equal(s.totalRepsDone, 3);
 });
+
+test('ADD_REST adds exactly 15 seconds without changing the completed reps or set plan', () => {
+  let s = clearCountdown(start(initialState(REPS, 2)));
+  s = step(s, 2000); s = step(s, 2000); s = step(s, 2000);
+  const before = s;
+  s = reducer(s, { type: 'ADD_REST', seconds: 999 });
+  assert.equal(s.remaining, before.remaining + 15);
+  assert.equal(s.totalRepsDone, 3);
+  assert.equal(s.currentSet, 2);
+  assert.equal(s.setsPlanned, 2);
+  assert.equal(s.elapsedSec, before.elapsedSec);
+  assert.equal(s.phase, 'rest');
+  s = step(s, before.remaining * 1000);
+  assert.equal(s.phase, 'rest');
+  assert.equal(s.remaining, 15);
+  s = step(s, 15000);
+  assert.equal(s.phase, 'active');
+});
+
+test('ADD_REST supports paused rest without resuming the timer', () => {
+  let s = clearCountdown(start(initialState(REPS, 2)));
+  s = step(s, 2000); s = step(s, 2000); s = step(s, 2000);
+  s = reducer(s, { type: 'PAUSE' });
+  const remaining = s.remaining;
+  s = reducer(s, { type: 'ADD_REST' });
+  s = reducer(s, { type: 'ADD_REST' });
+  assert.equal(s.phase, 'paused');
+  assert.equal(s.resumePhase, 'rest');
+  assert.equal(s.remaining, remaining + 30);
+  const paused = s;
+  s = step(s, 5000);
+  assert.equal(s.remaining, paused.remaining);
+  assert.equal(s.elapsedSec, paused.elapsedSec);
+  s = reducer(s, { type: 'RESUME' });
+  assert.equal(s.phase, 'rest');
+  assert.equal(s.remaining, remaining + 30);
+});
+
+test('ADD_REST is a no-op outside rest, including paused exercise and completion', () => {
+  const idle = initialState(REPS, 1);
+  const countdown = start(idle);
+  let active = clearCountdown(countdown);
+  const paused = reducer(active, { type: 'PAUSE' });
+  active = step(active, 2000); active = step(active, 2000); active = step(active, 2000);
+  for (const s of [idle, countdown, paused, active]) {
+    assert.equal(reducer(s, { type: 'ADD_REST' }), s);
+  }
+});

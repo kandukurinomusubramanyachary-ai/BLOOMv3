@@ -31,7 +31,6 @@ import {
 } from '../services/dietRescue';
 import { COLORS, createThemedStyles, LAYOUT, TYPOGRAPHY, WEB_FOCUS } from '../utils/constants';
 import Button from '../components/Button';
-import IconButton from '../components/IconButton';
 import { useReducedMotion } from '../components/Motion';
 
 const SECTION_KEYS = ['sos', 'forecast', 'kit', 'water', 'learn'];
@@ -300,7 +299,7 @@ export default function DietScreen({ navigation, route }) {
           {showQuickChips ? <View style={styles.quickBarOverlay}><QuickChips onJump={scrollTo} /></View> : null}
           <ScrollView ref={scrollRef} style={styles.scroll} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps='handled' keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} showsVerticalScrollIndicator={Platform.OS === 'web'} onScroll={(event) => setShowQuickChips(event.nativeEvent.contentOffset.y > 250)} scrollEventThrottle={32}>
             <View style={styles.content}>
-              <View style={styles.header}><View style={styles.flex}><Text accessibilityRole='header' style={styles.title}>Diet</Text><Text style={styles.subtitle}>Food that fits today.</Text></View><IconButton icon='person-outline' variant='outline' accessibilityLabel='Open your profile' onPress={() => navigation.navigate('Profile')} /></View>
+              <View style={styles.header}><View style={styles.flex}><Text accessibilityRole='header' style={styles.title}>Diet</Text><Text style={styles.subtitle}>Food that fits today.</Text></View></View>
               {notice ? <View style={styles.notice} accessibilityLiveRegion='polite'><Icon name='checkmark-circle-outline' size={19} color={COLORS.sage} /><Text style={styles.noticeText}>{notice}</Text><Pressable onPress={() => setNotice('')} accessibilityRole='button' accessibilityLabel='Dismiss notice' style={styles.noticeDismiss}><Icon name='close' size={18} color={COLORS.muted} /></Pressable></View> : null}
               {pendingItem ? <PendingCard item={pendingItem} onRate={rateRescue} /> : null}
 

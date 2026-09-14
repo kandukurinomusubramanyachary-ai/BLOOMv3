@@ -317,14 +317,6 @@ export default function TodayScreen({ navigation }) {
               accessibilityLabel='Open your profile'
               variant='outline'
             />
-            <Pressable
-              onPress={() => navigation.navigate('Timeline')}
-              accessibilityRole='button'
-              accessibilityLabel='Open calendar timeline'
-              style={({ pressed, focused }) => [styles.iconButton, styles.calendarShortcut, focused && styles.focusRing, pressed && styles.pressed]}
-            >
-              <Icon name='calendar-outline' size={20} color={COLORS.brand} />
-            </Pressable>
           </View>
 
           <View style={styles.hero}>
@@ -406,9 +398,7 @@ const styles = createThemedStyles({
 
   brandRow: { minHeight: LAYOUT.touchTarget, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: -4 },
   brandIdentity: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: SIZES.sm },
-  calendarShortcut: { marginLeft: 8 },
   brandName: { fontSize: 18, lineHeight: 24, fontWeight: '700', color: COLORS.brand },
-  iconButton: { width: LAYOUT.touchTarget, height: LAYOUT.touchTarget, borderRadius: LAYOUT.touchTarget / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.surfaceSoft, ...Platform.select({ web: { cursor: 'pointer', outlineStyle: 'none' } }) },
   focusRing: Platform.select({ web: { outlineStyle: 'solid', outlineWidth: 2, outlineColor: COLORS.brand, outlineOffset: 2 }, default: {} }),
   pressed: { opacity: 0.72, transform: [{ scale: 0.98 }] },
 

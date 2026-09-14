@@ -9,7 +9,12 @@ function loadLocalVisionBundle() {
     const script = document.createElement('script');
     script.src = '/strength/vision_bundle.js';
     script.async = true;
+    const timeout = setTimeout(() => {
+      script.remove();
+      reject(new Error('pose_runtime_timeout'));
+    }, 15000);
     script.onload = () => {
+      clearTimeout(timeout);
       if (window.Vision) resolve(window.Vision);
       else {
         script.remove();
@@ -17,6 +22,7 @@ function loadLocalVisionBundle() {
       }
     };
     script.onerror = () => {
+      clearTimeout(timeout);
       script.remove();
       reject(new Error('pose_runtime_failed'));
     };
@@ -43,24 +49,38 @@ export async function createPoseDetector(options = {}) {
     outputSegmentationMasks: false,
   });
   let closed = false;
+  // Bound the pixels copied into WASM on phones. Preserve the source aspect
+  // ratio so landmarks still map to the uncropped camera preview.
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  if (!context) { landmarker.close(); throw new Error('pose_canvas_unavailable'); }
 
   return {
     detect(video, timestamp) {
       if (closed) return { poses: [], latencyMs: 0, sourceWidth: 0, sourceHeight: 0 };
       const began = performance.now();
-      const result = landmarker.detectForVideo(video, timestamp);
-      return {
-        poses: (result.landmarks || []).map((landmarks) => landmarks.map((item, id) => ({
-          id, x: item.x, y: item.y, z: item.z, visibility: item.visibility, presence: item.presence,
-        }))),
-        latencyMs: performance.now() - began,
-        sourceWidth: video.videoWidth,
-        sourceHeight: video.videoHeight,
-      };
+      const scale = Math.min(1, config.downsampleLongSide / Math.max(video.videoWidth, video.videoHeight));
+      const width = Math.max(1, Math.round(video.videoWidth * scale));
+      const height = Math.max(1, Math.round(video.videoHeight * scale));
+      if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+      context.drawImage(video, 0, 0, width, height);
+      const result = landmarker.detectForVideo(canvas, timestamp);
+      try {
+        return {
+          poses: (result.landmarks || []).map((landmarks) => landmarks.map((item, id) => ({
+            id, x: item.x, y: item.y, z: item.z, visibility: item.visibility, presence: item.presence,
+            aspectRatio: video.videoWidth / video.videoHeight,
+          }))),
+          latencyMs: performance.now() - began,
+          sourceWidth: video.videoWidth,
+          sourceHeight: video.videoHeight,
+        };
+      } finally { result.close?.(); }
     },
     close() {
-      if (!closed) landmarker.close();
+      if (closed) return;
       closed = true;
+      try { landmarker.close(); } finally { canvas.width = canvas.height = 0; }
     },
   };
 }

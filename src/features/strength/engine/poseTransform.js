@@ -3,10 +3,10 @@ function positive(value, fallback = 1) {
   return Number.isFinite(number) && number > 0 ? number : fallback;
 }
 
-function createCoverTransform({ sourceWidth, sourceHeight, viewWidth, viewHeight, mirrored = false }) {
+function createCoverTransform({ sourceWidth, sourceHeight, viewWidth, viewHeight, mirrored = false, fit = 'cover' }) {
   const source = { width: positive(sourceWidth), height: positive(sourceHeight) };
   const view = { width: positive(viewWidth), height: positive(viewHeight) };
-  const scale = Math.max(view.width / source.width, view.height / source.height);
+  const scale = (fit === 'contain' ? Math.min : Math.max)(view.width / source.width, view.height / source.height);
   const renderedWidth = source.width * scale;
   const renderedHeight = source.height * scale;
   return {

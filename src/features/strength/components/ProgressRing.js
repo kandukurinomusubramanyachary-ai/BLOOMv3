@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Platform, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
 import { COLORS } from '../../../utils/constants';
+import { useReducedMotion } from '../../../components/Motion';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -17,39 +18,43 @@ export default function ProgressRing({
   animated = true,
   pulseKey = null,
 }) {
+  const reduceMotion = useReducedMotion();
+  const boundedProgress = Math.max(0, Math.min(1, Number.isFinite(progress) ? progress : 0));
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
-  const anim = useRef(new Animated.Value(progress)).current;
+  const anim = useRef(new Animated.Value(boundedProgress)).current;
   const pulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (!animated) {
-      anim.setValue(progress);
+    if (!animated || reduceMotion) {
+      anim.setValue(boundedProgress);
       return undefined;
     }
     const animation = Animated.timing(anim, {
-      toValue: progress,
+      toValue: boundedProgress,
       duration: 140,
       useNativeDriver: false,
     });
     animation.start();
     return () => animation.stop();
-  }, [progress, animated, anim]);
+  }, [boundedProgress, animated, reduceMotion, anim]);
 
   // A gentle scale pop whenever pulseKey changes (e.g. a completed rep).
   useEffect(() => {
-    if (pulseKey === null) return undefined;
-    pulse.setValue(0.94);
-    const animation = Animated.spring(pulse, {
+    if (pulseKey === null || !animated || reduceMotion) {
+      pulse.setValue(1);
+      return undefined;
+    }
+    pulse.setValue(0.98);
+    const animation = Animated.timing(pulse, {
       toValue: 1,
-      friction: 5,
-      tension: 120,
+      duration: 180,
       useNativeDriver: Platform.OS !== 'web',
     });
     animation.start();
     return () => animation.stop();
-  }, [pulseKey, pulse]);
+  }, [pulseKey, pulse, animated, reduceMotion]);
 
   const strokeDashoffset = anim.interpolate({
     inputRange: [0, 1],

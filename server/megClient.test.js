@@ -12,6 +12,7 @@ function loadMegModule(currentUser) {
   });
   const moduleValue = { exports: {} };
   const localRequire = (request) => {
+    if (request === './accountWork') return require('../src/services/accountWork');
     if (request === './firebase') return { auth: { currentUser } };
     if (request === './megQaTiming') {
       return {

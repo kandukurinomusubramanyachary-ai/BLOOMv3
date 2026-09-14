@@ -29,3 +29,13 @@ test('calendar exposes month, year, Today and accessible date navigation control
   assert.match(picker, /accessibilityLabel='Select today'/);
   assert.match(picker, /minHeight: 44/);
 });
+
+test('Timeline month header uses one centered Bloom lockup without a calendar action', () => {
+  const timeline = read('src/screens/TimelineScreen.js');
+
+  assert.match(timeline, /<View style=\{styles\.brandLockup\} accessible accessibilityRole='image' accessibilityLabel='Bloom'>/);
+  assert.match(timeline, /brandBar:[\s\S]*?justifyContent: 'center'/);
+  assert.match(timeline, /brandLockup:[\s\S]*?flexDirection: 'row'[\s\S]*?gap: 8/);
+  assert.doesNotMatch(timeline, /accessibilityLabel='Return to the current month'/);
+  assert.doesNotMatch(timeline, /styles\.todayButton/);
+});

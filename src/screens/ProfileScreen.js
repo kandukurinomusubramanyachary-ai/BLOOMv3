@@ -11,6 +11,7 @@ import Button from '../components/Button';
 import IconButton from '../components/IconButton';
 import { LotusMark } from '../components/BrandMark';
 import { preferredDisplayName } from '../utils/displayName';
+import appConfig from '../../app.json';
 
 export default function ProfileScreen({ navigation }) {
   const { state, resetAllData, deleteAllAccountData } = useApp();
@@ -44,6 +45,9 @@ export default function ProfileScreen({ navigation }) {
     {
       title: 'Privacy and care',
       items: [
+        { icon: 'document-text-outline', title: 'Privacy Policy', subtitle: 'How Bloom handles your data', route: 'Legal', params: { page: 'privacy' } },
+        { icon: 'document-text-outline', title: 'Terms of Use', subtitle: 'Using Bloom', route: 'Legal', params: { page: 'terms' } },
+        { icon: 'chatbubbles-outline', title: 'Contact / Support', subtitle: 'Get help with Bloom', route: 'Legal', params: { page: 'support' } },
         { icon: 'shield-checkmark-outline', title: 'Privacy & security', subtitle: 'App lock and preview controls', route: 'PrivacySettings' },
         { icon: 'medkit-outline', title: 'Doctor summary', subtitle: 'Preview a private, appointment-ready report', route: 'DoctorReport' },
         { icon: 'download-outline', title: 'Export your data', subtitle: 'Keep a copy for yourself or your doctor', route: 'ExportData' },
@@ -180,7 +184,7 @@ export default function ProfileScreen({ navigation }) {
                 {section.items.map((item, index) => (
                   <Pressable
                     key={item.title}
-                    onPress={() => navigation.navigate(item.route)}
+                    onPress={() => navigation.navigate(item.route, item.params)}
                     accessibilityRole='button'
                     accessibilityLabel={`${item.title}. ${item.subtitle}`}
                     style={({ pressed, hovered, focused }) => [
@@ -347,7 +351,7 @@ export default function ProfileScreen({ navigation }) {
             )}
           </View>
 
-          <Text style={styles.version}>Bloom 1.0 · Private by design</Text>
+          <Text style={styles.version}>Bloom {appConfig.expo.version} · Private by design</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

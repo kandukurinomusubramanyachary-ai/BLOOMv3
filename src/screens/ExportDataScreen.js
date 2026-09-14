@@ -7,6 +7,8 @@ import { exportService } from '../services/export';
 import ScreenHeader from '../components/ScreenHeader';
 import Button from '../components/Button';
 import ScreenScaffold from '../components/ScreenScaffold';
+import { requestMegAccountData } from '../services/megAccountData';
+import { useAuth } from '../context/AuthContext';
 
 const FORMATS = [
   { id: 'json', label: 'JSON', desc: 'Tracked records and Meg conversations in a machine-readable file', icon: 'code-slash-outline' },
@@ -16,19 +18,26 @@ const FORMATS = [
 
 export default function ExportDataScreen({ navigation }) {
   const { state } = useApp();
+  const { user } = useAuth();
+  const [exportError, setExportError] = useState('');
   const [activeExport, setActiveExport] = useState(null);
   const [lastExport, setLastExport] = useState(null);
 
   async function handleExport(format) {
+    if (activeExport) return;
+    setExportError('');
+    setLastExport(null);
     setActiveExport(format);
     try {
-      if (format === 'json') await exportService.exportToJSON(state);
+      if (format === 'json') {
+        const megV2Data = await requestMegAccountData({ expectedUid: user.uid });
+        await exportService.exportToJSON({ ...state, megV2Data });
+      }
       if (format === 'csv') await exportService.exportToCSV(state);
       if (format === 'pdf') await exportService.exportToPDF(state);
       setLastExport(format);
     } catch (error) {
-      console.error('Export error:', error);
-      Alert.alert('Export did not finish', 'Please try again. Your records have not been changed.');
+      setExportError('Export did not finish. Check your connection and try again. Your records have not been changed.');
     } finally {
       setActiveExport(null);
     }
@@ -94,6 +103,7 @@ export default function ExportDataScreen({ navigation }) {
             })}
           </View>
 
+          {exportError ? <Text style={{ color: COLORS.error, marginTop: 12 }} accessibilityRole='alert'>{exportError}</Text> : null}
           {lastExport ? (
             <View style={styles.successNote} accessibilityRole='status'>
               <Icon name='checkmark-circle-outline' size={18} color={COLORS.sage} />

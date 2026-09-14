@@ -32,6 +32,9 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Pin npm for reproducible dependency resolution
+        run: npm install --global npm@10.9.9
+
       - name: Install Bloom dependencies
         run: npm ci
 
@@ -59,7 +62,7 @@ jobs:
       - name: Build production container
         run: docker build -t wholebloom:verify .
 
-      - name: Smoke-test production container
+      - name: Smoke-test production container and fail-closed readiness
         shell: bash
         run: |
           docker run -d --name wholebloom-verify -p 18080:8080 \
@@ -74,7 +77,7 @@ jobs:
 
           health=""
           for attempt in {1..20}; do
-            if health="$(curl --fail --silent --show-error http://127.0.0.1:18080/health 2>/dev/null)"; then
+            if health="$(curl --fail --silent --show-error http://127.0.0.1:18080/live 2>/dev/null)"; then
               break
             fi
             sleep 1
@@ -92,3 +95,13 @@ jobs:
               process.exit(1);
             }
           ' "$health"
+
+          # Public CI has no provider/Firebase credentials. Do not fake readiness.
+          status="$(curl -s -o /tmp/bloom-readiness.json -w '%{http_code}' http://127.0.0.1:18080/health)"
+          test "$status" = "503"
+          node -e '
+            const h = require("/tmp/bloom-readiness.json");
+            if (h.ok !== false || h.status !== "not_ready" || h.persistence !== "sqlite") process.exit(1);
+          '
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X DELETE http://127.0.0.1:18080/api/meg/data)" = "401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Authorization: Bearer dev-token' -H 'Content-Type: application/json' -d '{}' http://127.0.0.1:18080/api/meg/chat)" = "401"

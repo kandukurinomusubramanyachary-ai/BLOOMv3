@@ -178,6 +178,13 @@ function reducer(state, action) {
         : state;
     case 'SKIP_REST':
       return state.phase === 'rest' ? beginSet(state) : state;
+    case 'ADD_REST': {
+      // A fixed, deliberate extension: never alter the exercise target or
+      // resume a paused session as a side effect of asking for more rest.
+      const resting = state.phase === 'rest'
+        || (state.phase === 'paused' && state.resumePhase === 'rest');
+      return resting ? { ...state, remaining: state.remaining + 15 } : state;
+    }
     case 'RESET':
       return initialState(action.exercise, action.sets);
     default:

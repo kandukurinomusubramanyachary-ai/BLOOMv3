@@ -12,6 +12,7 @@ import { buildStrengthFocus, buildStrengthObservation } from './engine/strengthS
 import { createVoiceCoach } from './services/voiceCoach';
 import { flushStrengthOutbox, saveStrengthSummary } from './services/strengthStorage';
 import { trackStrengthEvent } from './services/strengthAnalytics';
+import { describeCameraError } from './services/cameraSession';
 
 function sessionId() {
   return `strength-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -51,6 +52,7 @@ export default function useStrengthSession({
   const totalSetsRef = useRef(totalSets);
   const targetRepsRef = useRef(targetReps);
   const totalRepsRef = useRef(0);
+  const completedSetsRef = useRef(0);
   totalSetsRef.current = totalSets;
   targetRepsRef.current = targetReps;
   // Set orchestration lives OUTSIDE the rep engine (which handles one set).
@@ -91,7 +93,7 @@ export default function useStrengthSession({
     cameraLaunchLock.current = false;
     setCameraFailure(null);
     voice.current.cancel(); setReps(0); setCueText(''); setPauseReason(null); setCalibrationGood(false); setInstruction('Looking for you…');
-    currentSetRef.current = 1; setCurrentSet(1); totalRepsRef.current = 0;
+    currentSetRef.current = 1; setCurrentSet(1); totalRepsRef.current = 0; completedSetsRef.current = 0;
   }, []);
 
   const persistPendingSummary = useCallback(async (pending) => {
@@ -121,10 +123,11 @@ export default function useStrengthSession({
     }
   }, [uid]);
 
-  const finish = useCallback(async (completionState = 'stopped', acceptedReps = reps) => {
+  const finish = useCallback(async (completionState = 'stopped', acceptedReps = totalRepsRef.current + (runtime.current.engine?.snapshot().reps || 0)) => {
     if (!exercise) return;
     const current = runtime.current;
-    if (current.ended || !current.startedAt) { setPhase('select'); return; }
+    if (current.ended) return;
+    if (!current.startedAt) { setPhase('select'); return; }
     current.ended = true;
     voice.current.cancel();
     setPhase('saving');
@@ -133,7 +136,7 @@ export default function useStrengthSession({
       id: sessionId(), exerciseId: exercise.id, exerciseVersion: exercise.exerciseVersion,
       startedAt: current.startedAt.toISOString(), completedAt: completedAt.toISOString(),
       durationSeconds: Math.max(1, Math.round((completedAt - current.startedAt) / 1000)),
-      targetReps, acceptedReps, totalSets, completedSets: currentSetRef.current - 1,
+      targetReps, acceptedReps, totalSets, completedSets: completedSetsRef.current,
       pauseCount: current.pauseCount, cueCounts: current.scheduler?.snapshot() || {},
       completionState, platform: Platform.OS, privacyVersion: 1,
     };
@@ -192,10 +195,10 @@ export default function useStrengthSession({
         // set), so compare it against the per-set targetReps.
         if (event.count >= targetRepsRef.current) {
           totalRepsRef.current += event.count;
+          completedSetsRef.current += 1;
           if (currentSetRef.current < totalSetsRef.current) {
             // Advanced to the next set: fresh engine, reset rep counter.
             current.engine = createRepStateMachine(exercise, current.baseline);
-            current.scheduler = createCueScheduler();
             currentSetRef.current += 1; setCurrentSet(currentSetRef.current);
             setReps(0); setPauseReason(null); setCueText(`${currentSetRef.current}/${totalSetsRef.current} — press Continue when ready.`);
             setPhase('between_sets');
@@ -229,13 +232,12 @@ export default function useStrengthSession({
   const cameraError = useCallback((error) => {
     if (!exercise) return;
     cameraLaunchLock.current = false;
-    const denied = ['NotAllowedError', 'SecurityError'].includes(error?.name);
-    const busy = error?.name === 'NotReadableError';
-    const message = denied ? STRENGTH_COPY.permissionDenied : busy ? STRENGTH_COPY.cameraBusy : STRENGTH_COPY.modelFailed;
-    setInstruction(message);
-    setCameraFailure({ kind: denied ? 'denied' : busy ? 'busy' : 'failed', message });
+    const failure = describeCameraError(error);
+    voice.current.cancel();
+    setInstruction(failure.message);
+    setCameraFailure(failure);
     setPhase('permission');
-    trackStrengthEvent('strength_camera_result', { exerciseId: exercise.id, result: denied ? 'denied' : 'failed', platform: Platform.OS });
+    trackStrengthEvent('strength_camera_result', { exerciseId: exercise.id, result: failure.kind === 'denied' ? 'denied' : 'failed', platform: Platform.OS });
   }, [exercise]);
   const leaveCamera = useCallback((nextPhase = 'permission') => {
     resetRuntime();
@@ -257,12 +259,14 @@ export default function useStrengthSession({
   }, [countdown, exercise, phase]);
 
   const togglePause = useCallback(() => {
+    if (!['active', 'paused'].includes(phase)) return;
+    runtime.current.engine?.interrupt();
     if (phase === 'paused') { setPauseReason(null); setCueText('Return to your starting position, then continue.'); setPhase('active'); }
     else { runtime.current.pauseCount += 1; setPauseReason('manual'); setCueText(STRENGTH_COPY.manualPause); setPhase('paused'); voice.current.cancel(); trackStrengthEvent('strength_session_paused', { exerciseId: exercise.id, reason: 'manual', platform: Platform.OS }); }
-  }, [exercise.id, phase]);
+  }, [exercise?.id, phase]);
 
   useFocusEffect(useCallback(() => () => {
-    if (['loading', 'calibrating', 'ready', 'countdown', 'active', 'paused'].includes(phaseRef.current)) {
+    if (['loading', 'calibrating', 'ready', 'countdown', 'active', 'paused', 'between_sets'].includes(phaseRef.current)) {
       voice.current.cancel(); resetRuntime(); setPhase('select');
     }
   }, [resetRuntime]));
@@ -270,7 +274,10 @@ export default function useStrengthSession({
   useEffect(() => {
     const onVisibility = () => {
       if (document.hidden && phase === 'active') {
+        runtime.current.engine?.interrupt();
         runtime.current.pauseCount += 1; setPauseReason('page_hidden'); setCueText(STRENGTH_COPY.pageHidden); setPhase('paused'); voice.current.cancel();
+      } else if (document.hidden && phase === 'countdown') {
+        setPhase('ready'); setCountdown(3); voice.current.cancel();
       }
     };
     document.addEventListener('visibilitychange', onVisibility);
@@ -282,6 +289,7 @@ export default function useStrengthSession({
     countdown, reps, pauseReason, muted, setMuted, showSkeleton, setShowSkeleton, cueText,
     summaryResult, summaryError, savingSummary, cameraFailure,
     unsupported,
+    hasProgress: Boolean(runtime.current.startedAt && !runtime.current.ended),
     currentSet, totalSets, targetReps,
     beginCamera, cameraReady, cameraError, leaveCamera, onFrame, startCountdown, togglePause,
     continueSet: startCountdown,
@@ -289,7 +297,7 @@ export default function useStrengthSession({
     retrySummary: () => void persistPendingSummary(pendingSummary.current),
     discardPendingSummary: () => { pendingSummary.current = null; setSummaryError(null); resetRuntime(); setPhase('select'); },
     reset: () => { pendingSummary.current = null; resetRuntime(); setSummaryResult(null); setSummaryError(null); setPhase('select'); },
-    cameraActive: ['loading', 'calibrating', 'ready', 'countdown', 'active', 'paused'].includes(phase),
+    cameraActive: ['loading', 'calibrating', 'ready', 'countdown', 'active', 'paused', 'between_sets'].includes(phase),
     inferenceActive: ['calibrating', 'ready', 'countdown', 'active'].includes(phase) || (phase === 'paused' && pauseReason !== 'manual' && pauseReason !== 'page_hidden'),
     voiceAvailable: voice.current.available,
   };

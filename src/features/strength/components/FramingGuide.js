@@ -1,19 +1,21 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import Icon from '../../../components/Icon';
-import { COLORS, createThemedStyles } from '../../../utils/constants';
+import { STRENGTH_TYPE as T, useStrengthStyles } from '../strengthTheme';
 
-export default function FramingGuide({ instruction, good = false }) {
-  return (
-    <View style={[styles.guide, good && styles.good]} accessibilityLiveRegion='polite'>
-      <Icon name={good ? 'checkmark-circle' : 'scan-outline'} size={21} color={good ? COLORS.sage : COLORS.brand} />
-      <Text style={styles.text}>{instruction}</Text>
-    </View>
-  );
+const ICONS = { neutral: 'scan-outline', good: 'checkmark-circle-outline', adjust: 'scan-outline', important: 'alert-circle-outline' };
+
+// Status comes from actual session state, never image brightness or cue wording.
+export default function FramingGuide({ instruction, good = false, tone = good ? 'good' : 'neutral', icon }) {
+  const { colors: c, styles: s } = useStrengthStyles(sheet);
+  const foreground = tone === 'good' ? c.sage : tone === 'adjust' ? c.amber : tone === 'important' ? c.danger : c.body;
+  const backgroundColor = tone === 'good' ? c.sageSoft : tone === 'adjust' ? c.amberSoft : tone === 'important' ? c.dangerSoft : c.surface;
+  return <View style={[s.guide, { backgroundColor }]} accessibilityLiveRegion="polite">
+    <Icon name={icon || ICONS[tone] || ICONS.neutral} size={20} color={foreground} />
+    <Text style={[s.text, { color: foreground }]}>{instruction}</Text>
+  </View>;
 }
-
-const styles = createThemedStyles({
-  guide: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, borderRadius: 12, backgroundColor: COLORS.brandSoft },
-  good: { backgroundColor: COLORS.sageLight },
-  text: { flex: 1, color: COLORS.ink, fontSize: 14, lineHeight: 20, fontWeight: '600' },
+const sheet = () => ({
+  guide: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 12 },
+  text: { ...T.body, flex: 1, minWidth: 0 },
 });

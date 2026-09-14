@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../components/Icon';
 import BrandMark from '../components/BrandMark';
 import Button from '../components/Button';
+import LegalScreen from './LegalScreen';
 import { Entrance } from '../components/Motion';
 import {
   OPTIONAL_MODEL_CONSENT,
@@ -94,7 +95,9 @@ function ConsentCheckbox({ checked, onPress, label, error, optional = false, dis
 }
 
 export default function AuthScreen() {
-  const { configurationError, logIn, signUp } = useAuth();
+  const { configurationError, logIn, signUp, resetPassword, accountNotice } = useAuth();
+  const [legalPage, setLegalPage] = useState(null);
+  const [resetNotice, setResetNotice] = useState('');
   const [mode, setMode] = useState('signup');
   const [firstName, setFirstName] = useState('');
   const [email, setEmail] = useState('');
@@ -110,6 +113,7 @@ export default function AuthScreen() {
     setMode(nextMode);
     setPassword('');
     setErrors({});
+    setResetNotice('');
   }
 
   function updateField(setter, field) {
@@ -125,7 +129,7 @@ export default function AuthScreen() {
       nextErrors.firstName = 'Enter your first name.';
     }
     if (!isValidAuthEmail(email)) nextErrors.email = 'Enter a valid email address.';
-    if (!password) {
+    if (mode !== 'reset' && !password) {
       nextErrors.password = 'Enter your password.';
     } else if (mode === 'signup' && password.length < 8) {
       nextErrors.password = 'Use a password with at least 8 characters.';
@@ -151,6 +155,8 @@ export default function AuthScreen() {
           consent,
           modelImprovementConsent,
         });
+      } else if (mode === 'reset') {
+        setResetNotice(await resetPassword(email));
       } else {
         await logIn({ email, password });
       }
@@ -163,6 +169,8 @@ export default function AuthScreen() {
   }
 
   const isSignup = mode === 'signup';
+  const isReset = mode === 'reset';
+  if (legalPage) return <LegalScreen page={legalPage} onBack={() => setLegalPage(null)} />;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -182,9 +190,9 @@ export default function AuthScreen() {
             <BrandMark size='large' layout='stacked' style={styles.brand} />
 
             <View style={styles.heading}>
-              <Text style={styles.title}>{isSignup ? 'Create your Bloom account' : 'Welcome back'}</Text>
+              <Text style={styles.title}>{isReset ? 'Reset your password' : isSignup ? 'Create your Bloom account' : 'Welcome back'}</Text>
               <Text style={styles.subtitle}>
-                {isSignup
+                {isReset ? 'We’ll help you return to your Bloom space by email.' : isSignup
                   ? 'Keep your cycle and check-in records available when you sign in.'
                   : 'Log in to return to your private Bloom space.'}
               </Text>
@@ -260,7 +268,7 @@ export default function AuthScreen() {
                 editable={!pending}
               />
 
-              <AuthField
+              {!isReset && <AuthField
                 label='Password'
                 value={password}
                 onChangeText={updateField(setPassword, 'password')}
@@ -276,7 +284,9 @@ export default function AuthScreen() {
                 returnKeyType='done'
                 onSubmitEditing={handleSubmit}
                 editable={!pending}
-              />
+              />}
+              {mode === 'login' && <Button title='Forgot password?' variant='ghost' onPress={() => changeMode('reset')} disabled={pending} />}
+              {isReset && <Button title='Back to log in' variant='ghost' onPress={() => changeMode('login')} disabled={pending} />}
               {isSignup ? (
                 <Text style={styles.passwordHint}>Use at least 8 characters.</Text>
               ) : null}
@@ -315,12 +325,20 @@ export default function AuthScreen() {
               ) : null}
 
               <Button
-                title={isSignup ? 'Create account' : 'Log in'}
+                title={isReset ? 'Send reset link' : isSignup ? 'Create account' : 'Log in'}
                 onPress={handleSubmit}
                 loading={pending}
-                loadingLabel={isSignup ? 'Creating account…' : 'Logging in…'}
+                loadingLabel={isReset ? 'Sending reset link…' : isSignup ? 'Creating account…' : 'Logging in…'}
                 disabled={Boolean(configurationError)}
               />
+              {resetNotice || accountNotice ? <Text style={styles.privacyText} accessibilityLiveRegion='polite'>{resetNotice || accountNotice}</Text> : null}
+            </View>
+
+            <View style={styles.legalLinks}>
+              {['privacy', 'terms', 'support'].map((page) => (
+                <Button key={page} title={{ privacy: 'Privacy Policy', terms: 'Terms of Use', support: 'Contact / Support' }[page]}
+                  variant='ghost' disabled={pending} onPress={() => setLegalPage(page)} />
+              ))}
             </View>
 
             <View style={styles.privacyNote}>
@@ -337,6 +355,7 @@ export default function AuthScreen() {
 }
 
 const styles = createThemedStyles({
+  legalLinks: { marginTop: 16, gap: 4 },
   safeArea: {
     flex: 1,
     minHeight: 0,

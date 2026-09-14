@@ -15,6 +15,7 @@ const KEYS = {
   DAILY_PLANS: '@bloom_daily_plans',
   MEG_CONVERSATIONS: '@bloom_meg_conversations',
   STRENGTH_OUTBOX: '@bloom_strength_outbox_v1',
+  STRENGTH_SESSIONS: '@bloom_strength_sessions_v1',
   DOCTOR_REPORT_SETTINGS: '@bloom_doctor_report_settings',
   SETTINGS: '@bloom_settings',
   AFFIRMATIONS: '@bloom_affirmations',
@@ -37,6 +38,7 @@ const EXPORTABLE_KEYS = [
   'MOVEMENTS',
   'MEDICATIONS',
   'DAILY_PLANS',
+  'STRENGTH_SESSIONS',
   'DOCTOR_REPORT_SETTINGS',
   'SETTINGS',
   'AFFIRMATIONS',
@@ -45,6 +47,8 @@ const EXPORTABLE_KEYS = [
 ];
 
 const INVALID_JSON = Symbol('invalid-json');
+const STRENGTH_HISTORY_LIMIT = 500;
+const strengthHistoryWrites = new Map();
 
 export async function safeGetItem(key, storageBackend = AsyncStorage) {
   try {
@@ -93,6 +97,12 @@ export function safeStringifyJson(value, fallback = null) {
 class StorageService {
   constructor() {
     this.userScope = null;
+  }
+
+  forUser(uid) {
+    const scoped = new StorageService();
+    scoped.setUserScope(uid);
+    return scoped;
   }
 
   setUserScope(uid) {
@@ -158,7 +168,7 @@ class StorageService {
       }
       return legacy.value;
     } catch (error) {
-      console.error(`Error reading ${key}:`, error);
+      console.warn('Bloom device storage read failed.');
       return null;
     }
   }
@@ -171,7 +181,7 @@ class StorageService {
       if (!saved) throw new Error('AsyncStorage write failed.');
       return true;
     } catch (error) {
-      console.error(`Error writing ${key}:`, error);
+      console.warn('Bloom device storage write failed.');
       throw new Error('Bloom could not save on this device. Please try again.');
     }
   }
@@ -183,7 +193,7 @@ class StorageService {
       if (!removed || !removedLegacy) throw new Error('AsyncStorage remove failed.');
       return true;
     } catch (error) {
-      console.error(`Error removing ${key}:`, error);
+      console.warn('Bloom device storage removal failed.');
       throw new Error('Bloom could not remove this item. Please try again.');
     }
   }
@@ -251,12 +261,56 @@ class StorageService {
 
   // Meg local queue (the backend remains the account source of truth)
   getMegConversations() { return this.getItem(KEYS.MEG_CONVERSATIONS); }
-  setMegConversations(conversations) {
-    return this.setItem(KEYS.MEG_CONVERSATIONS, conversations);
+  setMegConversations(conversations, uid) {
+    return this.setItem(KEYS.MEG_CONVERSATIONS, conversations, uid ? encodeURIComponent(uid) : this.userScope);
   }
 
   getStrengthOutbox() { return this.getItem(KEYS.STRENGTH_OUTBOX); }
   setStrengthOutbox(items) { return this.setItem(KEYS.STRENGTH_OUTBOX, items); }
+
+  async readStrengthSessions(userScope) {
+    // This read is deliberately strict: a failed read must not turn into an
+    // empty list that overwrites a user's existing workout history on save.
+    try {
+      const value = await AsyncStorage.getItem(this.scopedKey(KEYS.STRENGTH_SESSIONS, userScope));
+      const parsed = safeParseJson(value, []);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      throw new Error('Bloom could not read your saved sessions. Please try again.');
+    }
+  }
+
+  async getStrengthSessions() {
+    const userScope = this.userScope;
+    // Share the same per-account queue across forUser() instances, so a
+    // refresh also waits for an already-running save for this account.
+    await strengthHistoryWrites.get(userScope)?.catch(() => {});
+    return this.readStrengthSessions(userScope);
+  }
+
+  async saveStrengthSession(summary) {
+    const userScope = this.userScope;
+    this.scopedKey(KEYS.STRENGTH_SESSIONS, userScope);
+    if (!summary || Array.isArray(summary) || typeof summary !== 'object'
+      || typeof summary.id !== 'string' || !summary.id.trim()) {
+      throw new Error('Bloom could not save this session because its identifier is missing.');
+    }
+    const record = { ...summary, id: summary.id.trim() };
+    const previous = strengthHistoryWrites.get(userScope) || Promise.resolve();
+    const pending = previous.catch(() => {}).then(async () => {
+      const stored = await this.readStrengthSessions(userScope);
+      const next = [record, ...stored.filter((item) => item?.id !== record.id)]
+        .slice(0, STRENGTH_HISTORY_LIMIT);
+      await this.setItem(KEYS.STRENGTH_SESSIONS, next, userScope);
+      return next;
+    });
+    strengthHistoryWrites.set(userScope, pending);
+    try {
+      return await pending;
+    } finally {
+      if (strengthHistoryWrites.get(userScope) === pending) strengthHistoryWrites.delete(userScope);
+    }
+  }
 
   // Movement
   getMovements() { return this.getItem(KEYS.MOVEMENTS); }
@@ -330,7 +384,7 @@ class StorageService {
       await this.removeItem(KEYS.APP_LOCK_PIN, userScope);
       return legacyPin;
     } catch (error) {
-      console.error('Error reading the protected app-lock PIN:', error);
+      console.warn('Bloom protected storage read failed.');
       return null;
     }
   }
@@ -353,7 +407,7 @@ class StorageService {
       await this.removeItem(KEYS.APP_LOCK_PIN, userScope);
       return true;
     } catch (error) {
-      console.error('Error writing the protected app-lock PIN:', error);
+      console.warn('Bloom protected storage write failed.');
       throw new Error('Bloom could not protect your app-lock PIN on this device. Please try again.');
     }
   }
@@ -388,8 +442,8 @@ class StorageService {
   }
 
   // Delete all data
-  async deleteAllData() {
-    const userScope = this.userScope;
+  async deleteAllData(uid) {
+    const userScope = uid ? encodeURIComponent(uid) : this.userScope;
     const keys = Object.values(KEYS).flatMap((key) => [
       this.scopedKey(key, userScope),
       this.legacyScopedKey(key, userScope),
@@ -402,7 +456,7 @@ class StorageService {
       if (results.some((removed) => !removed)) throw new Error('AsyncStorage remove failed.');
       return true;
     } catch (error) {
-      console.error('Error deleting all data:', error);
+      console.warn('Bloom device data deletion failed.');
       throw new Error('Bloom could not remove this account\'s device data. Please try again.');
     }
   }

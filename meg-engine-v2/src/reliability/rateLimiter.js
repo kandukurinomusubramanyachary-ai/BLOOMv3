@@ -3,6 +3,10 @@ class RateLimiter {
   allow(key = 'unknown') {
     if (!this.limit) return true;
     const now = this.now();
+    if (this.buckets.size > 10000) {
+      for (const [id, item] of this.buckets) if (item.expiresAt <= now) this.buckets.delete(id);
+      if (this.buckets.size > 10000 && !this.buckets.has(key)) return false;
+    }
     const bucket = this.buckets.get(key);
     if (!bucket || bucket.expiresAt <= now) { this.buckets.set(key, { count: 1, expiresAt: now + this.windowMs }); return true; }
     if (bucket.count >= this.limit) return false;

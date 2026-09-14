@@ -88,6 +88,9 @@ function resolveMegV2DataDir(environment = process.env) {
   if (production && !configured) {
     throw new Error('MEG_V2_DATA_DIR is required in production and must point to durable storage.');
   }
+  if (production && (!path.isAbsolute(configured) || /(^|[\\/])(tmp|temp)([\\/]|$)/i.test(configured))) {
+    throw new Error('MEG_V2_DATA_DIR must be an absolute, non-temporary durable storage path.');
+  }
   return configured || path.join(os.tmpdir(), 'bloom-meg-v2');
 }
 
@@ -106,6 +109,33 @@ function createMegV2Bridge({ environment = process.env, engineOverrides = {} } =
   const config = engineOverrides.config || loadConfig(buildMegV2Environment(environment));
   const engineApp = createMegEngineApp({ ...engineOverrides, config });
   const runtime = engineApp.locals.meg;
+  const production = String(environment.NODE_ENV || '').trim().toLowerCase() === 'production';
+  if (production && runtime.store.driver !== 'sqlite') {
+    runtime.store.close();
+    throw new Error('Production Meg requires working SQLite persistence.');
+  }
+  const active = new Map();
+  const mutations = new Map();
+  function verifiedUid(uid) {
+    if (typeof uid !== 'string' || !uid.trim()) throw new ChatRequestError('unauthorized', { status: 401 });
+    return uid.trim();
+  }
+  function mutate(uid, operation) {
+    uid = verifiedUid(uid);
+    const previous = mutations.get(uid) || Promise.resolve();
+    const pending = previous.catch(() => {}).then(async () => {
+      const requests = [...(active.get(uid) || [])];
+      requests.forEach((item) => item.controller.abort());
+      await Promise.allSettled(requests.map((item) => item.promise));
+      const result = await operation(uid);
+      runtime.cache.clear();
+      return result;
+    });
+    mutations.set(uid, pending);
+    return pending.finally(() => {
+      if (mutations.get(uid) === pending) mutations.delete(uid);
+    });
+  }
   const runChat = createBufferedChatRunner({
     config: runtime.config,
     providerManager: runtime.providerManager,
@@ -119,11 +149,14 @@ function createMegV2Bridge({ environment = process.env, engineOverrides = {} } =
     config,
     runtime,
     async chat({ uid, body = {}, signal } = {}) {
-      if (typeof uid !== 'string' || !uid.trim()) {
-        throw new ChatRequestError('unauthorized', { status: 401 });
-      }
+      uid = verifiedUid(uid);
+      if (mutations.has(uid)) throw new ChatRequestError('data_operation_in_progress', { status: 409 });
+      const controller = new AbortController();
+      const abort = () => controller.abort();
+      if (signal?.aborted) controller.abort();
+      signal?.addEventListener('abort', abort, { once: true });
       const supportMode = cleanSupportMode(body.supportMode ?? body.mode);
-      const result = await runChat({
+      const item = { controller, promise: runChat({
         userId: uid.trim(),
         conversationId: body.conversationId,
         messageId: body.messageId,
@@ -133,7 +166,15 @@ function createMegV2Bridge({ environment = process.env, engineOverrides = {} } =
         language: body.language || 'en',
         context: mapBloomContext(body.context),
         history: Array.isArray(body.history) ? body.history : [],
-      }, { signal });
+      }, { signal: controller.signal }) };
+      if (!active.has(uid)) active.set(uid, new Set());
+      active.get(uid).add(item);
+      let result;
+      try { result = await item.promise; } finally {
+        signal?.removeEventListener('abort', abort);
+        active.get(uid)?.delete(item);
+        if (!active.get(uid)?.size) active.delete(uid);
+      }
 
       return {
         message: result.text,
@@ -146,8 +187,25 @@ function createMegV2Bridge({ environment = process.env, engineOverrides = {} } =
         traceId: result.metadata?.traceId || null,
       };
     },
+    deleteUserData({ uid }) {
+      return mutate(uid, (userId) => runtime.store.deleteUserData({ userId }));
+    },
+    deleteConversation({ uid, conversationId }) {
+      if (typeof conversationId !== 'string' || !conversationId.trim() || conversationId.length > 240 || /[\\/]/.test(conversationId)) {
+        throw new ChatRequestError('invalid_conversation', { status: 400 });
+      }
+      return mutate(uid, (userId) => runtime.store.deleteConversation({ userId, conversationId }));
+    },
+    exportUserData({ uid }) {
+      return runtime.store.exportUserData({ userId: verifiedUid(uid) });
+    },
     health() {
+      const providers = typeof runtime.providerManager.status === 'function' ? runtime.providerManager.status() : {};
+      const authenticationConfigured = !production || Boolean(environment.FIREBASE_PROJECT_ID || environment.FIREBASE_SERVICE_ACCOUNT_JSON || environment.GOOGLE_CLOUD_PROJECT);
       return {
+        ready: Object.values(providers).some((item) => item.configured && item.state !== 'OPEN')
+          && authenticationConfigured && (!production || runtime.store.driver === 'sqlite'),
+        authenticationConfigured,
         engineVersion: config.engineVersion,
         providers: typeof runtime.providerManager.status === 'function'
           ? runtime.providerManager.status()

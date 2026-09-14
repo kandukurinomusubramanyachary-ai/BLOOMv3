@@ -58,6 +58,17 @@ function drive(engine, frames, startTs = 0, stepMs = 100) {
 }
 
 for (const exercise of EXERCISES) {
+  test(`${exercise.id} pause discards a partial rep but preserves accepted reps`, () => {
+    const engine = createRepStateMachine(exercise, { activeSide: 'left', hipX: 0.5, shoulderMid: { x: 0.5 } });
+    const phases = sequences[exercise.id].phases;
+    const first = drive(engine, phases.flatMap(phase => repeat(phase)));
+    assert.equal(engine.snapshot().reps, 1);
+    const partial = drive(engine, phases.slice(0, 3).flatMap(phase => repeat(phase)), first.ts);
+    engine.interrupt();
+    drive(engine, repeat(phases[3]), partial.ts + 5000);
+    assert.equal(engine.snapshot().reps, 1);
+  });
+
   test(`${exercise.id} counts exactly ten complete deterministic reps`, () => {
     const engine = createRepStateMachine(exercise, { activeSide: 'left', hipX: 0.5, shoulderMid: { x: 0.5 } });
     const definition = sequences[exercise.id];

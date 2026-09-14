@@ -282,6 +282,8 @@ async function runChat({
   );
 
   const cacheRequest = {
+    userId,
+    conversationId,
     intent: routing.intent,
     supportMode: body.supportMode || null,
     message,
@@ -512,14 +514,16 @@ function finishChat({
     }, text));
   }
 
-  setImmediate(() => {
+  // Complete user-owned writes before resolving the request, so a subsequent
+  // privacy deletion cannot be undone by a deferred memory extraction.
+  {
     if (!safety.triggered) {
       for (const memory of extractMemories({ message, context: selectedContext, intent })) {
         safeCall(() => store.addMemory({ userId, conversationId, ...memory }));
       }
     }
-    safeCall(() => store.saveProviderMetric({ ...trace }));
-  });
+    safeCall(() => store.saveProviderMetric({ ...trace, userId, conversationId }));
+  }
 
   const metadata = {
     messageId: assistantMessage?.id || null,

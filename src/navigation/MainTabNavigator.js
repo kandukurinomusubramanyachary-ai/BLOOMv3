@@ -11,7 +11,6 @@ import TodayScreen from '../screens/TodayScreen';
 import TimelineScreen from '../screens/TimelineScreen';
 import MegScreen from '../screens/MegScreen';
 import DietScreen from '../screens/DietScreen';
-import StrengthScreen from '../features/strength/StrengthScreen';
 import { isStrengthEnabled } from '../features/strength/featureFlag';
 
 const Tab = createBottomTabNavigator();
@@ -20,7 +19,7 @@ const tabs = [
   { name: 'Today', component: TodayScreen, icon: 'bloom' },
   { name: 'Timeline', component: TimelineScreen, icon: 'calendar' },
   { name: 'Meg', component: MegScreen, icon: 'chatbubbles' },
-  ...(isStrengthEnabled() ? [{ name: 'Strength', component: StrengthScreen, icon: 'fitness' }] : []),
+  ...(isStrengthEnabled() ? [{ name: 'Strength', component: require('../features/strength/StrengthScreen').default, icon: 'fitness' }] : []),
   { name: 'Diet', component: DietScreen, icon: 'nutrition' },
 ];
 

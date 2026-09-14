@@ -4,6 +4,11 @@
 .git
 .expo
 node_modules
+**/node_modules
+meg-engine-v2/data
+**/*.db
+**/*.db-wal
+**/*.db-shm
 dist
 web-build
 coverage
@@ -12,6 +17,13 @@ ios
 assets
 src
 scripts
+
+# Historical code-transfer/staging payloads must never enter build context.
+.new-bloom-patch
+.strength-import
+.strength-upload
+.strength-v2-source
+
 *.apk
 *.aab
 *.ipa

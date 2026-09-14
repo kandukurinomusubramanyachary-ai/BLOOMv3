@@ -1,70 +1,42 @@
 import React from 'react';
 import { Text, View } from 'react-native';
-import Icon from '../../../components/Icon';
-import Button from '../../../components/Button';
-import { COLORS, createThemedStyles, TYPOGRAPHY } from '../../../utils/constants';
 import { EXERCISE_COPY } from '../constants';
+import { STRENGTH_TYPE as T, useStrengthStyles } from '../strengthTheme';
+import SessionCompletion from './SessionCompletion';
+import { StrengthNote } from './StrengthUI';
 
 function formatDuration(seconds) {
-  const safeSeconds = Math.max(0, Number(seconds) || 0);
-  const minutes = Math.floor(safeSeconds / 60);
-  return `${minutes}:${String(Math.floor(safeSeconds % 60)).padStart(2, '0')}`;
+  const safe = Math.max(0, Math.floor(Number(seconds) || 0));
+  return Math.floor(safe / 60) + ':' + String(safe % 60).padStart(2, '0');
 }
 
-function completedLabel(summary) {
-  const exercise = EXERCISE_COPY[summary.exerciseId]?.name || 'Reps';
-  if (exercise === 'Bodyweight squat') return 'SQUATS COMPLETED';
-  return `${exercise.toUpperCase()} REPS`;
-}
-
-export default function StrengthSummary({ summary, observation, focus, synced, onDone, onAgain }) {
+export default function StrengthSummary({
+  summary, observation, focus, synced, onDone, onAgain, doneLabel = 'Done',
+  localSaveError, onRetryLocal, savingLocal = false,
+}) {
+  const { styles: s } = useStrengthStyles(sheet);
   const completed = summary.completionState === 'completed';
-  return (
-    <View style={styles.wrap}>
-      <View style={styles.mark}><Icon name={completed ? 'checkmark-circle-outline' : 'bookmark-outline'} size={38} color={COLORS.brand} /></View>
-      <Text style={styles.title}>{completed ? 'Session Complete' : 'Session Saved'}</Text>
-      <Text style={styles.subtitle}>{completed ? 'Great work today.' : 'Your movement still counts.'}</Text>
-
-      <View style={styles.stats}>
-        <View style={styles.statCard}><Text style={styles.statValue}>{summary.acceptedReps}</Text><Text style={styles.statLabel}>{completedLabel(summary)}</Text></View>
-        <View style={styles.statCard}><Text style={styles.statValue}>{formatDuration(summary.durationSeconds)}</Text><Text style={styles.statLabel}>DURATION</Text></View>
-      </View>
-
-      <View style={styles.insights}>
-        <View style={styles.insightCard}>
-          <Icon name='analytics-outline' size={20} color={COLORS.brand} />
-          <View style={styles.flex}><Text style={styles.insightTitle}>Observation</Text><Text style={styles.insightBody}>{observation}</Text></View>
-        </View>
-        {focus ? (
-          <View style={styles.insightCard}>
-            <Icon name='bulb-outline' size={20} color={COLORS.brand} />
-            <View style={styles.flex}><Text style={styles.insightTitle}>Focus Tip</Text><Text style={styles.insightBody}>{focus}</Text></View>
-          </View>
-        ) : null}
-      </View>
-
-      <Text style={styles.sync}>{synced ? 'Saved to your Bloom account.' : 'Saved on this device. Bloom will sync when you are online.'}</Text>
-      <Button title='Done' onPress={onDone} style={styles.button} />
-      <Button title='Try again' variant='secondary' onPress={onAgain} style={styles.againButton} />
-    </View>
-  );
+  const exerciseName = EXERCISE_COPY[summary.exerciseId]?.name || 'Your movement';
+  return <SessionCompletion
+    title={completed ? 'Beautiful work.' : 'You made time to move.'}
+    subtitle={exerciseName + (completed ? ' complete' : ' · session ended')}
+    stats={[
+      { value: summary.acceptedReps, label: 'Tracked reps' },
+      { value: formatDuration(summary.durationSeconds), label: 'Session time' },
+    ]}
+    saving={savingLocal} saveError={localSaveError} onRetrySave={onRetryLocal}
+    savedMessage={synced ? 'Saved to your Bloom account.' : 'Saved on this device. Account sync is pending.'}
+    onDone={onDone} doneLabel={doneLabel} onAgain={onAgain}
+    details={observation ? <View style={s.detail}>
+      <Text style={s.detailTitle}>What Bloom noticed</Text><Text style={s.detailBody}>{observation}</Text>
+      <Text style={s.disclaimer}>Camera guidance is an estimate, not a professional form assessment.</Text>
+    </View> : null}
+  >
+    {focus ? <StrengthNote tone="neutral" icon="bulb-outline" title="For your next set">{focus}</StrengthNote> : null}
+  </SessionCompletion>;
 }
 
-const styles = createThemedStyles({
-  wrap: { alignItems: 'center', paddingTop: 24, paddingBottom: 8 },
-  flex: { flex: 1 },
-  mark: { width: 72, height: 72, alignItems: 'center', justifyContent: 'center', marginBottom: 17, borderRadius: 36, backgroundColor: COLORS.brandSoft },
-  title: { color: COLORS.ink, fontSize: 24, lineHeight: 30, fontWeight: '700', textAlign: 'center' },
-  subtitle: { marginTop: 5, color: COLORS.muted, ...TYPOGRAPHY.supporting, textAlign: 'center' },
-  stats: { width: '100%', flexDirection: 'row', gap: 10, marginTop: 26 },
-  statCard: { flex: 1, minHeight: 112, alignItems: 'center', justifyContent: 'center', padding: 14, borderWidth: 1, borderColor: COLORS.hairline, borderRadius: 14, backgroundColor: COLORS.surfaceSoft },
-  statValue: { color: COLORS.brand, fontSize: 36, lineHeight: 41, fontWeight: '800', fontVariant: ['tabular-nums'], letterSpacing: -0.7 },
-  statLabel: { marginTop: 4, color: COLORS.muted, ...TYPOGRAPHY.eyebrow, textAlign: 'center' },
-  insights: { width: '100%', gap: 10, marginTop: 22 },
-  insightCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 11, padding: 15, borderWidth: 1, borderColor: COLORS.hairline, borderRadius: 13, backgroundColor: COLORS.surfaceSoft },
-  insightTitle: { color: COLORS.ink, ...TYPOGRAPHY.supporting, fontWeight: '700' },
-  insightBody: { marginTop: 3, color: COLORS.body, ...TYPOGRAPHY.supporting },
-  sync: { marginTop: 15, color: COLORS.muted, ...TYPOGRAPHY.microcopy, textAlign: 'center' },
-  button: { width: '100%', marginTop: 22 },
-  againButton: { width: '100%', marginTop: 8 },
+const sheet = c => ({
+  detail: { gap: 8 }, detailTitle: { ...T.heading, color: c.ink },
+  detailBody: { ...T.body, color: c.body }, disclaimer: { ...T.supporting, color: c.muted, marginTop: 8 },
 });

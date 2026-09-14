@@ -52,6 +52,7 @@ export function drawPoseOverlay(canvas, frame) {
     viewWidth: width,
     viewHeight: height,
     mirrored: frame.mirrored,
+    fit: frame.fit,
   });
   const points = frame.landmarks.map((point) => mapNormalizedPoint(point, transform));
 

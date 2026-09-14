@@ -15,8 +15,11 @@ function midpoint(a, b) {
 
 function angle(a, b, c) {
   if (!a || !b || !c) return null;
-  const ab = { x: Number(a.x) - Number(b.x), y: Number(a.y) - Number(b.y) };
-  const cb = { x: Number(c.x) - Number(b.x), y: Number(c.y) - Number(b.y) };
+  // MediaPipe normalizes x/y by different dimensions. Restore square units
+  // before measuring angles, especially for portrait phone cameras.
+  const aspect = Number(b.aspectRatio) > 0 ? Number(b.aspectRatio) : 1;
+  const ab = { x: (Number(a.x) - Number(b.x)) * aspect, y: Number(a.y) - Number(b.y) };
+  const cb = { x: (Number(c.x) - Number(b.x)) * aspect, y: Number(c.y) - Number(b.y) };
   const denominator = Math.hypot(ab.x, ab.y) * Math.hypot(cb.x, cb.y);
   if (!denominator) return null;
   const cosine = Math.max(-1, Math.min(1, (ab.x * cb.x + ab.y * cb.y) / denominator));
@@ -30,7 +33,8 @@ function velocity(current, previous, elapsedMs) {
 
 function deviationFromVertical(hip, ankle) {
   if (!hip || !ankle) return null;
-  const dx = Number(ankle.x) - Number(hip.x);
+  const aspect = Number(hip.aspectRatio) > 0 ? Number(hip.aspectRatio) : 1;
+  const dx = (Number(ankle.x) - Number(hip.x)) * aspect;
   const dy = Number(ankle.y) - Number(hip.y);
   return Math.abs(Math.atan2(dx, Math.abs(dy) || 0.0001) * (180 / Math.PI));
 }

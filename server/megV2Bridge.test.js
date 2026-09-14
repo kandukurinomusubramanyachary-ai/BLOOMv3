@@ -116,7 +116,7 @@ test('Meg V2 bridge runs the real V2 prompt/routing pipeline with Bloom support 
 test('Bloom HTTP route derives user identity only from Firebase and returns Meg V2 JSON contract', async () => {
   const calls = [];
   const bridge = {
-    health() { return { engineVersion: 'test-v2', persistence: 'memory', providers: {} }; },
+    health() { return { ready: true, engineVersion: 'test-v2', persistence: 'memory', providers: {} }; },
     async chat(input) {
       calls.push(input);
       return {
