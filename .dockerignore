@@ -17,6 +17,13 @@ ios
 assets
 src
 scripts
+
+# Historical code-transfer/staging payloads must never enter build context.
+.new-bloom-patch
+.strength-import
+.strength-upload
+.strength-v2-source
+
 *.apk
 *.aab
 *.ipa

@@ -4,6 +4,7 @@ node_modules/
 dist/
 dist-*/
 web-build/
+coverage/
 .env
 .env.*
 !.env.example
@@ -14,3 +15,19 @@ npm-debug.log*
 *serviceAccount*.json
 service-account*.json
 firebase-adminsdk-*.json
+
+# Historical code-transfer/staging payloads. Keep these out of the product tree.
+.new-bloom-patch/
+.strength-import/
+.strength-upload/
+.strength-v2-source/
+
+# Local/native build artifacts and inspection output.
+*.apk
+*.aab
+*.ipa
+*.mobileprovision
+android-build-inspect/
+ios-build-inspect/
+apk-decoded/
+tmp/
