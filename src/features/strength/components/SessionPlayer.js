@@ -23,7 +23,7 @@ function GuidedPlayer({ exercise, sets, onExit, onComplete, onNext, nextLabel = 
   const { colors: c, styles: s } = useStrengthStyles(sheet);
   const { width, fontScale } = useWindowDimensions();
   const focused = useIsFocused();
-  const { state, controls } = useGuidedSession(exercise, sets);
+  const { state, controls, muted, setMuted, voiceAvailable } = useGuidedSession(exercise, sets);
   const [cueIndex, setCueIndex] = useState(0);
   const [saveState, setSaveState] = useState('idle');
   const [confirmExit, setConfirmExit] = useState(false);
@@ -41,7 +41,7 @@ function GuidedPlayer({ exercise, sets, onExit, onComplete, onNext, nextLabel = 
   }, []);
 
   useEffect(() => {
-    if (!focused) controls.pause();
+    if (!focused) controls.pause({ silent: true });
   }, [focused, controls.pause]);
 
   useEffect(() => {
@@ -175,7 +175,10 @@ function GuidedPlayer({ exercise, sets, onExit, onComplete, onNext, nextLabel = 
   return <StrengthScreenFrame testID="strength-guided-session"
     header={<StrengthHeader title={exercise.name} subtitle={progressText} onBack={requestExit}
       backLabel={isIdle ? 'Back to workout' : 'End exercise'} progress={progressValue} />}
-    footer={footer} contentStyle={isIdle ? undefined : s.sessionContent}>
+    footer={<>{footer}{voiceAvailable ? <StrengthButton title={muted ? 'Unmute' : 'Mute'}
+      icon={muted ? 'volume-mute-outline' : 'volume-high-outline'} variant="ghost"
+      onPress={() => setMuted(!muted)} testID="strength-guided-mute" /> : null}</>}
+    contentStyle={isIdle ? undefined : s.sessionContent}>
     {isIdle ? <>
       <View style={s.preparation}>
         <Text accessibilityRole="header" style={s.title}>Ready when you are.</Text>

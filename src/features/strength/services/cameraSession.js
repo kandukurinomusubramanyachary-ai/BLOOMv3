@@ -99,7 +99,11 @@ function startCameraSession({ video, createDetector, onReady, onFrame, onError, 
           lastVideoTime = video.currentTime;
           try {
             const result = detector.detect(video, now);
-            if (!stopped) onFrame?.({ ...result, ts: now });
+            if (!stopped) onFrame?.({
+              ...result, ts: now,
+              sourceWidth: video.videoWidth, sourceHeight: video.videoHeight,
+              mirrored: stream.getVideoTracks()[0]?.getSettings?.().facingMode !== 'environment',
+            });
           } catch (error) { fail(error); return; }
         }
         if (!stopped) animationFrame = env.requestAnimationFrame(sample);

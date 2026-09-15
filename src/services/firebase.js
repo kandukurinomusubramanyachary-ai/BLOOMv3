@@ -3,34 +3,31 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import * as FirebaseAuth from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { isDevelopmentAuthEnabled, normalizeFirebaseConfiguration, validateFirebaseConfiguration } from './firebaseConfiguration';
 import {
   getStartupStage,
   recordStartupFailure,
   setStartupStage,
 } from '../diagnostics/startupDiagnostics';
 
-const firebaseConfig = {
+// Keep these static property reads: Expo replaces EXPO_PUBLIC values at build time.
+const firebaseConfig = normalizeFirebaseConfiguration({
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-};
+});
 
-const requiredConfigKeys = [
-  'apiKey',
-  'authDomain',
-  'projectId',
-  'storageBucket',
-  'messagingSenderId',
-  'appId',
-];
-
-const missingConfigKeys = requiredConfigKeys.filter((key) => !firebaseConfig[key]);
-
-export const firebaseConfigurationError = missingConfigKeys.length
-  ? 'Firebase configuration is missing from this build.'
+const isDevelopment = typeof __DEV__ !== 'undefined' && __DEV__;
+export const developmentAuthEnabled = isDevelopmentAuthEnabled(isDevelopment, process.env.EXPO_PUBLIC_BLOOM_DEV_AUTH);
+export const firebaseConfigurationIssues = validateFirebaseConfiguration(firebaseConfig, {
+  isDevelopment,
+  devAuthFlag: process.env.EXPO_PUBLIC_BLOOM_DEV_AUTH,
+});
+export const firebaseConfigurationError = firebaseConfigurationIssues.length
+  ? `Firebase configuration is incomplete. ${firebaseConfigurationIssues.join('. ')}.`
   : null;
 
 export let firebaseApp = null;
@@ -90,7 +87,11 @@ export function initializeFirebaseServices() {
   setStartupStage('firebase-app');
 
   try {
-    firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
+    const defaultApp = getApps().find(app => app.name === '[DEFAULT]');
+    if (defaultApp && Object.keys(firebaseConfig).some(key => defaultApp.options[key] !== firebaseConfig[key])) {
+      throw new Error('Firebase configuration changed. Restart the app before connecting to a different project.');
+    }
+    firebaseApp = defaultApp ? getApp() : initializeApp(firebaseConfig);
     auth = initialiseAuth(firebaseApp);
     setStartupStage('firestore');
     db = getFirestore(firebaseApp);

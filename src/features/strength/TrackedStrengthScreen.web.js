@@ -31,7 +31,9 @@ function historySummary(result, exercise) {
 
 export default function TrackedStrengthScreen({ exercise, sets = 1, onExit, onFallback, onComplete, onNext, nextLabel, workoutProgress }) {
   const { user } = useAuth();
-  const { height } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
+  const [viewport, setViewport] = useState({ width, height: height - 180 });
+  const [videoSize, setVideoSize] = useState({ width: 640, height: 480 });
   const { colors: c, styles: s } = useStrengthStyles(sheet);
   const reducedMotion = useReducedMotion();
   const poseEngineId = poseEngineIdForExercise(exercise?.id);
@@ -106,19 +108,30 @@ export default function TrackedStrengthScreen({ exercise, sets = 1, onExit, onFa
   const localSavePending = Boolean(summaryResult?.summary && savedSummaryId !== summaryResult.summary.id);
   const exitBlocked = ['saving', 'save_error'].includes(phase) || (phase === 'summary' && localSavePending);
   const saveOrExit = exitBlocked ? undefined : hasProgress ? stop : onExit;
-  const cameraHeight = phase === 'between_sets' ? 144 : Math.max(280, Math.min(540, height * 0.55));
+  const landscape = width > height && height < 600;
+  const contentWidth = Math.max(1, Math.min(680, viewport.width) - 40);
+  const cameraWidth = landscape ? Math.max(1, (contentWidth - 16) * 0.55) : contentWidth;
+  const cameraHeight = phase === 'between_sets' ? 144 : Math.max(120, Math.min(
+    540, cameraWidth * videoSize.height / videoSize.width,
+    landscape ? viewport.height - 24 : viewport.height - (working ? 180 : 100),
+  ));
   const trackingPaused = phase === 'paused' && !['manual', 'page_hidden'].includes(pauseReason);
   const progressFraction = workoutProgress?.total > 0 ? (workoutProgress.current - 1) / workoutProgress.total : undefined;
   const progressLabel = workoutProgress?.total > 0 ? `Exercise ${workoutProgress.current} of ${workoutProgress.total}` : null;
   const movement = exercise || EXERCISE_COPY[poseEngineId];
 
-  return <StrengthScreenFrame testID="strength-camera-screen" contentStyle={s.content}
+  return <StrengthScreenFrame testID="strength-camera-screen" contentStyle={s.content} fitViewport
+    onViewportLayout={event => setViewport(event.nativeEvent.layout)}
     header={<StrengthHeader title={exercise?.name || 'Camera guidance'} subtitle={[progressLabel, `${phaseLabel(phase)} · Set ${currentSet} of ${totalSets}`].filter(Boolean).join(' · ')}
       onBack={saveOrExit} backLabel={hasProgress ? 'Finish and save Strength session' : 'Back to Strength'} progress={progressFraction} />}
     footer={phase === 'select' ? <>
       {!unavailable ? <StrengthButton title="Enable camera" icon="camera-outline" onPress={beginCamera} /> : null}
       <StrengthButton title="Continue guided" variant={unavailable ? 'primary' : 'secondary'} onPress={onFallback} />
-    </> : working ? <SessionControls paused={phase === 'paused'} muted={muted} onPause={togglePause} onMute={() => setMuted(!muted)} onStop={stop} voiceAvailable={voiceAvailable} /> : null}>
+    </> : working ? <SessionControls paused={phase === 'paused'} muted={muted} onPause={togglePause} onMute={() => setMuted(!muted)} onStop={stop} voiceAvailable={voiceAvailable} />
+      : cameraActive && (phase === 'ready' || voiceAvailable) ? <View style={s.readyControls}>
+        {phase === 'ready' ? <StrengthButton title="Start exercise" icon="play-outline" onPress={startCountdown} style={s.growButton} /> : null}
+        {voiceAvailable ? <StrengthButton title={muted ? 'Unmute' : 'Mute'} icon={muted ? 'volume-mute-outline' : 'volume-high-outline'} variant="secondary" onPress={() => setMuted(!muted)} style={phase !== 'ready' && s.growButton} /> : null}
+      </View> : null}>
 
     {phase === 'select' ? <View style={s.section}>
       <Text accessibilityRole="header" style={s.title}>{unavailable ? 'Move without a camera.' : 'A little guidance, your way.'}</Text>
@@ -131,19 +144,20 @@ export default function TrackedStrengthScreen({ exercise, sets = 1, onExit, onFa
       {showSafety ? <View style={s.details}><Text style={s.supporting}>{STRENGTH_COPY.cameraPrivacyBody}</Text><Text style={s.supporting}>{STRENGTH_COPY.safety}</Text></View> : null}
     </View> : null}
 
-    {cameraActive ? <>
+    {cameraActive ? <View style={[s.cameraLayout, landscape && s.cameraLandscape]}>
       {/* This same CameraStage remains mounted across rest and pause. Inference is controlled by the hook. */}
-      <View style={[s.stageWrap, { height: cameraHeight }]}>
-        <CameraStage active={cameraActive} inferenceActive={inferenceActive} showSkeleton={showSkeleton} onReady={cameraReady} onError={cameraError} onFrame={onFrame} />
+      <View style={[s.stageWrap, { height: cameraHeight }, landscape && { width: cameraWidth }]}>
+        <CameraStage active={cameraActive} inferenceActive={inferenceActive} showSkeleton={showSkeleton} showIndicator={false} onReady={cameraReady} onError={cameraError} onFrame={onFrame} onVideoSize={setVideoSize} />
       </View>
+      <View style={[s.cameraDetails, landscape && s.landscapeDetails]}>
+      {phase !== 'loading' ? <Text style={s.supporting}>{STRENGTH_COPY.activeCamera}</Text> : null}
       {phase === 'loading' ? <Text style={s.supporting}>Allow camera access when your browser asks. First-time setup may take a moment.</Text> : null}
       {phase === 'calibrating' ? <View style={s.group}>
-        <FramingGuide instruction={instruction} tone={calibrationGood ? 'good' : 'neutral'} />
+        <FramingGuide instruction={instruction} tone={calibrationGood ? 'good' : 'adjust'} />
         <Text style={s.supporting}>{EXERCISE_COPY[poseEngineId]?.view} · Keep your head and feet visible.</Text>
       </View> : null}
       {phase === 'ready' ? <View style={s.group}>
         <FramingGuide instruction="Your full body is in view." tone="good" />
-        <StrengthButton title="Start exercise" icon="play-outline" onPress={startCountdown} />
       </View> : null}
       {phase === 'countdown' ? <View style={s.countdownWrap}>
         <Text accessibilityLiveRegion="polite" style={s.countdown}>{countdown || 'Go'}</Text>
@@ -176,7 +190,8 @@ export default function TrackedStrengthScreen({ exercise, sets = 1, onExit, onFa
           {!voiceAvailable ? <Text style={s.supporting}>{STRENGTH_COPY.voiceUnavailable}</Text> : null}
         </View> : null}
       </View> : null}
-    </> : null}
+      </View>
+    </View> : null}
 
     {phase === 'permission' ? <View style={s.section}>
       <Text accessibilityRole="header" style={s.title}>Let’s get you moving.</Text>
@@ -207,6 +222,9 @@ const sheet = c => ({
   title: { ...T.title, color: c.ink }, heading: { ...T.heading, color: c.ink }, body: { ...T.body, color: c.body }, supporting: { ...T.supporting, color: c.muted },
   details: { gap: 16, borderTopWidth: 1, borderTopColor: c.line, paddingTop: 16 },
   stageWrap: { width: '100%', borderRadius: 16, overflow: 'hidden', flexShrink: 0 },
+  cameraLayout: { gap: 16, minWidth: 0 }, cameraLandscape: { flexDirection: 'row', alignItems: 'flex-start' },
+  cameraDetails: { gap: 16, minWidth: 0 }, landscapeDetails: { flex: 1 },
+  readyControls: { flexDirection: 'row', gap: 8 }, growButton: { flex: 1 },
   countdownWrap: { alignItems: 'center', gap: 8 }, countdown: { color: c.accent, fontSize: 44, lineHeight: 52, fontWeight: '600', fontVariant: ['tabular-nums'] },
   repRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 20 },
   repValue: { color: c.ink, fontSize: 42, lineHeight: 52, fontWeight: '600', fontVariant: ['tabular-nums'] }, repTarget: { ...T.heading, color: c.muted },

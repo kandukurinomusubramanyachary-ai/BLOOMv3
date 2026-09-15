@@ -1,0 +1,11 @@
+# Firebase setup and verification
+
+Bloom uses Firebase's JavaScript SDK with the same Web App configuration on Expo web and native. Copy the six `EXPO_PUBLIC_FIREBASE_*` fields from Firebase Console > Project settings > Your apps into an ignored local environment file or the build environment. `.env.example` lists the exact names. These public client identifiers do not grant database access; Firestore rules enforce ownership. Never put Admin credentials or provider secrets in `EXPO_PUBLIC_*` fields.
+
+For real Firebase testing, disable `EXPO_PUBLIC_BLOOM_DEV_AUTH`. It is an explicit local preview helper, and a production build rejects it when enabled. Restart Expo after changing public environment variables, or rebuild an export. If a previous configuration failure is still displayed, use the diagnostic screen's retry action after correcting the build configuration.
+
+In Firebase Console, verify Email/Password sign-in is enabled, the actual web testing and deployment domains are authorized, and Firestore is provisioned. Deploy the repository's Firestore rules to that same project. No client App Check provider is currently initialized; a project that already enforces App Check requires a separately configured provider before real requests can succeed.
+
+Run `npm run release:config:check` to validate release configuration without printing values. `npm run build:web:release` runs that check before exporting. The existing `npm run build:web` remains available for local preview exports. The release validator also checks the existing backend URL, public support/privacy/terms URLs and launch flags; it cannot verify that a project, API key, endpoint or reviewed document works remotely.
+
+Use a dedicated test account and verify signup, onboarding, logout, login, refresh, closing and reopening the browser, password-reset email delivery, and account deletion. Confirm repeated login preserves the existing profile and another signed-in account cannot read its data. Web Auth explicitly uses browser local persistence; native Auth uses AsyncStorage persistence. Browser storage restrictions or missing native persistence must produce a recoverable failure rather than a pretend login. Automated Firebase mocks validate code paths, not real credentials, email delivery or deployed security rules.

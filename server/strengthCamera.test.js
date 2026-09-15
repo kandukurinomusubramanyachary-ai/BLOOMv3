@@ -23,7 +23,7 @@ function fixture() {
   const track = { stop: () => state.stops++, addEventListener: (_, fn) => { ended = fn; }, removeEventListener: () => { ended = null; } };
   const stream = { getTracks: () => [track], getVideoTracks: () => [track] };
   const detector = { close: () => state.closes++, detect: () => { state.detections++; return { poses: [] }; } };
-  const video = { srcObject: null, play: async () => {}, currentTime: 0, readyState: 2, videoWidth: 640 };
+  const video = { srcObject: null, play: async () => {}, currentTime: 0, readyState: 2, videoWidth: 640, videoHeight: 480 };
   const env = { isSecureContext: true, document: { hidden: false }, navigator: { mediaDevices: { getUserMedia: async constraints => { state.requests++; assert.equal(constraints.audio, false); return stream; } } }, requestAnimationFrame: fn => { const id = ++state.nextId; state.callbacks.set(id, fn); return id; }, cancelAnimationFrame: id => state.callbacks.delete(id) };
   const options = { video, env, createDetector: async () => detector, settings: () => ({ inferenceActive: state.enabled }), onFrame: frame => state.frames.push(frame), onError: error => state.errors.push(error) };
   return { state, options, stream, detector, video, env, end: () => ended?.(), frame: ts => { const pending = [...state.callbacks.values()]; state.callbacks.clear(); pending.forEach(fn => fn(ts)); } };
@@ -113,4 +113,20 @@ test('portrait and landscape contain previews keep all landmarks visible and mir
     assert.ok(a.x <= viewWidth && b.x >= 0 && a.y >= 0 && b.y <= viewHeight);
     assert.ok(a.x > b.x);
   }
+});
+
+test('camera frames expose actual source dimensions and front/rear mirroring after rotation', async () => {
+  const f = fixture();
+  let facingMode = 'user';
+  f.stream.getVideoTracks()[0].getSettings = () => ({facingMode});
+  const session = startCameraSession(f.options); await session.ready;
+  try {
+    f.frame(100);
+    assert.equal(f.state.frames[0].mirrored,true);
+    assert.equal(f.state.frames[0].sourceWidth,640);
+    f.video.videoWidth=480; f.video.videoHeight=640; f.video.currentTime++; facingMode='environment'; f.frame(200);
+    assert.equal(f.state.frames[1].mirrored,false);
+    assert.equal(f.state.frames[1].sourceWidth,480);
+    assert.equal(f.state.frames[1].sourceHeight,640);
+  } finally { session.stop(); }
 });

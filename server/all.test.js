@@ -7,6 +7,8 @@ require('./megReveal.test');
 require('./strengthEngine.test');
 require('./strengthContract.test');
 require('./strengthCamera.test');
+require('./strengthMobile.test');
+require('./strengthVoice.test');
 require('./strengthHistory.test');
 require('./strengthExperience.test');
 require('./strengthOutboxStorage.test');
