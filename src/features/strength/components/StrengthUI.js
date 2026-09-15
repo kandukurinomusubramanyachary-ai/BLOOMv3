@@ -42,12 +42,12 @@ export function StrengthHeader({ title, subtitle, icon, onBack, backLabel = 'Bac
   </View>;
 }
 
-export function StrengthScreenFrame({ children, header, footer, contentStyle, testID }) {
+export function StrengthScreenFrame({ children, header, footer, contentStyle, testID, fitViewport = false, onViewportLayout }) {
   const { styles: s } = useStrengthStyles(sheet);
   const insets = useSafeAreaInsets();
-  return <SafeAreaView testID={testID} style={s.safe} edges={['top', 'left', 'right']}>
+  return <SafeAreaView testID={testID} style={[s.safe, fitViewport && Platform.OS === 'web' && { maxHeight: '100dvh' }]} edges={['top', 'left', 'right']}>
     {header}
-    <ScrollView style={s.scroll} contentContainerStyle={[s.content, contentStyle]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">{children}</ScrollView>
+    <ScrollView style={s.scroll} onLayout={onViewportLayout} contentContainerStyle={[s.content, contentStyle]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">{children}</ScrollView>
     {footer ? <View style={[s.footer, { paddingBottom: Math.max(20, insets.bottom + 8) }]}><View style={s.footerInner}>{footer}</View></View> : null}
   </SafeAreaView>;
 }

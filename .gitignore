@@ -31,3 +31,7 @@ android-build-inspect/
 ios-build-inspect/
 apk-decoded/
 tmp/
+
+.env
+.env.local
+.env.*.local

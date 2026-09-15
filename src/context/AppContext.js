@@ -10,6 +10,7 @@ import { differenceInCalendarDays, isValid, parseISO } from 'date-fns';
 import { KEYS, storage as sharedStorage } from '../services/storage';
 const accountWork = require('../services/accountWork');
 import { useAuth } from './AuthContext';
+import { developmentAuthEnabled } from '../services/firebase';
 import {
   deleteAllCurrentUserTrackingData,
   deleteCurrentUserProfileDocument,
@@ -361,7 +362,7 @@ export function AppProvider({ children }) {
       let { profile, checkins, periods } = accountData;
       // DEV: seed a default profile so screens that expect one don't crash
       // when running with the fake login (no cloud profile available).
-      if (!profile && process.env.EXPO_PUBLIC_BLOOM_DEV_AUTH === '1') {
+      if (!profile && developmentAuthEnabled && user.uid === 'dev-user') {
         profile = {
           firstName: 'Dev',
           preferredName: 'Dev',
@@ -373,7 +374,7 @@ export function AppProvider({ children }) {
       }
       // DEV: seed realistic sample history so data screens (Insights, Timeline)
       // look full. Only fills when nothing is stored, so real data is untouched.
-      if (process.env.EXPO_PUBLIC_BLOOM_DEV_AUTH === '1') {
+      if (developmentAuthEnabled && user.uid === 'dev-user') {
         if (!Array.isArray(checkins) || checkins.length === 0) {
           checkins = buildSampleCheckins();
         }
@@ -870,29 +871,31 @@ export function AppProvider({ children }) {
   }
 
   async function resetAllData() {
-    const resume = accountWork.pause(user.uid);
+    const expectedUid = user.uid;
+    const resume = accountWork.pause(expectedUid);
     megDataRevisionRef.current += 1;
     try { await persist(async () => {
-      await deleteAllCurrentUserMegData();
+      await deleteAllCurrentUserMegData({ expectedUid });
       await Promise.all([
-      deleteAllCurrentUserTrackingData(),
-      deleteAllCurrentUserDietData(user.uid),
+      deleteAllCurrentUserTrackingData(expectedUid),
+      deleteAllCurrentUserDietData(expectedUid),
       ]);
-      await storage.deleteAllData(user.uid);
+      await storage.deleteAllData(expectedUid);
     }); } finally { resume(); }
     dispatch({ type: 'RESET_FOR_USER' });
     await loadInitialData();
   }
 
-  async function deleteAllAccountData() {
+  async function deleteAllAccountData(expectedUid = user.uid) {
+    if (expectedUid !== user.uid) throw new Error('Your sign-in changed. Please retry deleting your account.');
     megDataRevisionRef.current += 1;
     await persist(async () => {
       await Promise.all([
-        deleteAllCurrentUserTrackingData(),
-        deleteAllCurrentUserMegData({ serverAlreadyDeleted: true }),
-        deleteAllCurrentUserDietData(user.uid),
+        deleteAllCurrentUserTrackingData(expectedUid),
+        deleteAllCurrentUserMegData({ serverAlreadyDeleted: true, expectedUid }),
+        deleteAllCurrentUserDietData(expectedUid),
       ]);
-      await deleteCurrentUserProfileDocument();
+      await deleteCurrentUserProfileDocument(expectedUid);
     });
     dispatch({ type: 'RESET_FOR_USER' });
   }

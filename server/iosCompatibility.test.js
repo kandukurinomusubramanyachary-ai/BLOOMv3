@@ -71,7 +71,7 @@ test('in-app account deletion reauthenticates and deletes remote and local accou
   const data = read('src/services/userData.js');
 
   assert.match(auth, /reauthenticateWithCredential/);
-  assert.match(auth, /await beforeDelete\(\);[\s\S]*await deleteUser\(user\)/);
+  assert.match(auth, /await beforeDelete\(user\.uid\);[\s\S]*await deleteUser\(user\)/);
   assert.match(context, /deleteAllCurrentUserDietData/);
   assert.match(context, /deleteAllCurrentUserMegData/);
   assert.match(context, /deleteCurrentUserProfileDocument/);

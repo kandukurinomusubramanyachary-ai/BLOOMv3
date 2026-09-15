@@ -227,8 +227,16 @@ export function deleteCurrentUserCheckin(date) {
   return deleteDatedRecord('checkIns', date);
 }
 
-export async function deleteAllCurrentUserTrackingData() {
+function requireDeletionUser(expectedUid) {
   const { uid } = requireCurrentUser();
+  if (expectedUid && uid !== expectedUid) {
+    throw new Error('Your sign-in changed. Please retry deleting your Bloom data.');
+  }
+  return uid;
+}
+
+export async function deleteAllCurrentUserTrackingData(expectedUid = null) {
+  const uid = requireDeletionUser(expectedUid);
   const snapshots = await Promise.all([
     getDocs(userCollection(uid, 'cycleLogs')),
     getDocs(userCollection(uid, 'checkIns')),
@@ -237,13 +245,14 @@ export async function deleteAllCurrentUserTrackingData() {
   const references = snapshots.flatMap((snapshot) => snapshot.docs.map((item) => item.ref));
 
   for (let index = 0; index < references.length; index += 450) {
+    requireDeletionUser(uid);
     const batch = writeBatch(db);
     references.slice(index, index + 450).forEach((reference) => batch.delete(reference));
     await batch.commit();
   }
 }
 
-export async function deleteCurrentUserProfileDocument() {
-  const { uid } = requireCurrentUser();
+export async function deleteCurrentUserProfileDocument(expectedUid = null) {
+  const uid = requireDeletionUser(expectedUid);
   await deleteDoc(doc(db, 'users', uid));
 }

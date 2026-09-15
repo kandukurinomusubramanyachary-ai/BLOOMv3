@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -102,16 +102,28 @@ export default function AuthScreen() {
   const [firstName, setFirstName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [consent, setConsent] = useState(false);
   const [modelImprovementConsent, setModelImprovementConsent] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
   const [errors, setErrors] = useState({});
   const [pending, setPending] = useState(false);
+  const pendingRef = useRef(false);
+  const [resetAvailableAt, setResetAvailableAt] = useState(0);
+  const [resetWait, setResetWait] = useState(0);
+  useEffect(() => {
+    if (!resetAvailableAt) return undefined;
+    const update = () => setResetWait(Math.max(0, Math.ceil((resetAvailableAt - Date.now()) / 1000)));
+    update();
+    const timer = setInterval(update, 1000);
+    return () => clearInterval(timer);
+  }, [resetAvailableAt]);
 
   function changeMode(nextMode) {
     if (pending || nextMode === mode) return;
     setMode(nextMode);
     setPassword('');
+    setConfirmPassword('');
     setErrors({});
     setResetNotice('');
   }
@@ -134,6 +146,9 @@ export default function AuthScreen() {
     } else if (mode === 'signup' && password.length < 8) {
       nextErrors.password = 'Use a password with at least 8 characters.';
     }
+    if (mode === 'signup' && password !== confirmPassword) {
+      nextErrors.confirmPassword = 'Your passwords do not match.';
+    }
     if (mode === 'signup' && !consent) {
       nextErrors.consent = 'You need to agree before creating your Bloom account.';
     }
@@ -142,7 +157,8 @@ export default function AuthScreen() {
   }
 
   async function handleSubmit() {
-    if (pending || configurationError || !validate()) return;
+    if (pendingRef.current || configurationError || (mode === 'reset' && Date.now() < resetAvailableAt) || !validate()) return;
+    pendingRef.current = true;
     setPending(true);
     setErrors({});
 
@@ -152,11 +168,14 @@ export default function AuthScreen() {
           firstName,
           email,
           password,
+          confirmPassword,
           consent,
           modelImprovementConsent,
         });
       } else if (mode === 'reset') {
         setResetNotice(await resetPassword(email));
+        setResetWait(60);
+        setResetAvailableAt(Date.now() + 60000);
       } else {
         await logIn({ email, password });
       }
@@ -164,6 +183,7 @@ export default function AuthScreen() {
       const field = error?.field || 'form';
       setErrors({ [field]: error?.message || 'Bloom could not continue. Please try again.' });
     } finally {
+      pendingRef.current = false;
       setPending(false);
     }
   }
@@ -285,6 +305,23 @@ export default function AuthScreen() {
                 onSubmitEditing={handleSubmit}
                 editable={!pending}
               />}
+              {isSignup ? <AuthField
+                label='Confirm password'
+                value={confirmPassword}
+                onChangeText={updateField(setConfirmPassword, 'confirmPassword')}
+                error={errors.confirmPassword}
+                focused={focusedField === 'confirmPassword'}
+                onFocus={() => setFocusedField('confirmPassword')}
+                onBlur={() => setFocusedField(null)}
+                secureTextEntry
+                autoCapitalize='none'
+                autoCorrect={false}
+                autoComplete='new-password'
+                textContentType='newPassword'
+                returnKeyType='done'
+                onSubmitEditing={handleSubmit}
+                editable={!pending}
+              /> : null}
               {mode === 'login' && <Button title='Forgot password?' variant='ghost' onPress={() => changeMode('reset')} disabled={pending} />}
               {isReset && <Button title='Back to log in' variant='ghost' onPress={() => changeMode('login')} disabled={pending} />}
               {isSignup ? (
@@ -325,11 +362,11 @@ export default function AuthScreen() {
               ) : null}
 
               <Button
-                title={isReset ? 'Send reset link' : isSignup ? 'Create account' : 'Log in'}
+                title={isReset ? (resetWait ? `Send again in ${resetWait}s` : 'Send reset link') : isSignup ? 'Create account' : 'Log in'}
                 onPress={handleSubmit}
                 loading={pending}
                 loadingLabel={isReset ? 'Sending reset link…' : isSignup ? 'Creating account…' : 'Logging in…'}
-                disabled={Boolean(configurationError)}
+                disabled={Boolean(configurationError) || (isReset && resetWait > 0)}
               />
               {resetNotice || accountNotice ? <Text style={styles.privacyText} accessibilityLiveRegion='polite'>{resetNotice || accountNotice}</Text> : null}
             </View>

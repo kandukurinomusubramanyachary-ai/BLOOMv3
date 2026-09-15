@@ -12,12 +12,15 @@ import { requestMegAccountData } from './megAccountData';
 
 const BATCH_LIMIT = 450;
 
-function requireFirebaseUser() {
+function requireFirebaseUser(expectedUid = null) {
   if (firebaseConfigurationError || !auth || !db) {
     throw new Error('Bloom account storage is not available on this build.');
   }
   const user = auth.currentUser;
   if (!user) throw new Error('Please sign in before using Meg.');
+  if (expectedUid && user.uid !== expectedUid) {
+    throw new Error('Your sign-in changed. Please retry managing your Meg data.');
+  }
   return user;
 }
 
@@ -110,17 +113,20 @@ export async function updateCurrentUserMegFeedback(conversationId, messageId, fe
   await updateDoc(reference, { feedback: feedback ?? null });
 }
 
-async function deleteReferences(references) {
+async function deleteReferences(references, expectedUid) {
   for (let index = 0; index < references.length; index += BATCH_LIMIT) {
+    requireFirebaseUser(expectedUid);
     const batch = writeBatch(db);
     references.slice(index, index + BATCH_LIMIT).forEach((reference) => batch.delete(reference));
     await batch.commit();
   }
 }
 
-async function deleteConversationSnapshot(snapshot) {
+async function deleteConversationSnapshot(snapshot, expectedUid) {
+  requireFirebaseUser(expectedUid);
   const messages = await getDocs(collection(snapshot.ref, 'messages'));
-  await deleteReferences(messages.docs.map((message) => message.ref));
+  await deleteReferences(messages.docs.map((message) => message.ref), expectedUid);
+  requireFirebaseUser(expectedUid);
   await deleteDoc(snapshot.ref);
 }
 
@@ -129,16 +135,19 @@ export async function deleteCurrentUserMegConversation(conversationId) {
   const safeConversationId = requireDocumentId(conversationId, 'conversation ID');
   const reference = doc(db, 'users', uid, 'megConversations', safeConversationId);
   await requestMegAccountData({ method: 'DELETE', conversationId: safeConversationId, expectedUid: uid });
+  requireFirebaseUser(uid);
   const messages = await getDocs(collection(reference, 'messages'));
-  await deleteReferences(messages.docs.map((message) => message.ref));
+  await deleteReferences(messages.docs.map((message) => message.ref), uid);
+  requireFirebaseUser(uid);
   await deleteDoc(reference);
 }
 
-export async function deleteAllCurrentUserMegData({ serverAlreadyDeleted = false } = {}) {
-  const { uid } = requireFirebaseUser();
+export async function deleteAllCurrentUserMegData({ serverAlreadyDeleted = false, expectedUid = null } = {}) {
+  const { uid } = requireFirebaseUser(expectedUid);
   if (!serverAlreadyDeleted) await requestMegAccountData({ method: 'DELETE', expectedUid: uid });
+  requireFirebaseUser(uid);
   const conversations = await getDocs(conversationsCollection(uid));
   for (const snapshot of conversations.docs) {
-    await deleteConversationSnapshot(snapshot);
+    await deleteConversationSnapshot(snapshot, uid);
   }
 }

@@ -76,8 +76,17 @@ function BloomBootstrap() {
     setStartupStage('app-mounted');
     let active = true;
 
-    loadLastStartupFailure().then((storedFailure) => {
+    loadLastStartupFailure().then(async (storedFailure) => {
       if (!active) return;
+      const developmentAuthEnabled = typeof __DEV__ !== 'undefined'
+        && __DEV__
+        && process.env.EXPO_PUBLIC_BLOOM_DEV_AUTH === '1';
+      if (storedFailure && developmentAuthEnabled) {
+        await clearStartupFailure();
+        if (!active) return;
+        setLoadState(loadBloomApplication());
+        return;
+      }
       if (storedFailure) {
         setLoadState({
           status: 'failed',
