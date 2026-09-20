@@ -6,43 +6,30 @@ function createAuthSession({ auth, sdk, ensureProfile, onState, onSignedOut = ()
   let revision = 0;
   let busy = false;
   let unsubscribe = null;
-  let exposedUid = null;
   let state = { user: null, initializing: true, error: null };
   const publish = patch => {
     if (!alive) return;
     state = { ...state, ...patch };
     onState(state);
   };
-  const exposeUser = user => {
-    exposedUid = user?.uid || null;
-    publish({ user, initializing: false, error: null });
-  };
-  const clearExposedUser = () => {
-    const uid = exposedUid;
-    if (uid) onSignedOut(uid);
-    exposedUid = null;
-    return uid;
-  };
   const isCurrent = (version, user) => alive && version === revision
     && (auth.currentUser?.uid || null) === (user?.uid || null);
 
   async function restore(user) {
     const version = ++revision;
+    const previousUid = state.user?.uid;
     if (!user) {
-      clearExposedUser();
+      if (previousUid) onSignedOut(previousUid);
       publish({ user: null, initializing: false, error: null });
       return;
     }
-    if (exposedUid && exposedUid !== user.uid) clearExposedUser();
+    if (previousUid && previousUid !== user.uid) onSignedOut(previousUid);
     publish({ user: null, initializing: true, error: null });
     try {
       await ensureProfile(user);
-      if (isCurrent(version, user)) exposeUser(user);
+      if (isCurrent(version, user)) publish({ user, initializing: false, error: null });
     } catch (error) {
-      if (isCurrent(version, user)) {
-        clearExposedUser();
-        publish({ user: null, initializing: false, error });
-      }
+      if (isCurrent(version, user)) publish({ user: null, initializing: false, error });
     }
   }
 
@@ -52,7 +39,6 @@ function createAuthSession({ auth, sdk, ensureProfile, onState, onSignedOut = ()
       void restore(user);
     }, error => {
       revision++;
-      clearExposedUser();
       publish({ user: null, initializing: false, error });
     });
   }
@@ -60,11 +46,6 @@ function createAuthSession({ auth, sdk, ensureProfile, onState, onSignedOut = ()
   async function authenticate(method, email, password, profile) {
     if (busy) throw Object.assign(new Error('A sign-in request is already running.'), { code: 'bloom/auth-busy' });
     busy = true;
-    // An explicit credential operation is an auth boundary. Hide and clear any
-    // previously exposed account immediately so a cross-tab sign-out or switch
-    // cannot leave stale private runtime visible while provisioning is pending.
-    clearExposedUser();
-    publish({ user: null, initializing: true, error: null });
     const version = ++revision;
     let credential;
     try {
@@ -82,7 +63,7 @@ function createAuthSession({ auth, sdk, ensureProfile, onState, onSignedOut = ()
         throw Object.assign(new Error('Bloom could not finish loading your profile. Log in again to retry.'), { code: 'bloom/profile-unavailable', cause });
       }
       if (!isCurrent(version, credential.user)) throw Object.assign(new Error('Sign-in changed.'), { code: 'bloom/auth-changed' });
-      exposeUser(credential.user);
+      publish({ user: credential.user, initializing: false, error: null });
       return credential.user;
     } finally {
       busy = false;
@@ -90,19 +71,14 @@ function createAuthSession({ auth, sdk, ensureProfile, onState, onSignedOut = ()
       // that current account instead of publishing a stale credential.
       if (alive && revision === version && auth.currentUser
         && auth.currentUser.uid !== credential?.user?.uid) void restore(auth.currentUser);
-      else if (alive && revision === version && !auth.currentUser && state.initializing) {
-        publish({ user: null, initializing: false, error: null });
-      }
     }
   }
 
   async function logOut() {
-    const uid = auth.currentUser?.uid || exposedUid;
+    const uid = auth.currentUser?.uid || state.user?.uid;
     revision++;
     await sdk.signOut(auth);
-    // Firebase may deliver the signed-out listener synchronously (which already
-    // clears runtime) or later. Clear exactly once in either ordering.
-    if (uid && exposedUid === uid) clearExposedUser();
+    if (uid) onSignedOut(uid);
     if (!auth.currentUser) publish({ user: null, initializing: false, error: null });
   }
 
