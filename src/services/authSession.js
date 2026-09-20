@@ -12,6 +12,11 @@ function createAuthSession({ auth, sdk, ensureProfile, onState, onSignedOut = ()
     state = { ...state, ...patch };
     onState(state);
   };
+  const clearExposedUser = () => {
+    const uid = state.user?.uid;
+    if (uid) onSignedOut(uid);
+    return uid;
+  };
   const isCurrent = (version, user) => alive && version === revision
     && (auth.currentUser?.uid || null) === (user?.uid || null);
 
@@ -39,6 +44,7 @@ function createAuthSession({ auth, sdk, ensureProfile, onState, onSignedOut = ()
       void restore(user);
     }, error => {
       revision++;
+      clearExposedUser();
       publish({ user: null, initializing: false, error });
     });
   }
@@ -46,6 +52,11 @@ function createAuthSession({ auth, sdk, ensureProfile, onState, onSignedOut = ()
   async function authenticate(method, email, password, profile) {
     if (busy) throw Object.assign(new Error('A sign-in request is already running.'), { code: 'bloom/auth-busy' });
     busy = true;
+    // An explicit credential operation is an auth boundary. Hide and clear any
+    // previously exposed account immediately so a cross-tab sign-out or switch
+    // cannot leave stale private runtime visible while provisioning is pending.
+    clearExposedUser();
+    publish({ user: null, initializing: true, error: null });
     const version = ++revision;
     let credential;
     try {
@@ -71,6 +82,9 @@ function createAuthSession({ auth, sdk, ensureProfile, onState, onSignedOut = ()
       // that current account instead of publishing a stale credential.
       if (alive && revision === version && auth.currentUser
         && auth.currentUser.uid !== credential?.user?.uid) void restore(auth.currentUser);
+      else if (alive && revision === version && !auth.currentUser && state.initializing) {
+        publish({ user: null, initializing: false, error: null });
+      }
     }
   }
 
