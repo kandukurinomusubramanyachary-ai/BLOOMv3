@@ -6,15 +6,21 @@ function createAuthSession({ auth, sdk, ensureProfile, onState, onSignedOut = ()
   let revision = 0;
   let busy = false;
   let unsubscribe = null;
+  let exposedUid = null;
   let state = { user: null, initializing: true, error: null };
   const publish = patch => {
     if (!alive) return;
     state = { ...state, ...patch };
     onState(state);
   };
+  const exposeUser = user => {
+    exposedUid = user?.uid || null;
+    publish({ user, initializing: false, error: null });
+  };
   const clearExposedUser = () => {
-    const uid = state.user?.uid;
+    const uid = exposedUid;
     if (uid) onSignedOut(uid);
+    exposedUid = null;
     return uid;
   };
   const isCurrent = (version, user) => alive && version === revision
@@ -22,19 +28,21 @@ function createAuthSession({ auth, sdk, ensureProfile, onState, onSignedOut = ()
 
   async function restore(user) {
     const version = ++revision;
-    const previousUid = state.user?.uid;
     if (!user) {
-      if (previousUid) onSignedOut(previousUid);
+      clearExposedUser();
       publish({ user: null, initializing: false, error: null });
       return;
     }
-    if (previousUid && previousUid !== user.uid) onSignedOut(previousUid);
+    if (exposedUid && exposedUid !== user.uid) clearExposedUser();
     publish({ user: null, initializing: true, error: null });
     try {
       await ensureProfile(user);
-      if (isCurrent(version, user)) publish({ user, initializing: false, error: null });
+      if (isCurrent(version, user)) exposeUser(user);
     } catch (error) {
-      if (isCurrent(version, user)) publish({ user: null, initializing: false, error });
+      if (isCurrent(version, user)) {
+        clearExposedUser();
+        publish({ user: null, initializing: false, error });
+      }
     }
   }
 
@@ -74,7 +82,7 @@ function createAuthSession({ auth, sdk, ensureProfile, onState, onSignedOut = ()
         throw Object.assign(new Error('Bloom could not finish loading your profile. Log in again to retry.'), { code: 'bloom/profile-unavailable', cause });
       }
       if (!isCurrent(version, credential.user)) throw Object.assign(new Error('Sign-in changed.'), { code: 'bloom/auth-changed' });
-      publish({ user: credential.user, initializing: false, error: null });
+      exposeUser(credential.user);
       return credential.user;
     } finally {
       busy = false;
@@ -89,12 +97,12 @@ function createAuthSession({ auth, sdk, ensureProfile, onState, onSignedOut = ()
   }
 
   async function logOut() {
-    const uid = auth.currentUser?.uid || state.user?.uid;
+    const uid = auth.currentUser?.uid || exposedUid;
     revision++;
     await sdk.signOut(auth);
     // Firebase may deliver the signed-out listener synchronously (which already
     // clears runtime) or later. Clear exactly once in either ordering.
-    if (uid && state.user?.uid === uid) onSignedOut(uid);
+    if (uid && exposedUid === uid) clearExposedUser();
     if (!auth.currentUser) publish({ user: null, initializing: false, error: null });
   }
 
