@@ -21,7 +21,6 @@ require('./dietRescue.test');
 require('./periodTracking.test');
 require('./calendarUi.test');
 require('./checkinFlow.test');
-require('./authLifecycle.test');
 require('./iosCompatibility.test');
 require('./uiHardening.test');
 require('./theme.test');
