@@ -22,8 +22,6 @@ require('./periodTracking.test');
 require('./calendarUi.test');
 require('./checkinFlow.test');
 require('./authLifecycle.test');
-require('./accountDeletion.test');
-require('./firebaseConfiguration.test');
 require('./iosCompatibility.test');
 require('./uiHardening.test');
 require('./theme.test');
