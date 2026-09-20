@@ -92,7 +92,9 @@ function createAuthSession({ auth, sdk, ensureProfile, onState, onSignedOut = ()
     const uid = auth.currentUser?.uid || state.user?.uid;
     revision++;
     await sdk.signOut(auth);
-    if (uid) onSignedOut(uid);
+    // Firebase may deliver the signed-out listener synchronously (which already
+    // clears runtime) or later. Clear exactly once in either ordering.
+    if (uid && state.user?.uid === uid) onSignedOut(uid);
     if (!auth.currentUser) publish({ user: null, initializing: false, error: null });
   }
 
