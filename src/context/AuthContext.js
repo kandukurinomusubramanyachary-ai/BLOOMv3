@@ -17,19 +17,20 @@ import {
   signOut,
   sendPasswordResetEmail,
 } from 'firebase/auth';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import {
   auth,
   db,
   firebaseConfigurationError,
   firebaseInitializationError,
   initializeFirebaseServices,
+  developmentAuthEnabled,
 } from '../services/firebase';
 import {
   recordStartupFailure,
   setStartupStage,
 } from '../diagnostics/startupDiagnostics';
-import { stripUndefined } from '../services/userData';
+import { ensureAuthProfile } from '../services/authProfile';
+import { createAuthSession } from '../services/authSession';
 import { storage } from '../services/storage';
 import { requestMegAccountData } from '../services/megAccountData';
 const { deleteAccountInOrder } = require('../services/accountLifecycle');
@@ -61,7 +62,7 @@ export function isValidAuthEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 254;
 }
 
-function friendlyAuthError(error) {
+export function friendlyAuthError(error) {
   switch (error?.code) {
     case 'auth/invalid-email':
       return new BloomAuthError('Enter a valid email address.', 'email');
@@ -72,6 +73,18 @@ function friendlyAuthError(error) {
       );
     case 'auth/weak-password':
       return new BloomAuthError('Use a password with at least 8 characters.', 'password');
+    case 'auth/password-does-not-meet-requirements':
+      return new BloomAuthError('Choose a stronger password that meets this account’s password requirements.', 'password');
+    case 'auth/user-disabled':
+      return new BloomAuthError('This account is disabled. Contact Bloom support for help.');
+    case 'auth/operation-not-allowed':
+      return new BloomAuthError('Email sign-in is unavailable right now. Contact Bloom support.');
+    case 'bloom/auth-busy':
+      return new BloomAuthError('Sign-in is already in progress. Please wait.');
+    case 'bloom/auth-changed':
+      return new BloomAuthError('Your sign-in changed. Please try again.');
+    case 'bloom/profile-unavailable':
+      return new BloomAuthError('Bloom could not finish loading your profile. Check your connection, then log in again to retry.');
     case 'auth/invalid-credential':
     case 'auth/user-not-found':
     case 'auth/wrong-password':
@@ -85,26 +98,13 @@ function friendlyAuthError(error) {
   }
 }
 
-async function createProfileWithRetry(user, profile) {
-  let latestError;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    try {
-      await setDoc(doc(db, 'users', user.uid), stripUndefined(profile));
-      return;
-    } catch (error) {
-      latestError = error;
-    }
-  }
-  throw latestError;
-}
-
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [accountNotice, setAccountNotice] = useState('');
   const [initializing, setInitializing] = useState(true);
   const [startupFailure, setStartupFailure] = useState(null);
   const [retryToken, setRetryToken] = useState(0);
-  const provisioningRef = useRef(false);
+  const sessionRef = useRef(null);
 
   useEffect(() => {
     setInitializing(true);
@@ -114,7 +114,7 @@ export function AuthProvider({ children }) {
     // Toggle with EXPO_PUBLIC_BLOOM_DEV_AUTH=1 in .env (bundle-time value).
     // getIdToken returns 'dev-token', which the Meg server accepts when
     // MEG_DEV_AUTH=1 (see server/firebaseAuth.js).
-    if (__DEV__ && process.env.EXPO_PUBLIC_BLOOM_DEV_AUTH === '1') {
+    if (developmentAuthEnabled) {
       setUser({
         uid: 'dev-user',
         email: 'dev@bloom.local',
@@ -139,17 +139,24 @@ export function AuthProvider({ children }) {
 
     setStartupStage('auth-restoration');
     try {
-      return onAuthStateChanged(
-        services.auth,
-        (nextUser) => {
-          if (!provisioningRef.current) setUser(nextUser);
-          setInitializing(false);
+      const session = createAuthSession({
+        auth: services.auth,
+        sdk: { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut },
+        ensureProfile: ensureAuthProfile,
+        onSignedOut: uid => { accountWork.invalidate(uid); storage.clearUserScope(uid); },
+        onState: next => {
+          setUser(next.user);
+          setInitializing(next.initializing);
+          setStartupFailure(next.error ? recordStartupFailure(
+            'Bloom could not restore your account. Check your connection and retry.',
+            'auth-restoration',
+            'Bloom could not restore your account. Check your connection and retry.'
+          ) : null);
         },
-        () => {
-          setUser(null);
-          setInitializing(false);
-        }
-      );
+      });
+      sessionRef.current = session;
+      session.start();
+      return () => { session.dispose(); if (sessionRef.current === session) sessionRef.current = null; };
     } catch {
       setUser(null);
       setStartupFailure(recordStartupFailure(
@@ -170,6 +177,7 @@ export function AuthProvider({ children }) {
     firstName,
     email,
     password,
+    confirmPassword,
     consent,
     modelImprovementConsent = false,
   }) => {
@@ -190,52 +198,24 @@ export function AuthProvider({ children }) {
     if (String(password || '').length < 8) {
       throw new BloomAuthError('Use a password with at least 8 characters.', 'password');
     }
+    if (password !== confirmPassword) throw new BloomAuthError('Your passwords do not match.', 'confirmPassword');
     if (consent !== true) {
       throw new BloomAuthError('You need to agree before creating your Bloom account.', 'consent');
     }
 
-    provisioningRef.current = true;
-    let credential;
     try {
-      credential = await createUserWithEmailAndPassword(auth, normalizedEmail, password);
-      const timestamp = serverTimestamp();
       const profile = {
         firstName: cleanFirstName,
         email: normalizedEmail,
         consent: true,
         modelImprovementConsent: Boolean(modelImprovementConsent),
         onboardingCompleted: false,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        lastActiveAt: timestamp,
       };
-
-      try {
-        await createProfileWithRetry(credential.user, profile);
-      } catch (profileError) {
-        try {
-          await deleteUser(credential.user);
-          setUser(null);
-          throw new BloomAuthError(
-            'Bloom could not finish creating your account. Nothing was saved, so please try again.'
-          );
-        } catch (cleanupError) {
-          if (cleanupError instanceof BloomAuthError) throw cleanupError;
-          await signOut(auth).catch(() => {});
-          setUser(null);
-          throw new BloomAuthError(
-            'Bloom could not finish setting up this account. Try logging in with the same email, or contact Bloom support if that does not work.'
-          );
-        }
-      }
-
-      setUser(credential.user);
-      return credential.user;
+      if (!sessionRef.current) throw new BloomAuthError('Bloom sign-in is not ready. Please try again.');
+      return await sessionRef.current.signUp(normalizedEmail, password, profile);
     } catch (error) {
       if (error instanceof BloomAuthError) throw error;
       throw friendlyAuthError(error);
-    } finally {
-      provisioningRef.current = false;
     }
   }, []);
 
@@ -255,18 +235,10 @@ export function AuthProvider({ children }) {
     if (!password) throw new BloomAuthError('Enter your password.', 'password');
 
     try {
-      const credential = await signInWithEmailAndPassword(auth, normalizedEmail, password);
-      setUser(credential.user);
-      setDoc(
-        doc(db, 'users', credential.user.uid),
-        {
-          lastActiveAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      ).catch(() => {});
-      return credential.user;
+      if (!sessionRef.current) throw new BloomAuthError('Bloom sign-in is not ready. Please try again.');
+      return await sessionRef.current.logIn(normalizedEmail, password);
     } catch (error) {
+      if (error instanceof BloomAuthError) throw error;
       throw friendlyAuthError(error);
     }
   }, []);
@@ -274,11 +246,13 @@ export function AuthProvider({ children }) {
   const logOut = useCallback(async () => {
     if (user?.uid) accountWork.invalidate(user.uid);
     if (!auth) {
+      if (user?.uid) storage.clearUserScope(user.uid);
       setUser(null);
       return;
     }
     try {
-      await signOut(auth);
+      if (sessionRef.current) await sessionRef.current.logOut();
+      else { await signOut(auth); if (user?.uid) storage.clearUserScope(user.uid); }
       setUser(null);
     } catch (error) {
       throw friendlyAuthError(error);
@@ -318,7 +292,7 @@ export function AuthProvider({ children }) {
       await deleteAccountInOrder({
         reauthenticate: async () => {}, // Completed above; keep password errors field-specific.
         deleteMeg: () => requestMegAccountData({ method: 'DELETE', expectedUid: user.uid }),
-        deleteAppData: async () => { await beforeDelete(); },
+        deleteAppData: async () => { await beforeDelete(user.uid); },
         deleteAuth: async () => { await deleteUser(user); },
         clearLocal: () => storage.deleteAllData(user.uid),
       });

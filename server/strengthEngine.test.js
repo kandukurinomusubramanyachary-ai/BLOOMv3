@@ -470,7 +470,9 @@ function squatLandmarksAt(kneeAngle) {
   set(11, sho); set(12, { x: 0.46, y: 0.98 }); set(23, hip); set(24, { x: 0.54, y: 0.93 });
   set(25, knee); set(27, ankle); set(29, { x: ankle.x, y: ankle.y + 0.05 });
   set(26, { x: 0.46, y: 0.5 }); set(28, { x: 0.54, y: 0.5 }); set(30, { x: 0.46, y: 0.4 });
-  return lm;
+  // Keep this angle fixture inside the normalized camera image. Uniform
+  // scaling/translation preserves its joint angles and hip-x baseline.
+  return lm.map(p => ({ ...p, x: 0.5 + (p.x - 0.5) * 0.65, y: 0.05 + p.y * 0.65 }));
 }
 
 const dropAnkle = (lm) => lm.map((p, i) => ((i === 27 || i === 29) ? { ...p, visibility: 0 } : p));

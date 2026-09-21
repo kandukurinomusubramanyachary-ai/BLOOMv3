@@ -59,7 +59,10 @@ export default function useStrengthSession({
   const unsupported = !exercise;
   const [reps, setReps] = useState(0);
   const [pauseReason, setPauseReason] = useState(null);
-  const [muted, setMuted] = useState(false);
+  const voice = useRef(null);
+  if (!voice.current) voice.current = createVoiceCoach({ rate: STRENGTH_DEFAULTS.speechRate, pitch: STRENGTH_DEFAULTS.speechPitch });
+  const [muted, updateMuted] = useState(() => voice.current.muted);
+  const formSince = useRef(new Map());
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [cueText, setCueText] = useState('');
   const [summaryResult, setSummaryResult] = useState(null);
@@ -72,9 +75,20 @@ export default function useStrengthSession({
   const cameraLaunchLock = useRef(false);
   const phaseRef = useRef(phase);
   phaseRef.current = phase;
-  const voice = useRef(createVoiceCoach({ rate: STRENGTH_DEFAULTS.speechRate, pitch: STRENGTH_DEFAULTS.speechPitch }));
-
-  useEffect(() => { voice.current.setMuted(muted); }, [muted]);
+  const setMuted = useCallback(value => {
+    voice.current.setMuted(value);
+    updateMuted(Boolean(value));
+    if (!value) voice.current.activate('Voice guidance on.', { allowWhilePaused: true });
+  }, []);
+  useEffect(() => () => voice.current.dispose(), []);
+  useEffect(() => {
+    voice.current.clearChannel('positioning');
+    if (phase !== 'calibrating' || calibrationGood) return undefined;
+    const timer = setTimeout(() => voice.current.speak(instruction, {
+      id: `position:${instruction}`, channel: 'positioning', priority: 70, cooldownMs: 10000,
+    }), 600);
+    return () => clearTimeout(timer);
+  }, [phase, instruction, calibrationGood]);
   useEffect(() => {
     const flush = () => flushStrengthOutbox(uid).catch((error) => {
       if (typeof __DEV__ !== 'undefined' && __DEV__) {
@@ -91,6 +105,7 @@ export default function useStrengthSession({
   const resetRuntime = useCallback(() => {
     runtime.current = { engine: null, scheduler: null, positioning: null, calibrationCompleted: false, baseline: null, startedAt: null, pausedAt: null, pauseCount: 0, repDurations: [], cueCounts: {}, ended: false };
     cameraLaunchLock.current = false;
+    formSince.current.clear();
     setCameraFailure(null);
     voice.current.cancel(); setReps(0); setCueText(''); setPauseReason(null); setCalibrationGood(false); setInstruction('Looking for you…');
     currentSetRef.current = 1; setCurrentSet(1); totalRepsRef.current = 0; completedSetsRef.current = 0;
@@ -130,6 +145,7 @@ export default function useStrengthSession({
     if (!current.startedAt) { setPhase('select'); return; }
     current.ended = true;
     voice.current.cancel();
+    if (completionState === 'completed') voice.current.resume('All sets complete. Nice work. Take a moment to recover.');
     setPhase('saving');
     const completedAt = new Date();
     const safeSummary = {
@@ -153,11 +169,31 @@ export default function useStrengthSession({
   const onFrame = useCallback((frame) => {
     if (!exercise) return;
     const current = runtime.current;
-    if (phase === 'calibrating') {
-      if (!current.positioning) {
+    const mirrored = frame.mirrored ?? true;
+    const geometry = frame.sourceWidth && frame.sourceHeight ? `${frame.sourceWidth}:${frame.sourceHeight}:${mirrored}` : null;
+    const geometryChanged = geometry && current.geometry && geometry !== current.geometry;
+    if (geometry) current.geometry = geometry;
+    if (geometryChanged) {
+      current.positioning = null;
+      current.calibrationCompleted = false;
+      current.engine?.interrupt(); // Drops only the partial rep; accepted reps survive.
+      formSince.current.clear();
+      if (phase === 'active' || phase === 'paused') {
+        current.pauseCount += 1;
+        setPauseReason(null);
+        setCalibrationGood(false);
+        setInstruction('Camera view changed. Hold your full body in view.');
+        setPhase('calibrating');
+        voice.current.resume('Camera view changed. Hold your full body in view before continuing.');
+        return;
+      }
+    }
+    if (['calibrating', 'ready', 'countdown'].includes(phase)) {
+      if (!current.positioning || current.positioningMirror !== mirrored) {
+        current.positioningMirror = mirrored;
         current.positioning = createPositioningCoach({
           cameraView: exercise.camera,
-          mirrored: true,
+          mirrored,
           readyHoldMs: STRENGTH_DEFAULTS.baselineHoldMs,
         });
       }
@@ -166,12 +202,28 @@ export default function useStrengthSession({
         setInstruction(positioning.instruction);
         setCalibrationGood(Boolean(positioning.ok));
       }
-      if (positioning.ready && !current.calibrationCompleted) {
+      // Keep checking after "ready" and during the countdown. A user who
+      // steps out of frame must re-establish framing before the set starts.
+      if (!positioning.ready && phase !== 'calibrating') {
+        current.calibrationCompleted = false;
+        setCalibrationGood(false);
+        setInstruction(positioning.instruction);
+        voice.current.cancel();
+        setCountdown(3);
+        setPhase('calibrating');
+      }
+      if (positioning.ready && phase === 'calibrating' && !current.calibrationCompleted) {
         current.calibrationCompleted = true;
-        current.baseline = baselineFrom(frame.landmarks);
-        current.engine = createRepStateMachine(exercise, current.baseline);
-        current.scheduler = createCueScheduler();
+        if (current.startedAt && current.engine) {
+          Object.assign(current.baseline, baselineFrom(frame.landmarks));
+          current.engine.interrupt();
+        } else {
+          current.baseline = baselineFrom(frame.landmarks);
+          current.engine = createRepStateMachine(exercise, current.baseline);
+        }
+        if (!current.scheduler) current.scheduler = createCueScheduler();
         setInstruction(STRENGTH_COPY.fullBody); setPhase('ready');
+        voice.current.speak('Your full body is in view. Start when you are ready.', { channel: 'session', priority: 90, interrupt: true });
         trackStrengthEvent('strength_calibration_result', { exerciseId: exercise.id, result: 'ready', platform: Platform.OS });
       }
       return;
@@ -180,20 +232,32 @@ export default function useStrengthSession({
     if ((phase !== 'active' && !trackingPause) || !current.engine) return;
     const output = current.engine.process(frame);
     const candidates = [];
+    let trackingBlocked = trackingPause;
+    let setFinished = false;
     output.events.forEach((event) => {
       if (event.type === 'pauseRequested') {
+        trackingBlocked = true;
+        formSince.current.clear();
         current.pauseCount += 1; setPauseReason(event.reason); setPhase('paused');
         setCueText(event.reason === 'multi_person' ? STRENGTH_COPY.onePerson : 'I lost a clear view. Return to your starting position when ready.');
+        voice.current.pause(event.reason === 'multi_person' ? STRENGTH_COPY.onePerson : 'Paused. Return to your starting position so I can see you clearly.');
       }
       if (event.type === 'stateChanged' && event.from === 'paused') {
+        trackingBlocked = false;
         setPauseReason(null); setCueText('Clear view restored. Continue when you are ready.'); setPhase('active');
+        voice.current.resume('Clear view restored. Continue when you are ready.');
       }
       if (event.type === 'repAccepted') {
-        current.repDurations.push(event.durationMs); setReps(event.count); voice.current.speak(String(event.count));
+        current.repDurations.push(event.durationMs); setReps(event.count);
+        if (targetRepsRef.current >= 6 && event.count === Math.ceil(targetRepsRef.current / 2)) {
+          voice.current.speak('Halfway through this set.', { id: `halfway:${currentSetRef.current}`, channel: 'milestone', priority: 30, dropIfBusy: true });
+        }
         // Set orchestration happens OUTSIDE the rep engine. `event.count` is
         // the number of reps completed in THIS set (the engine is recreated per
         // set), so compare it against the per-set targetReps.
         if (event.count >= targetRepsRef.current) {
+          setFinished = true;
+          formSince.current.clear();
           totalRepsRef.current += event.count;
           completedSetsRef.current += 1;
           if (currentSetRef.current < totalSetsRef.current) {
@@ -202,6 +266,7 @@ export default function useStrengthSession({
             currentSetRef.current += 1; setCurrentSet(currentSetRef.current);
             setReps(0); setPauseReason(null); setCueText(`${currentSetRef.current}/${totalSetsRef.current} — press Continue when ready.`);
             setPhase('between_sets');
+            voice.current.resume('Set complete. Take a breath before the next set.');
           } else {
             void finish('completed', totalRepsRef.current);
           }
@@ -209,9 +274,21 @@ export default function useStrengthSession({
       }
       if (event.type === 'cueCondition') candidates.push(event.cue);
     });
-    const scheduled = current.scheduler.schedule(candidates, frame.ts);
+    if (setFinished || trackingBlocked || current.ended) return;
+    const present = new Set(candidates.map(cue => cue.id));
+    let conditionResolved = false;
+    for (const id of formSince.current.keys()) {
+      if (!present.has(id)) { formSince.current.delete(id); conditionResolved = true; }
+    }
+    if (conditionResolved || !candidates.length) voice.current.clearChannel('form');
+    const stableCandidates = candidates.filter(cue => {
+      if (!formSince.current.has(cue.id)) formSince.current.set(cue.id, frame.ts);
+      return frame.ts - formSince.current.get(cue.id) >= 600;
+    });
+    const scheduled = current.scheduler.schedule(stableCandidates, frame.ts);
     if (scheduled) {
-      setCueText(scheduled.cue.text); voice.current.speak(scheduled.cue.text, scheduled.cancel);
+      setCueText(scheduled.cue.text);
+      voice.current.speak(scheduled.cue.text, { id: scheduled.cue.id, channel: 'form', priority: scheduled.cue.priority, cooldownMs: scheduled.cue.cooldownMs, ttlMs: 4000 });
     }
   }, [exercise, finish, pauseReason, phase]);
 
@@ -219,6 +296,7 @@ export default function useStrengthSession({
     if (!exercise) return;
     if (cameraLaunchLock.current) return;
     resetRuntime();
+    voice.current.resume('Camera guidance on. Step back until your full body is in view.');
     cameraLaunchLock.current = true;
     setPhase('loading');
     trackStrengthEvent('strength_camera_requested', { exerciseId: exercise.id, platform: Platform.OS });
@@ -243,7 +321,7 @@ export default function useStrengthSession({
     resetRuntime();
     setPhase(nextPhase);
   }, [resetRuntime]);
-  const startCountdown = useCallback(() => { setCountdown(3); setPhase('countdown'); voice.current.speak(STRENGTH_COPY.readyThree); }, []);
+  const startCountdown = useCallback(() => { setCountdown(3); setPhase('countdown'); voice.current.resume(STRENGTH_COPY.readyThree); }, []);
 
   useEffect(() => {
     if (phase !== 'countdown') return undefined;
@@ -261,11 +339,13 @@ export default function useStrengthSession({
   const togglePause = useCallback(() => {
     if (!['active', 'paused'].includes(phase)) return;
     runtime.current.engine?.interrupt();
-    if (phase === 'paused') { setPauseReason(null); setCueText('Return to your starting position, then continue.'); setPhase('active'); }
-    else { runtime.current.pauseCount += 1; setPauseReason('manual'); setCueText(STRENGTH_COPY.manualPause); setPhase('paused'); voice.current.cancel(); trackStrengthEvent('strength_session_paused', { exerciseId: exercise.id, reason: 'manual', platform: Platform.OS }); }
+    formSince.current.clear();
+    if (phase === 'paused') { setPauseReason(null); setCueText('Return to your starting position, then continue.'); setPhase('active'); voice.current.resume('Resuming. Return to your starting position, then continue.'); }
+    else { runtime.current.pauseCount += 1; setPauseReason('manual'); setCueText(STRENGTH_COPY.manualPause); setPhase('paused'); voice.current.pause(STRENGTH_COPY.manualPause); trackStrengthEvent('strength_session_paused', { exerciseId: exercise.id, reason: 'manual', platform: Platform.OS }); }
   }, [exercise?.id, phase]);
 
   useFocusEffect(useCallback(() => () => {
+    voice.current.pause();
     if (['loading', 'calibrating', 'ready', 'countdown', 'active', 'paused', 'between_sets'].includes(phaseRef.current)) {
       voice.current.cancel(); resetRuntime(); setPhase('select');
     }
@@ -273,6 +353,8 @@ export default function useStrengthSession({
 
   useEffect(() => {
     const onVisibility = () => {
+      if (document.hidden) voice.current.pause();
+      else if (['calibrating', 'ready'].includes(phase)) voice.current.resume();
       if (document.hidden && phase === 'active') {
         runtime.current.engine?.interrupt();
         runtime.current.pauseCount += 1; setPauseReason('page_hidden'); setCueText(STRENGTH_COPY.pageHidden); setPhase('paused'); voice.current.cancel();
