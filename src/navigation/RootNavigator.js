@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { AppState, Easing, Platform } from 'react-native';
 import * as ScreenCapture from 'expo-screen-capture';
@@ -28,6 +28,7 @@ const Stack = createStackNavigator();
 export default function RootNavigator() {
   const { state } = useApp();
   const navigationTheme = useMemo(() => ({
+    ...DefaultTheme,
     dark: state.resolvedTheme === 'dark',
     colors: navigationColorsForTheme(state.resolvedTheme),
   }), [state.resolvedTheme]);
@@ -105,7 +106,7 @@ export default function RootNavigator() {
           screenOptions={{
             headerShown: false,
             cardStyle: { flex: 1, minHeight: 0, backgroundColor: COLORS.canvas },
-            animationEnabled: !reduceMotion,
+            animation: reduceMotion ? 'none' : 'default',
             transitionSpec: {
               open: {
                 animation: 'timing',

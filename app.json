@@ -6,27 +6,10 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#FFFDFE"
-    },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
-    "androidStatusBar": {
-      "barStyle": "dark-content",
-      "backgroundColor": "#FFFDFE",
-      "translucent": false
-    },
-    "androidNavigationBar": {
-      "barStyle": "dark-content",
-      "backgroundColor": "#FFFDFE"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.bloom.app",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -41,7 +24,7 @@
         "backgroundColor": "#FFFDFE"
       },
       "package": "com.bloomhealth.app",
-      "versionCode": 4,
+      "versionCode": 5,
       "permissions": [
         "SCHEDULE_EXACT_ALARM",
         "RECEIVE_BOOT_COMPLETED",
@@ -54,7 +37,15 @@
       "name": "Bloom Web Beta"
     },
     "plugins": [
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFDFE",
+          "imageWidth": 200
+        }
+      ],
       [
         "expo-local-authentication",
         {
@@ -62,7 +53,27 @@
         }
       ],
       "expo-notifications",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-font",
+      "expo-asset",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "targetSdkVersion": 36
+          },
+          "ios": {
+            "deploymentTarget": "16.4"
+          }
+        }
+      ],
+      "expo-sharing",
+      [
+        "expo-status-bar",
+        {
+          "style": "dark"
+        }
+      ]
     ],
     "extra": {
       "eas": {

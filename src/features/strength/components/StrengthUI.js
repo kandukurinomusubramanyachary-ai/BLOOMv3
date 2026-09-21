@@ -86,7 +86,7 @@ const sheet = c => ({
   content: { flexGrow: 1, width: '100%', maxWidth: 680, alignSelf: 'center', padding: 20, paddingTop: 24, paddingBottom: 32, gap: 24 },
   headerWrap: { width: '100%', maxWidth: 720, alignSelf: 'center' },
   header: { paddingHorizontal: 20, paddingVertical: 12, minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerCopy: { flex: 1, minWidth: 0, gap: 4 }, headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 }, headerTitle: { ...T.heading, color: c.ink },
+  headerCopy: { flex: 1, minWidth: 0, gap: 4 }, headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 }, headerTitle: { ...T.heading, color: c.ink, flexShrink: 1 },
   supporting: { ...T.supporting, color: c.muted }, flex: { flex: 1, minWidth: 0 },
   iconButton: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
   button: { minHeight: 52, minWidth: 48, paddingHorizontal: 20, paddingVertical: 14, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, ...Platform.select({ web: { cursor: 'pointer' } }) },

@@ -9,6 +9,8 @@ import Button from '../components/Button';
 import ScreenScaffold from '../components/ScreenScaffold';
 import { requestMegAccountData } from '../services/megAccountData';
 import { useAuth } from '../context/AuthContext';
+import { storage } from '../services/storage';
+import accountWork from '../services/accountWork';
 
 const FORMATS = [
   { id: 'json', label: 'JSON', desc: 'Tracked records and Meg conversations in a machine-readable file', icon: 'code-slash-outline' },
@@ -28,10 +30,17 @@ export default function ExportDataScreen({ navigation }) {
     setExportError('');
     setLastExport(null);
     setActiveExport(format);
+    let work;
     try {
+      if (!user?.uid) throw new Error('Sign in before exporting.');
+      work = accountWork.request(user.uid);
       if (format === 'json') {
-        const megV2Data = await requestMegAccountData({ expectedUid: user.uid });
-        await exportService.exportToJSON({ ...state, megV2Data });
+        const [megV2Data, strengthSessions] = await Promise.all([
+          requestMegAccountData({ expectedUid: user.uid }),
+          storage.forUser(user.uid).getStrengthSessions(),
+        ]);
+        work.check();
+        await exportService.exportToJSON({ ...state, megV2Data, strengthSessions });
       }
       if (format === 'csv') await exportService.exportToCSV(state);
       if (format === 'pdf') await exportService.exportToPDF(state);
@@ -39,6 +48,7 @@ export default function ExportDataScreen({ navigation }) {
     } catch (error) {
       setExportError('Export did not finish. Check your connection and try again. Your records have not been changed.');
     } finally {
+      work?.close();
       setActiveExport(null);
     }
   }
@@ -57,7 +67,7 @@ export default function ExportDataScreen({ navigation }) {
             <View style={styles.infoIcon}><Icon name='shield-checkmark-outline' size={22} color={COLORS.sage} /></View>
             <View style={styles.infoCopy}>
               <Text style={styles.infoTitle}>Your records, your choice</Text>
-              <Text style={styles.infoText}>Bloom creates the file on this device, then opens your system share sheet when it is available. JSON includes your Meg conversations. Be mindful of where you send health information.</Text>
+              <Text style={styles.infoText}>Bloom creates the file on this device, then opens your system share sheet when it is available. JSON includes your Meg conversations and saved Strength sessions. Be mindful of where you send health information.</Text>
             </View>
           </View>
 

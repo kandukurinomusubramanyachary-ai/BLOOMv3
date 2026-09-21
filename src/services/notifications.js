@@ -8,7 +8,8 @@ export function configureNotificationHandler() {
   try {
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
-        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
         shouldPlaySound: false,
         shouldSetBadge: false,
       }),
@@ -56,9 +57,17 @@ class NotificationService {
       throw new Error('Reminder time is invalid.');
     }
 
-    const trigger = Number.isInteger(weekday) && weekday >= 1 && weekday <= 7
-      ? { weekday, hour, minute, repeats: true }
-      : { hour, minute, repeats };
+    let trigger;
+    if (Number.isInteger(weekday) && weekday >= 1 && weekday <= 7) {
+      trigger = { type: Notifications.SchedulableTriggerInputTypes.WEEKLY, weekday, hour, minute };
+    } else if (repeats) {
+      trigger = { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour, minute };
+    } else {
+      const date = new Date();
+      date.setHours(hour, minute, 0, 0);
+      if (date.getTime() <= Date.now()) date.setDate(date.getDate() + 1);
+      trigger = { type: Notifications.SchedulableTriggerInputTypes.DATE, date };
+    }
     
     if (Platform.OS === 'android') {
       trigger.channelId = 'bloom-reminders';
@@ -99,7 +108,10 @@ class NotificationService {
 
   async scheduleDailyReminder({ identifier, title, body, hour, minute, channelId, data }) {
     configureNotificationHandler();
-    const trigger = { hour, minute, repeats: true };
+    if (!Number.isInteger(hour) || hour < 0 || hour > 23 || !Number.isInteger(minute) || minute < 0 || minute > 59) {
+      throw new Error('Reminder time is invalid.');
+    }
+    const trigger = { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour, minute };
     if (Platform.OS === 'android' && channelId) trigger.channelId = channelId;
     return Notifications.scheduleNotificationAsync({
       identifier,

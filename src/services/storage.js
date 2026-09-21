@@ -444,6 +444,9 @@ class StorageService {
   // Delete all data
   async deleteAllData(uid) {
     const userScope = uid ? encodeURIComponent(uid) : this.userScope;
+    // Account deletion has already paused new work. Finish any device write
+    // already in progress before removing keys so it cannot recreate history.
+    await strengthHistoryWrites.get(userScope)?.catch(() => {});
     const keys = Object.values(KEYS).flatMap((key) => [
       this.scopedKey(key, userScope),
       this.legacyScopedKey(key, userScope),

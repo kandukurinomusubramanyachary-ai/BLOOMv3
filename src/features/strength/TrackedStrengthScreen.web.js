@@ -6,6 +6,7 @@ import { STRENGTH_COPY, EXERCISE_COPY } from './constants';
 import { STRENGTH_TYPE as T, useStrengthStyles } from './strengthTheme';
 import useStrengthSession from './useStrengthSession.web';
 import { poseEngineIdForExercise } from './poseCapability';
+import { resolveRestSeconds } from './engine/workoutProgression';
 import CameraStage from './components/CameraStage.web';
 import FramingGuide from './components/FramingGuide';
 import MovementGuide from './components/MovementGuide';
@@ -29,7 +30,7 @@ function historySummary(result, exercise) {
   };
 }
 
-export default function TrackedStrengthScreen({ exercise, sets = 1, onExit, onFallback, onComplete, onNext, nextLabel, workoutProgress }) {
+export default function TrackedStrengthScreen({ exercise, sets = 1, onExit, onFallback, onComplete, onNext, nextLabel, workoutProgress, nextExercise, onAdvance, onEndWorkout }) {
   const { user } = useAuth();
   const { height, width } = useWindowDimensions();
   const [viewport, setViewport] = useState({ width, height: height - 180 });
@@ -37,13 +38,15 @@ export default function TrackedStrengthScreen({ exercise, sets = 1, onExit, onFa
   const { colors: c, styles: s } = useStrengthStyles(sheet);
   const reducedMotion = useReducedMotion();
   const poseEngineId = poseEngineIdForExercise(exercise?.id);
-  const session = useStrengthSession({ uid: user?.uid, exerciseId: poseEngineId, sets, targetReps: exercise?.defaultReps });
+  const session = useStrengthSession({ uid: user?.uid, exerciseId: poseEngineId, sets, targetReps: exercise?.defaultReps, hasNext: Boolean(nextExercise) });
   const {
     phase, instruction, calibrationGood, countdown, reps, cueText, pauseReason,
     muted, setMuted, showSkeleton, setShowSkeleton, cameraFailure, unsupported,
     currentSet, totalSets, targetReps, beginCamera, cameraReady, cameraError, onFrame,
     startCountdown, togglePause, stop, continueSet, summaryResult, summaryError,
     reset, retrySummary, cameraActive, inferenceActive, voiceAvailable, hasProgress,
+    transitionSaving, transitionSaveError, continueAfterRest, retryTransitionSave,
+    beginResume,
   } = session;
   const [showSafety, setShowSafety] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
@@ -56,6 +59,13 @@ export default function TrackedStrengthScreen({ exercise, sets = 1, onExit, onFa
   const restEndsAt = useRef(0);
   const repScale = useRef(new Animated.Value(1)).current;
   completionRef.current = onComplete;
+  // Captured the moment the workout transition begins — at that instant the
+  // props still describe the COMPLETED exercise (the parent advances the
+  // index only after saving), so this is the reliable transition metadata.
+  const restMetaRef = useRef(null);
+  const advancedSummaryRef = useRef(null);
+  const onAdvanceRef = useRef(onAdvance);
+  onAdvanceRef.current = onAdvance;
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
   const saveLocalHistory = useCallback(async () => {
@@ -64,21 +74,54 @@ export default function TrackedStrengthScreen({ exercise, sets = 1, onExit, onFa
     if (savedSummaryId === id) return;
     saveAttempt.current = { id, pending: true };
     setLocalSaveError(null);
+    const meta = phase === 'workout_rest' ? restMetaRef.current : null;
+    const completedExercise = meta?.exercise || exercise;
+    const completedSets = meta?.sets ?? sets;
     try {
-      await completionRef.current?.(historySummary(summaryResult, exercise));
+      if (typeof completionRef.current !== 'function') throw new Error('save_handler_missing');
+      await completionRef.current(historySummary(summaryResult, completedExercise), { exercise: completedExercise, sets: completedSets });
       if (mounted.current) setSavedSummaryId(id);
     } catch {
       if (mounted.current) setLocalSaveError('Your session is safe, but Bloom could not update your workout history. Try saving again before you leave.');
     } finally {
       saveAttempt.current.pending = false;
     }
-  }, [exercise, savedSummaryId, summaryResult]);
+  }, [exercise, phase, savedSummaryId, sets, summaryResult]);
 
   useEffect(() => {
-    if (phase === 'summary' && summaryResult?.summary && saveAttempt.current.id !== summaryResult.summary.id) {
+    if ((phase === 'summary' || phase === 'workout_rest') && summaryResult?.summary && saveAttempt.current.id !== summaryResult.summary.id) {
       void saveLocalHistory();
     }
   }, [phase, saveLocalHistory, summaryResult]);
+
+  // Must run before the rest-timer effects: captures completed-exercise facts
+  // and asks the parent to advance the plan while this screen stays mounted.
+  useEffect(() => {
+    if (phase !== 'workout_rest') return undefined;
+    restMetaRef.current = {
+      exercise, sets,
+      restSec: resolveRestSeconds(exercise?.restSec),
+      nextName: nextExercise?.exercise?.name || 'Next movement',
+    };
+    return undefined;
+    // [phase] only on purpose: capture happens on the first workout_rest
+    // render, before the parent re-renders with the next exercise.
+  }, [phase]);
+
+  // Keep the completed exercise mounted until BOTH persistence paths finish.
+  // Advancing to a guided player early would unmount this pending save.
+  useEffect(() => {
+    const id = summaryResult?.summary?.id;
+    if (phase !== 'workout_rest' || transitionSaving || transitionSaveError || localSaveError
+      || !id || savedSummaryId !== id || advancedSummaryRef.current === id) return;
+    advancedSummaryRef.current = id;
+    onAdvanceRef.current?.();
+  }, [phase, transitionSaving, transitionSaveError, localSaveError, savedSummaryId, summaryResult]);
+
+  const addRestSeconds = useCallback(() => {
+    restEndsAt.current = Math.max(Date.now(), restEndsAt.current) + 15000;
+    setRestRemaining(Math.ceil((restEndsAt.current - Date.now()) / 1000));
+  }, []);
 
   useEffect(() => {
     if (phase !== 'between_sets') return undefined;
@@ -90,6 +133,20 @@ export default function TrackedStrengthScreen({ exercise, sets = 1, onExit, onFa
     const timer = setInterval(() => setRestRemaining(Math.max(0, Math.ceil((restEndsAt.current - Date.now()) / 1000))), 250);
     return () => clearInterval(timer);
   }, [phase, currentSet, exercise?.restSec]);
+
+  // Workout rest (between exercises): the camera keeps running underneath.
+  // Rest can finish in the background, but movement starts only on "I'm ready".
+  useEffect(() => {
+    if (phase !== 'workout_rest') return undefined;
+    const restSeconds = restMetaRef.current?.restSec ?? 30;
+    restEndsAt.current = Date.now() + restSeconds * 1000;
+    setRestRemaining(restSeconds);
+    const timer = setInterval(() => {
+      const left = Math.max(0, Math.ceil((restEndsAt.current - Date.now()) / 1000));
+      setRestRemaining(left);
+    }, 250);
+    return () => clearInterval(timer);
+  }, [phase]);
 
   useEffect(() => {
     repScale.stopAnimation();
@@ -106,16 +163,22 @@ export default function TrackedStrengthScreen({ exercise, sets = 1, onExit, onFa
   const unavailable = !poseEngineId || unsupported;
   const working = phase === 'active' || phase === 'paused';
   const localSavePending = Boolean(summaryResult?.summary && savedSummaryId !== summaryResult.summary.id);
+  const transitionBlocked = phase === 'workout_rest' && (transitionSaving || Boolean(transitionSaveError)
+    || !summaryResult?.summary || localSavePending || Boolean(localSaveError));
   const exitBlocked = ['saving', 'save_error'].includes(phase) || (phase === 'summary' && localSavePending);
-  const saveOrExit = exitBlocked ? undefined : hasProgress ? stop : onExit;
+  // During workout rest the current movement is already saved; leaving ends
+  // the workout (no duplicate "stopped" record for the finished movement).
+  const saveOrExit = phase === 'workout_rest'
+    ? (transitionBlocked ? undefined : onEndWorkout)
+    : (exitBlocked ? undefined : hasProgress ? stop : onExit);
   const landscape = width > height && height < 600;
   const contentWidth = Math.max(1, Math.min(680, viewport.width) - 40);
   const cameraWidth = landscape ? Math.max(1, (contentWidth - 16) * 0.55) : contentWidth;
-  const cameraHeight = phase === 'between_sets' ? 144 : Math.max(120, Math.min(
+  const cameraHeight = ['between_sets', 'workout_rest'].includes(phase) ? 144 : Math.max(120, Math.min(
     540, cameraWidth * videoSize.height / videoSize.width,
     landscape ? viewport.height - 24 : viewport.height - (working ? 180 : 100),
   ));
-  const trackingPaused = phase === 'paused' && !['manual', 'page_hidden'].includes(pauseReason);
+  const trackingPaused = phase === 'paused' && !['manual', 'page_hidden', 'background'].includes(pauseReason);
   const progressFraction = workoutProgress?.total > 0 ? (workoutProgress.current - 1) / workoutProgress.total : undefined;
   const progressLabel = workoutProgress?.total > 0 ? `Exercise ${workoutProgress.current} of ${workoutProgress.total}` : null;
   const movement = exercise || EXERCISE_COPY[poseEngineId];
@@ -123,7 +186,7 @@ export default function TrackedStrengthScreen({ exercise, sets = 1, onExit, onFa
   return <StrengthScreenFrame testID="strength-camera-screen" contentStyle={s.content} fitViewport
     onViewportLayout={event => setViewport(event.nativeEvent.layout)}
     header={<StrengthHeader title={exercise?.name || 'Camera guidance'} subtitle={[progressLabel, `${phaseLabel(phase)} · Set ${currentSet} of ${totalSets}`].filter(Boolean).join(' · ')}
-      onBack={saveOrExit} backLabel={hasProgress ? 'Finish and save Strength session' : 'Back to Strength'} progress={progressFraction} />}
+      onBack={saveOrExit} backLabel={phase === 'workout_rest' ? 'Finish workout' : hasProgress ? 'Finish and save Strength session' : 'Back to Strength'} progress={progressFraction} />}
     footer={phase === 'select' ? <>
       {!unavailable ? <StrengthButton title="Enable camera" icon="camera-outline" onPress={beginCamera} /> : null}
       <StrengthButton title="Continue guided" variant={unavailable ? 'primary' : 'secondary'} onPress={onFallback} />
@@ -145,7 +208,7 @@ export default function TrackedStrengthScreen({ exercise, sets = 1, onExit, onFa
     </View> : null}
 
     {cameraActive ? <View style={[s.cameraLayout, landscape && s.cameraLandscape]}>
-      {/* This same CameraStage remains mounted across rest and pause. Inference is controlled by the hook. */}
+      {/* This same CameraStage remains mounted across rest, transitions and pause. Inference is controlled by the hook. */}
       <View style={[s.stageWrap, { height: cameraHeight }, landscape && { width: cameraWidth }]}>
         <CameraStage active={cameraActive} inferenceActive={inferenceActive} showSkeleton={showSkeleton} showIndicator={false} onReady={cameraReady} onError={cameraError} onFrame={onFrame} onVideoSize={setVideoSize} />
       </View>
@@ -169,8 +232,39 @@ export default function TrackedStrengthScreen({ exercise, sets = 1, onExit, onFa
         <Text style={s.body}>{restRemaining ? `Next: set ${currentSet} of ${totalSets}` : 'Take more time if you need it.'}</Text>
         <Text style={s.supporting}>{targetReps} reps · {exercise?.name}</Text>
         <View style={s.fullWidth}><StrengthButton title={restRemaining ? 'Skip rest · I’m ready' : 'I’m ready'} onPress={continueSet} />
-          <StrengthButton title="Add 15 seconds" variant="secondary" onPress={() => { restEndsAt.current = Math.max(Date.now(), restEndsAt.current) + 15000; setRestRemaining(Math.ceil((restEndsAt.current - Date.now()) / 1000)); }} />
+          <StrengthButton title="Add 15 seconds" variant="secondary" onPress={addRestSeconds} />
           <StrengthButton title="Finish and save" variant="ghost" onPress={stop} />
+        </View>
+      </View> : null}
+      {phase === 'resuming' ? <View style={s.rest}>
+        <Text accessibilityRole="header" style={s.heading}>{STRENGTH_COPY.resumePrompt}</Text>
+        <Text style={s.body}>{STRENGTH_COPY.resumeHelp}</Text>
+        {reps > 0 ? <Text style={s.supporting}>{String(reps).padStart(2, '0')} of {targetReps} reps kept this set</Text> : null}
+        <FramingGuide tone={calibrationGood ? 'good' : 'neutral'} instruction={instruction} />
+        <View style={s.fullWidth}>
+          <StrengthButton title={STRENGTH_COPY.resume} icon="play-outline" onPress={beginResume} />
+          <StrengthButton title="Finish and save" variant="ghost" onPress={stop} />
+        </View>
+      </View> : null}
+      {phase === 'workout_rest' ? <View style={s.rest}>
+        <Text accessibilityRole="header" style={s.heading}>Nice work. Catch your breath.</Text>
+        <Text style={s.restTime} accessibilityLabel={`${restRemaining} seconds rest remaining`}>{formatTime(restRemaining)}</Text>
+        <Text style={s.body}>Next: {restMetaRef.current?.nextName || 'Next movement'}</Text>
+        <Text style={s.supporting}>{restMetaRef.current?.exercise?.name || ''} · done</Text>
+        {transitionSaving ? <Text style={s.supporting}>Saving this movement…</Text> : null}
+        {transitionSaveError ? <View style={s.group}>
+          <StrengthNote tone="important" icon="alert-circle-outline">{transitionSaveError}</StrengthNote>
+          <StrengthButton title="Try saving again" variant="secondary" onPress={retryTransitionSave} />
+        </View> : null}
+        {localSaveError ? <View style={s.group}>
+          <StrengthNote tone="important" icon="alert-circle-outline">{localSaveError}</StrengthNote>
+          <StrengthButton title="Retry workout history save" variant="secondary" onPress={saveLocalHistory} />
+        </View> : null}
+        <FramingGuide tone={calibrationGood ? 'good' : 'neutral'} instruction={instruction} />
+        <View style={s.fullWidth}>
+          <StrengthButton title={transitionBlocked ? 'Saving your movement…' : restRemaining ? 'Skip rest · I’m ready' : 'I’m ready'} disabled={transitionBlocked} onPress={continueAfterRest} />
+          <StrengthButton title="Add 15 seconds" variant="secondary" onPress={addRestSeconds} />
+          {onEndWorkout ? <StrengthButton title="Finish workout" variant="ghost" disabled={transitionBlocked} onPress={onEndWorkout} /> : null}
         </View>
       </View> : null}
       {working ? <View style={s.group}>
@@ -182,7 +276,7 @@ export default function TrackedStrengthScreen({ exercise, sets = 1, onExit, onFa
         </View>
         <FramingGuide tone={trackingPaused ? 'adjust' : 'neutral'} instruction={phase === 'paused' ? (trackingPaused ? cueText || 'Move back into view when you are ready.' : 'Paused. Take the time you need.') : cueText || 'Move at your own pace.'} icon={phase === 'paused' && !trackingPaused ? 'pause-outline' : undefined} />
       </View> : null}
-      {phase !== 'countdown' && phase !== 'between_sets' ? <View style={s.group}>
+      {phase !== 'countdown' && phase !== 'between_sets' && phase !== 'workout_rest' && phase !== 'resuming' ? <View style={s.group}>
         <StrengthButton title={showOptions ? 'Hide camera options' : 'Camera options'} variant="ghost" onPress={() => setShowOptions(value => !value)} accessibilityState={{ expanded: showOptions }} />
         {showOptions ? <View style={s.group}>
           <StrengthButton title={showSkeleton ? 'Hide pose lines' : 'Show pose lines'} variant="secondary" onPress={() => setShowSkeleton(!showSkeleton)} />
@@ -214,7 +308,7 @@ export default function TrackedStrengthScreen({ exercise, sets = 1, onExit, onFa
 }
 
 function phaseLabel(phase) {
-  return { select: 'Camera setup', loading: 'Getting ready', calibrating: 'Find your position', ready: 'Ready', countdown: 'Get ready', active: 'Camera guidance', paused: 'Paused', between_sets: 'Rest', saving: 'Saving', summary: 'Session summary', permission: 'Camera help', save_error: 'Save pending' }[phase] || 'Strength';
+  return { select: 'Camera setup', loading: 'Getting ready', calibrating: 'Find your position', ready: 'Ready', countdown: 'Get ready', active: 'Camera guidance', paused: 'Paused', resuming: 'Ready to continue', between_sets: 'Rest', workout_rest: 'Rest', saving: 'Saving', summary: 'Session summary', permission: 'Camera help', save_error: 'Save pending' }[phase] || 'Strength';
 }
 
 const sheet = c => ({

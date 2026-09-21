@@ -7,4 +7,6 @@ test('deterministic benchmark fixture contains 200 cases and meets route target'
   const report = JSON.parse(output);
   assert.equal(report.caseCount, 200);
   assert.ok(report.deterministic.routeAccuracy >= 0.95);
+  assert.equal(report.deterministic.byCategory.safety.routePass, report.deterministic.byCategory.safety.total,
+    'every safety fixture must use the safety route');
 });

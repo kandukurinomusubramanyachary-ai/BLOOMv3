@@ -75,9 +75,12 @@ export default function StrengthExperience({ TrackedPlayer }) {
     setView('session');
   };
   const exit = () => { setRun(null); setView('home'); void load(); };
-  const save = useCallback(async summary => {
+  const save = useCallback(async (summary, completed) => {
     if (!run || !local || run.owner !== ownerRef.current || !accountWork.isCurrent(uid, run.epoch)) throw new Error('Your account changed. Please reopen Strength.');
-    const item = run.plan.exercises[run.index];
+    // `completed` ({ exercise, sets }) is passed by continuous tracked
+    // transitions: the plan index has already advanced to the NEXT exercise,
+    // so the saved record must describe the movement that just finished.
+    const item = completed || run.plan.exercises[run.index];
     const normalized = normalizeHistory(summary, { ...item, workoutId: run.id, workoutName: run.plan.name });
     const next = await local.saveStrengthSession(normalized);
     if (run.owner !== ownerRef.current || !accountWork.isCurrent(uid, run.epoch)) throw new Error('Your account changed. Please reopen Strength.');
@@ -97,12 +100,20 @@ export default function StrengthExperience({ TrackedPlayer }) {
 
   if (view === 'session' && run) {
     const { exercise, sets } = run.plan.exercises[run.index];
-    const pose = TrackedPlayer && !run.guided && modeForExercise(exercise.id) === 'pose';
+    const pose = TrackedPlayer && !run.guided && modeForExercise(exercise.id, Platform.OS) === 'pose';
     const Player = pose ? TrackedPlayer : SessionPlayer;
-    return <Player key={run.id + ':' + run.index + ':' + String(pose)} exercise={exercise} sets={sets}
-      onExit={exit} onComplete={save} onNext={next} nextLabel={run.index + 1 < run.plan.exercises.length ? 'Next exercise' : 'Finish workout'}
+    const nextItem = run.index + 1 < run.plan.exercises.length ? run.plan.exercises[run.index + 1] : null;
+    const continuousNext = pose && nextItem && modeForExercise(nextItem.exercise.id, Platform.OS) === 'pose' ? nextItem : null;
+    // One camera, one workout: the tracked player stays mounted across
+    // exercises (stable key), so the camera and MediaPipe session start
+    // exactly once per workout. Guided players keep per-exercise keys.
+    return <Player key={pose ? 'tracked:' + run.id : 'guided:' + run.id + ':' + run.index} exercise={exercise} sets={sets}
+      onExit={exit} onComplete={save} onNext={next} nextLabel={nextItem ? 'Next exercise' : 'Finish workout'}
       workoutProgress={{ current: run.index + 1, total: run.plan.exercises.length }}
-      onFallback={() => setRun(current => ({ ...current, guided: true }))} />;
+      onFallback={() => setRun(current => ({ ...current, guided: true }))}
+      nextExercise={continuousNext || undefined}
+      onAdvance={continuousNext ? () => setRun(current => current && current.id === run.id ? { ...current, index: current.index + 1 } : current) : undefined}
+      onEndWorkout={pose ? () => setView('finished') : undefined} />;
   }
   if (view === 'transition' && run) {
     const { exercise, sets } = run.plan.exercises[run.index];
@@ -129,7 +140,7 @@ export default function StrengthExperience({ TrackedPlayer }) {
     <Text style={s.body}>{plan.exercises.length} exercises · No weights needed</Text><Text style={s.supporting}>{planEquipment(plan)}</Text>
     <View><Text style={s.sectionTitle}>Your movements</Text><Text style={[s.supporting, { marginTop: 8 }]}>Tap a movement to read its guide or adjust sets.</Text>{plan.exercises.map((item, i) => <ExerciseCard key={item.exercise.id} {...item} index={i} onPress={exercise => { setSelected(exercise); setInspectIndex(i); setView('detail'); }} />)}</View>
     <StrengthNote title="Room to breathe" icon="time-outline">30–50 seconds of planned rest between sets. Take longer or finish early whenever you need.</StrengthNote>
-    <Text style={s.supporting}>Camera guidance is optional for supported movements. Other movements use camera-free pacing. No camera starts without your permission.</Text>
+    <Text style={s.supporting}>{Platform.OS === 'web' && TrackedPlayer ? 'Camera guidance is optional for supported movements. Other movements use camera-free pacing. No camera starts without your permission.' : 'This app uses camera-free pacing. Follow the timer and count your own repetitions; your movement is not measured.'}</Text>
   </StrengthScreenFrame>;
 
   if (recentRecord) return <StrengthScreenFrame header={<StrengthHeader title="Session summary" onBack={() => setRecentRecord(null)} />} footer={<StrengthButton title="Done" onPress={() => setRecentRecord(null)} />}>
@@ -158,6 +169,7 @@ export default function StrengthExperience({ TrackedPlayer }) {
   const recent = <View style={s.section}><Text style={s.sectionTitle}>Recent movement</Text>{!records.length ? <StrengthEmpty title="Your first workout belongs here." body="Choose something that feels right today. Your saved sessions will appear here." action="Explore workouts" onAction={() => setView('library')} /> : records.slice(0, view === 'progress' ? 20 : 3).map(item => <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={'View ' + item.name + ' session'} onPress={() => setRecentRecord(item)} style={({ pressed }) => [s.activity, pressed && { opacity: 0.65 }]}><View style={s.flex}><Text style={s.activityTitle}>{item.name}</Text><Text style={s.supporting}>{new Date(item.completedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} · {item.sessionMode === 'pose' ? 'Camera guidance' : 'Paced guidance'}{item.completionState === 'stopped' ? ' · Finished early' : ''}</Text></View><Icon name="chevron-forward" size={20} color={c.muted} /></Pressable>)}</View>;
   if (view === 'progress') return <StrengthScreenFrame header={header}>{nav}<Text style={s.title}>Little by little.</Text><Text style={s.body}>A record of showing up, not a score to chase.</Text>{loadingState}{!loading && !loadError ? <><StatsHeader stats={stats} />{records.length > 0 ? <><View style={s.metrics}><Metric value={stats.sessions} label="movement sessions" /><Metric value={stats.totalMinutes} label="total minutes" /></View><Text style={s.supporting}>Time includes rests. Guided reps are paced, not measured.</Text>{stats.areas.length ? <View style={s.section}><Text style={s.sectionTitle}>Where you’ve moved</Text>{stats.areas.map(([area, count]) => <View key={area} style={s.areaRow}><Text style={s.body}>{areaLabel(area)}</Text><Text style={s.supporting}>{count} sessions</Text></View>)}</View> : null}</> : null}{recent}</> : null}</StrengthScreenFrame>;
   return <StrengthScreenFrame header={header}>{nav}<View style={s.section}><Text style={s.title}>Ready to move?</Text><Text style={s.body}>A little strength. A little time for you.</Text></View>
+    {Platform.OS !== 'web' ? <StrengthNote icon="time-outline" title="Guided Strength">Camera-free workouts with paced reps and rest timers. Reps follow the timer; they are not measured from your movement.</StrengthNote> : null}
     <View style={s.recommendation}><View style={s.recommendTop}><Icon name="fitness-outline" size={28} color={c.accent} /><Text style={s.supporting}>Today’s suggestion</Text></View><Text style={s.recommendName}>{WORKOUT_PLANS[0].name}</Text><Text style={s.body}>Three familiar movements. Room to go at your own pace.</Text><Text style={s.metaText}>~{planMinutes(WORKOUT_PLANS[0])} min · Steady · Full body</Text><Text style={s.supporting}>3 exercises · No weights needed</Text><StrengthButton title="View today’s workout" icon="arrow-forward" onPress={() => choosePlan(WORKOUT_PLANS[0])} /></View>
     <Pressable accessibilityRole="button" accessibilityLabel="Choose a gentle start" onPress={() => choosePlan(WORKOUT_PLANS[1])} style={({ pressed }) => [s.gentle, pressed && { opacity: 0.65 }]}><Icon name="leaf-outline" size={24} color={c.sage} /><View style={s.flex}><Text style={s.activityTitle}>A lower-energy day?</Text><Text style={s.supporting}>Keep it gentle with a shorter session.</Text></View><Icon name="chevron-forward" size={20} color={c.sage} /></Pressable>
     {loadingState}{!loading && !loadError ? <StatsHeader stats={stats} /> : null}<StrengthButton title="Explore workouts" variant="secondary" onPress={() => setView('library')} />{!loading && !loadError ? recent : null}

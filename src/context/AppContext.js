@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import { differenceInCalendarDays, isValid, parseISO } from 'date-fns';
 import { KEYS, storage as sharedStorage } from '../services/storage';
+import { prepareStrengthDataDeletion } from '../features/strength/services/strengthStorage';
 const accountWork = require('../services/accountWork');
 import { useAuth } from './AuthContext';
 import { developmentAuthEnabled } from '../services/firebase';
@@ -875,6 +876,7 @@ export function AppProvider({ children }) {
     const resume = accountWork.pause(expectedUid);
     megDataRevisionRef.current += 1;
     try { await persist(async () => {
+      await prepareStrengthDataDeletion(expectedUid);
       await deleteAllCurrentUserMegData({ expectedUid });
       await Promise.all([
       deleteAllCurrentUserTrackingData(expectedUid),
@@ -890,6 +892,7 @@ export function AppProvider({ children }) {
     if (expectedUid !== user.uid) throw new Error('Your sign-in changed. Please retry deleting your account.');
     megDataRevisionRef.current += 1;
     await persist(async () => {
+      await prepareStrengthDataDeletion(expectedUid);
       await Promise.all([
         deleteAllCurrentUserTrackingData(expectedUid),
         deleteAllCurrentUserMegData({ serverAlreadyDeleted: true, expectedUid }),

@@ -40,8 +40,8 @@ function supportsPoseTracking(catalogExerciseId) {
 }
 
 // Explicit session mode decision: 'pose' when trackable, 'guided' otherwise.
-function modeForExercise(catalogExerciseId) {
-  return supportsPoseTracking(catalogExerciseId) ? 'pose' : 'guided';
+function modeForExercise(catalogExerciseId, platform = 'web') {
+  return platform === 'web' && supportsPoseTracking(catalogExerciseId) ? 'pose' : 'guided';
 }
 
 // Preserve the user's chosen set count, clamped to a sane positive integer.

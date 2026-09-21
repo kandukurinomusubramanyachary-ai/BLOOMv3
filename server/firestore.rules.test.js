@@ -227,6 +227,20 @@ test('Strength summaries are owner-only and reject camera-derived payloads', asy
   ));
 });
 
+test('Strength accepts bounded multi-set totals and rejects impossible set metadata', async () => {
+  const ownerDb = testEnvironment.authenticatedContext('user-a').firestore();
+  const reference = doc(ownerDb, 'users/user-a/strengthSessions/multi-set');
+  await assertSucceeds(setDoc(reference, validStrengthSession('multi-set', {
+    targetReps: 24, acceptedReps: 120, totalSets: 5, completedSets: 5,
+  })));
+  for (const overrides of [
+    { totalSets: 6 }, { totalSets: 1.5 }, { totalSets: 2, completedSets: 3 },
+    { totalSets: 2, completedSets: 1.5 }, { totalSets: 2, acceptedReps: 17 },
+  ]) {
+    await assertFails(setDoc(reference, validStrengthSession('multi-set', overrides)));
+  }
+});
+
 test('one authenticated user cannot read or write another user\'s period or Diet data', async () => {
   const userADb = testEnvironment.authenticatedContext('user-a').firestore();
 

@@ -1,6 +1,7 @@
 // Own resources per attempt: a late permission/model response must never stop
 // a newer camera session or leave a camera running after navigation.
 const { STRENGTH_DEFAULTS, STRENGTH_COPY } = require('../constants');
+const { createTrackingPerformance } = require('../engine/trackingPerformance');
 
 function cameraError(code) {
   return Object.assign(new Error(code), { code });
@@ -14,6 +15,7 @@ function describeCameraError(error) {
   if (error?.name === 'NotFoundError') return { kind: 'missing', message: STRENGTH_COPY.cameraMissing };
   if (['NotReadableError', 'AbortError'].includes(error?.name) || code === 'camera_ended') return { kind: 'busy', message: STRENGTH_COPY.cameraBusy };
   if (code === 'camera_timeout') return { kind: 'timeout', message: STRENGTH_COPY.cameraTimeout };
+  if (code === 'slow_device') return { kind: 'performance', message: STRENGTH_COPY.lowFps };
   return { kind: 'failed', message: STRENGTH_COPY.modelFailed };
 }
 
@@ -25,6 +27,7 @@ function startCameraSession({ video, createDetector, onReady, onFrame, onError, 
   let cancelPending = null;
   let lastSampleAt = -Infinity;
   let lastVideoTime = -1;
+  const performanceMonitor = createTrackingPerformance();
   const ended = () => fail(cameraError('camera_ended'));
   const disposeSafely = (dispose, value) => {
     // Cleanup must not mask the original failure or reject a late response.
@@ -53,7 +56,7 @@ function startCameraSession({ video, createDetector, onReady, onFrame, onError, 
 
   // Abandon promptly; dispose resources even if an unabortable browser API
   // resolves after cancellation/timeout (getUserMedia has no AbortSignal).
-  function acquire(promise, dispose = () => {}, code = 'model_timeout') {
+  function acquire(promise, dispose = () => {}, code = 'model_timeout', timeoutMs = startupTimeoutMs) {
     return new Promise((resolve, reject) => {
       let finished = false;
       const finish = (callback, value) => {
@@ -63,7 +66,7 @@ function startCameraSession({ video, createDetector, onReady, onFrame, onError, 
         cancelPending = null;
         callback(value);
       };
-      const timer = setTimeout(() => finish(reject, cameraError(code)), startupTimeoutMs);
+      const timer = setTimeout(() => finish(reject, cameraError(code)), timeoutMs);
       cancelPending = () => finish(reject, cameraError('cancelled'));
       Promise.resolve(promise).then(value => {
         if (finished || stopped) { disposeSafely(dispose, value); return; }
@@ -87,18 +90,38 @@ function startCameraSession({ video, createDetector, onReady, onFrame, onError, 
       video.srcObject = stream;
       await acquire(video.play(), undefined, 'camera_timeout');
       if (stopped) return;
-      detector = await acquire(createDetector(), value => value.close());
+      const modelDeadline = Date.now() + startupTimeoutMs;
+      for (let attempt = 0; attempt <= STRENGTH_DEFAULTS.modelRetries; attempt++) {
+        try {
+          const remaining = modelDeadline - Date.now();
+          if (remaining <= 0) throw cameraError('model_timeout');
+          detector = await acquire(createDetector(), value => value.close(), 'model_timeout', remaining);
+          break;
+        } catch (error) {
+          // A timed-out model may still be loading in WASM. Do not start
+          // another copy alongside it; acquire will dispose its late result.
+          if (stopped || error.code === 'model_timeout' || attempt === STRENGTH_DEFAULTS.modelRetries) throw error;
+        }
+      }
       if (stopped) { disposeSafely(value => value.close(), detector); return; }
       onReady?.();
 
       function sample(now) {
         if (stopped) return;
         const enabled = settings().inferenceActive && !env.document?.hidden;
-        if (enabled && now - lastSampleAt >= 1000 / STRENGTH_DEFAULTS.sampleRate && video.readyState >= 2 && video.videoWidth > 0 && video.currentTime !== lastVideoTime) {
+        if (!enabled) performanceMonitor.reset();
+        const performanceState = enabled ? performanceMonitor.evaluate(now) : null;
+        // Evaluate even without a new video frame: a stalled camera is also
+        // unable to track safely. Background time is excluded above.
+        if (performanceState?.shouldStop) { fail(cameraError('slow_device')); return; }
+        if (enabled && now - lastSampleAt >= performanceState.sampleIntervalMs && video.readyState >= 2 && video.videoWidth > 0 && video.currentTime !== lastVideoTime) {
           lastSampleAt = now;
           lastVideoTime = video.currentTime;
           try {
+            detector.setInputSize?.(performanceState.downsampleLongSide);
             const result = detector.detect(video, now);
+            performanceMonitor.sample(now, result.latencyMs);
+            if (performanceMonitor.evaluate(now).shouldStop) { fail(cameraError('slow_device')); return; }
             if (!stopped) onFrame?.({
               ...result, ts: now,
               sourceWidth: video.videoWidth, sourceHeight: video.videoHeight,

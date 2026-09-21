@@ -294,6 +294,7 @@ function profileFixture(options = {}) {
     });
     const module = { exports: {} };
     const localRequire = name => {
+      if (name.startsWith('@babel/runtime/')) return require(name);
       if (name === 'firebase/firestore') return firestore;
       if (name === './firebase') return firebase;
       if (name === './userData') return load('userData.js');

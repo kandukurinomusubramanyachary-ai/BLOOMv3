@@ -6,44 +6,71 @@ function createAuthSession({ auth, sdk, ensureProfile, onState, onSignedOut = ()
   let revision = 0;
   let busy = false;
   let unsubscribe = null;
+  let exposedUid = null;
   let state = { user: null, initializing: true, error: null };
   const publish = patch => {
     if (!alive) return;
     state = { ...state, ...patch };
+    if (patch.user) exposedUid = patch.user.uid;
     onState(state);
+  };
+  const clearExposedAccount = (uid = exposedUid) => {
+    if (!uid || uid !== exposedUid) return;
+    exposedUid = null;
+    onSignedOut(uid);
   };
   const isCurrent = (version, user) => alive && version === revision
     && (auth.currentUser?.uid || null) === (user?.uid || null);
 
   async function restore(user) {
     const version = ++revision;
-    const previousUid = state.user?.uid;
+    const previousUid = exposedUid;
     if (!user) {
-      if (previousUid) onSignedOut(previousUid);
+      clearExposedAccount(previousUid);
       publish({ user: null, initializing: false, error: null });
       return;
     }
-    if (previousUid && previousUid !== user.uid) onSignedOut(previousUid);
+    if (previousUid && previousUid !== user.uid) clearExposedAccount(previousUid);
     publish({ user: null, initializing: true, error: null });
     try {
       await ensureProfile(user);
       if (isCurrent(version, user)) publish({ user, initializing: false, error: null });
     } catch (error) {
-      if (isCurrent(version, user)) publish({ user: null, initializing: false, error });
+      if (isCurrent(version, user)) {
+        clearExposedAccount();
+        publish({ user: null, initializing: false, error });
+      }
     }
   }
 
   function start() {
+    if (!alive || unsubscribe) return;
     unsubscribe = sdk.onAuthStateChanged(auth, user => {
-      if (!alive || busy) return;
+      if (!alive) return;
+      if (busy) {
+        // Credential callbacks can arrive before profile provisioning. Never
+        // expose them early, but a concurrent sign-out must take effect now.
+        if (!user) {
+          revision++;
+          clearExposedAccount();
+          publish({ user: null, initializing: false, error: null });
+        } else if (exposedUid && exposedUid !== user.uid) {
+          clearExposedAccount();
+          publish({ user: null, initializing: true, error: null });
+        }
+        return;
+      }
       void restore(user);
     }, error => {
+      if (!alive) return;
       revision++;
+      clearExposedAccount();
       publish({ user: null, initializing: false, error });
     });
   }
 
   async function authenticate(method, email, password, profile) {
+    if (!alive) throw Object.assign(new Error('Sign-in changed.'), { code: 'bloom/auth-changed' });
     if (busy) throw Object.assign(new Error('A sign-in request is already running.'), { code: 'bloom/auth-busy' });
     busy = true;
     const version = ++revision;
@@ -75,10 +102,11 @@ function createAuthSession({ auth, sdk, ensureProfile, onState, onSignedOut = ()
   }
 
   async function logOut() {
+    if (!alive) throw Object.assign(new Error('Sign-in changed.'), { code: 'bloom/auth-changed' });
     const uid = auth.currentUser?.uid || state.user?.uid;
     revision++;
     await sdk.signOut(auth);
-    if (uid) onSignedOut(uid);
+    clearExposedAccount(uid);
     if (!auth.currentUser) publish({ user: null, initializing: false, error: null });
   }
 

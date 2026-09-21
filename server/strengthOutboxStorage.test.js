@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const babel = require('@babel/core');
+const accountWork = require('../src/services/accountWork');
 
 function fixture(options = {}) {
   const values = new Map();
@@ -101,6 +102,58 @@ function controlledTimers() {
     },
   };
 }
+
+test('Strength deletion drains the actual upload and cancels queued saves before deleting records', async () => {
+  const uid = 'deletion-race';
+  let release;
+  let entered;
+  const started = new Promise(resolve => { entered = resolve; });
+  const gate = new Promise(resolve => { release = resolve; });
+  const subject = fixture({ onUpload: async () => { entered(); await gate; } });
+  const saving = subject.saveStrengthSummary(uid, summary('first'));
+  await started;
+  const queuedSave = subject.saveStrengthSummary(uid, summary('queued'));
+  const failures = Promise.all([assert.rejects(saving, /account data changed/), assert.rejects(queuedSave, /account data changed/)]);
+  const resume = accountWork.pause(uid);
+  try {
+    await assert.rejects(subject.saveStrengthSummary(uid, summary('blocked')), /updating your data/);
+    let drained = false;
+    const draining = subject.prepareStrengthDataDeletion(uid).then(() => { drained = true; });
+    await new Promise(setImmediate);
+    assert.equal(drained, false);
+    release();
+    await draining; await failures;
+    assert.equal(subject.uploads.length, 1);
+    subject.values.delete(subject.key(uid));
+    await new Promise(setImmediate);
+    assert.equal(subject.values.has(subject.key(uid)), false);
+  } finally { release(); resume(); }
+});
+
+test('timed-out SDK uploads block deletion until they really settle', async () => {
+  const uid = 'timed-out-deletion';
+  const timers = controlledTimers();
+  let release;
+  let entered;
+  const started = new Promise(resolve => { entered = resolve; });
+  const gate = new Promise(resolve => { release = resolve; });
+  const subject = fixture({ timers, onUpload: async () => { entered(); await gate; } });
+  const saving = subject.saveStrengthSummary(uid, summary());
+  await started;
+  timers.fire();
+  assert.equal((await saving).synced, false);
+  const resume = accountWork.pause(uid);
+  try {
+    const failed = assert.rejects(subject.prepareStrengthDataDeletion(uid), /still syncing/);
+    await new Promise(setImmediate);
+    timers.fire();
+    await failed;
+    release();
+    await new Promise(setImmediate);
+    await subject.prepareStrengthDataDeletion(uid);
+    assert.equal(timers.pendingCount, 0);
+  } finally { release(); resume(); }
+});
 
 test('Strength outbox save stays bound to its UID during a global account switch', async () => {
   let subject;

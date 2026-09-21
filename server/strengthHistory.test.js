@@ -92,6 +92,23 @@ test('Strength history participates in export and captured-account deletion', as
   assert.deepEqual(await storage.getStrengthSessions(), [summary('bob-1')]);
 });
 
+test('Strength device deletion waits for an already-running history write', async () => {
+  const backend = memoryStorage();
+  const { storage } = loadStorage(backend);
+  let release;
+  let entered;
+  const started = new Promise(resolve => { entered = resolve; });
+  const gate = new Promise(resolve => { release = resolve; });
+  const originalWrite = backend.setItem;
+  backend.setItem = async (...args) => { entered(); await gate; return originalWrite(...args); };
+  const saving = storage.forUser('deletion-history').saveStrengthSession(summary('pending'));
+  await started;
+  const deleting = storage.deleteAllData('deletion-history');
+  release();
+  await Promise.all([saving, deleting]);
+  assert.deepEqual(await storage.forUser('deletion-history').getStrengthSessions(), []);
+});
+
 test('Strength failed writes reject without showing a false saved result, and retry succeeds', async () => {
   const backend = memoryStorage();
   const { storage } = loadStorage(backend);

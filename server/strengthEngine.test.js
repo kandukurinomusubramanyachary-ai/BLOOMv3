@@ -231,6 +231,7 @@ test('strength summary serializer emits only the privacy allowlist', () => {
     id: 'session-1', exerciseId: 'bodyweight-squat-v1', exerciseVersion: 1,
     startedAt: '2026-08-24T00:00:00.000Z', completedAt: '2026-08-24T00:03:04.000Z',
     durationSeconds: 184, targetReps: 8, acceptedReps: 8, pauseCount: 1,
+    totalSets: 1, completedSets: 1,
     cueCounts: { finishStanding: 2 }, completionState: 'completed', platform: 'web',
     landmarks: [{ x: 1 }], video: 'forbidden',
   });

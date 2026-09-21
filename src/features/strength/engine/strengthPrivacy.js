@@ -1,7 +1,7 @@
 const SUMMARY_KEYS = Object.freeze([
   'id', 'exerciseId', 'exerciseVersion', 'startedAt', 'completedAt',
   'durationSeconds', 'targetReps', 'acceptedReps', 'pauseCount', 'cueCounts',
-  'completionState', 'platform', 'privacyVersion',
+  'completionState', 'platform', 'privacyVersion', 'totalSets', 'completedSets',
 ]);
 
 const REQUIRED_SUMMARY_KEYS = Object.freeze([
@@ -51,6 +51,10 @@ function serializeStrengthSummary(input) {
     completionState: ['completed', 'stopped', 'abandoned'].includes(source.completionState) ? source.completionState : 'abandoned',
     platform: source.platform === 'web' ? 'web' : 'native',
     privacyVersion: 1,
+    ...(source.totalSets != null ? {
+      totalSets: Math.min(5, Math.max(1, finiteInteger(source.totalSets, 1))),
+      completedSets: Math.min(Math.min(5, Math.max(1, finiteInteger(source.totalSets, 1))), finiteInteger(source.completedSets)),
+    } : {}),
   };
   for (const key of REQUIRED_SUMMARY_KEYS) {
     if (summary[key] === undefined || summary[key] === null || summary[key] === '') throw new Error(`strength_summary_missing:${key}`);
