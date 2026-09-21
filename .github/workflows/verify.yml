@@ -2,7 +2,7 @@ name: Verify Bloom
 
 on:
   push:
-    branches: [main, release/bloom-v3]
+    branches: [main]
   pull_request:
     branches: [main, release/bloom-v3]
 

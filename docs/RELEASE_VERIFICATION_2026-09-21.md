@@ -49,13 +49,30 @@ camera permission. Generated folders are ignored and recreated from app config.
   pauses, stalled video, bounded model retries and resource cleanup. They do
   not establish real-person pose accuracy or audible speech on a phone.
 
+## GitHub verification
+
+On commit `37101b7`, [Verify Bloom passed](https://github.com/kandukurinomusubramanyachary-ai/BLOOMv3/actions/runs/35601867527),
+including 329 app tests, 41 Meg tests, 12 Firestore rules tests, the benchmark,
+typecheck, Expo Doctor, web export, Docker build and container smoke checks.
+
+[Native builds passed](https://github.com/kandukurinomusubramanyachary-ai/BLOOMv3/actions/runs/35601867722):
+Android release APK/AAB compilation, unsigned physical-device iOS Release
+compilation with Xcode 26.6, and the combined native build gate. Both platform
+artifacts were uploaded. These artifacts do not establish signing or acceptance
+on a physical phone.
+
+CI runs for pull requests into main or the release branch, and pushes to main.
+Updates to the open release PR run once through the pull-request event. This
+avoids duplicate push/PR runs cancelling each other on the same commit. A
+cancelled workflow skips its native gate instead of reporting a build failure;
+a failed platform build still fails the gate.
+
 ## Remaining release gates
 
 See [the native release record](NATIVE_RELEASE.md) for the device matrix and
-production rehearsal. Local tooling cannot compile/sign Apple or Android store
-artifacts here. Signed EAS artifacts, physical-phone acceptance, and a real
+production rehearsal. Signed EAS artifacts, physical-phone acceptance, and a real
 Firebase/Meg/account-deletion rehearsal remain required before store submission.
-The rules and container checks run in GitHub CI with the required Java/tooling.
+The documented required branch checks still need repository-owner configuration.
 
 Native V3 Strength is guided and camera-free. Web retains camera tracking for
 supported movements. Do not advertise native camera form tracking.
