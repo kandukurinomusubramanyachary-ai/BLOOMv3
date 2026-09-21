@@ -10,7 +10,7 @@ function validateReleaseConfiguration(environment = {}) {
     if (url.username || url.password) throw new Error();
   }
   catch { issues.push('EXPO_PUBLIC_MEG_API_URL must be a public HTTPS backend'); }
-  for (const flag of ['MEG_DEV_AUTH', 'EXPO_PUBLIC_BLOOM_STRENGTH']) {
+  for (const flag of ['MEG_DEV_AUTH']) {
     if (['1', 'true'].includes(String(environment[flag]).trim().toLowerCase())) issues.push(`${flag} must be disabled for this launch`);
   }
   for (const name of Object.keys(environment)) {

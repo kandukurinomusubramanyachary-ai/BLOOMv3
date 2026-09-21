@@ -65,6 +65,6 @@ test('startup has guarded native splash handling, timeout, and sanitised stages'
   assert.match(entry, /preventAutoHideAsync\(\)\.catch\(\(\) => \{\}\)/);
   assert.match(entry, /setTimeout\(hideNativeSplash, 4000\)/);
   assert.match(splash, /const SPLASH_TIMEOUT = 4000/);
-  assert.ok(appConfig.expo.plugins.includes('expo-splash-screen'));
+  assert.ok(appConfig.expo.plugins.some(plugin => (Array.isArray(plugin) ? plugin[0] : plugin) === 'expo-splash-screen'));
   expectedStages.forEach((stage) => assert.match(diagnostics, new RegExp(`'${stage}'`)));
 });

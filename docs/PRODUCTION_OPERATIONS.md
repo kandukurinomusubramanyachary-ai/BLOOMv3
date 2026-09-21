@@ -2,7 +2,7 @@
 
 ## Configuration
 
-Use `.env.example` as a field list, not a production-ready environment. Run `npm run check:release-config` before publishing a frontend. Its output contains field names only. Set the six public Firebase application fields and a public HTTPS Meg API URL. Publish reviewed Privacy Policy, Terms and a monitored support page into the three public URL slots. Disable both dev-auth flags and keep Strength at 0. Public Firebase application configuration is not Firebase Admin credentials.
+Use `.env.example` as a field list, not a production-ready environment. Run `npm run check:release-config` before publishing a frontend. Its output contains field names only. Set the six public Firebase application fields and a public HTTPS Meg API URL. Publish reviewed Privacy Policy, Terms and a monitored support page into the three public URL slots. Disable both dev-auth flags. The V3 EAS profiles enable Strength: guided on native, with camera tracking on supported web exercises. Complete the device acceptance in [the native release record](NATIVE_RELEASE.md) before production distribution; set `EXPO_PUBLIC_BLOOM_STRENGTH=0` for deployments that have not accepted the feature. Public Firebase application configuration is not Firebase Admin credentials.
 
 Keep provider keys and Firebase Admin credentials in the backend secret manager only. This server's `FIREBASE_SERVICE_ACCOUNT_JSON` format is **base64-encoded JSON**, not raw JSON; alternatively use ADC plus a Firebase project ID. Verify revoked tokens; never use `dev-token` for deployment tests. Firebase project/edition, authorized domains, email/password enablement, password-reset email delivery and deployed rules still require validation in the selected real project.
 

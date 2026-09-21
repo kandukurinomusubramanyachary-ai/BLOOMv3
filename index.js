@@ -1,6 +1,6 @@
 const React = require('react');
 const { View } = require('react-native');
-const registerRootComponentModule = require('expo/build/launch/registerRootComponent');
+const { registerRootComponent } = require('expo');
 let NativeSplashScreen = null;
 try {
   NativeSplashScreen = require('expo-splash-screen');
@@ -17,9 +17,6 @@ const {
   recordStartupFailure,
   setStartupStage,
 } = require('./src/diagnostics/startupDiagnostics');
-
-const registerRootComponent =
-  registerRootComponentModule.default || registerRootComponentModule;
 
 installGlobalErrorHandler();
 setStartupStage('native-entry');

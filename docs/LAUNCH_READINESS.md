@@ -1,5 +1,10 @@
 # Bloom Launch Readiness
 
+> Historical report from 2026-09-10. The current source review, Strength changes,
+> verification results and unresolved launch requirements are in
+> [LAUNCH_REVIEW_2026-09-20.md](LAUNCH_REVIEW_2026-09-20.md). The test runs below
+> were recorded by the earlier review and were not all repeated in this pass.
+
 ## 1. Final status
 
 NOT READY

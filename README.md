@@ -20,6 +20,8 @@ The main navigation has five tabs:
   Messages are sent through Bloom's Firebase-authenticated `/api/meg/chat`
   endpoint; provider keys are never exposed to the client.
 - **Strength** - an isolated movement feature under `src/features/strength/`.
+  Android and iOS offer camera-free guided workouts; movement and form are not
+  measured. Web supports camera tracking for the supported exercises.
   Its web pose model, JavaScript bundle, and WASM runtime live under
   `public/strength/` and are loaded at runtime.
 - **Diet** - optional preferences, meal ideas, saved ideas, meal logging,
@@ -79,8 +81,8 @@ bounded retries, circuit breaking, and telemetry.
 
 ## Technology
 
-- Expo SDK 51 and React Native 0.74
-- React 18 and React Navigation 6
+- Expo SDK 57 and React Native 0.86
+- React 19.2 and React Navigation 7
 - Firebase Authentication, Cloud Firestore, and Firebase Admin
 - AsyncStorage for UID-scoped device data
 - Express for Bloom's authenticated backend
@@ -93,13 +95,17 @@ bounded retries, circuit breaking, and telemetry.
 ## Requirements
 
 - Node.js 22 recommended for local and production parity
-- npm
+- npm 10.9.9 (matches CI)
 - Android Studio for an Android emulator, or Xcode on macOS for an iOS simulator
 - Access to Bloom's existing Firebase Web App configuration
 - At least one Meg V2 provider key: Gemini, Groq, or OpenRouter
 
 No global Expo CLI installation is needed. Use the project-local CLI through
 `npx` or the npm scripts below.
+
+The native release targets Android API 36 and iOS 16.4 or newer. See
+[native release status and device acceptance](docs/NATIVE_RELEASE.md) before
+creating store builds. Bundle exports alone do not certify a native release.
 
 ## Local setup
 
@@ -226,10 +232,12 @@ Run from a clean checkout:
 
 ```bash
 npm ci
+npm ci --prefix meg-engine-v2
 npm test
 npm run typecheck
+npm run check:native-config
+npx expo-doctor
 npm run build:web
-npm ci --prefix meg-engine-v2
 npm test --prefix meg-engine-v2
 npm run benchmark --prefix meg-engine-v2
 npm run test:rules
@@ -252,6 +260,10 @@ available. Also smoke-test Strength in a real supported browser.
 Merge a Meg backend migration only after the GitHub verification workflow is
 green, including Bloom tests, Meg V2 tests, typecheck, web build, and production
 container build.
+
+Native compilation and signed store-build checks are documented in
+[the native release record](docs/NATIVE_RELEASE.md). The signed EAS workflow
+waits for both platforms and verifies their commit, project and version.
 
 ## Firebase and deployment
 

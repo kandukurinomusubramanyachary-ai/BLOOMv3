@@ -1,5 +1,8 @@
 # Bloom Strength — Implementation Status
 
+> Historical implementation snapshot. See the [2026-09-20 launch review](../LAUNCH_REVIEW_2026-09-20.md)
+> for the current branch's fixes, test results and platform limitations.
+
 Precise, honest status of the Strength feature on the `main` branch
 (`aa5dfe2757306f145b6d37a2db02e23842a35aa3`). This page records what is
 actually implemented and reachable versus what is scaffolded. Nothing here is

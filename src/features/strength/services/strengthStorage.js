@@ -3,18 +3,22 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../../../services/firebase';
 import { KEYS, storage } from '../../../services/storage';
 import { STRENGTH_DEFAULTS } from '../constants';
+import accountWork from '../../../services/accountWork';
 
 const { enqueueSummary, pruneOutbox } = require('./strengthOutbox');
 const { serializeStrengthSummary } = require('../engine/strengthPrivacy');
 const outboxOperations = new Map();
+const pendingUploads = new Map();
 const UPLOAD_DEADLINE_MS = 10000;
 
-function serializeOutboxOperation(local, operation) {
+function serializeOutboxOperation(uid, local, operation) {
+  const work = accountWork.request(uid);
   const key = local.scopedKey(KEYS.STRENGTH_OUTBOX);
   const previous = outboxOperations.get(key) || Promise.resolve();
-  const pending = previous.catch(() => {}).then(operation);
+  const pending = previous.catch(() => {}).then(() => { work.check(); return operation(work.check); });
   outboxOperations.set(key, pending);
   return pending.finally(() => {
+    work.close();
     if (outboxOperations.get(key) === pending) outboxOperations.delete(key);
   });
 }
@@ -31,13 +35,22 @@ function firestoreSummary(summary) {
 async function upload(uid, summary) {
   if (!db || !uid) throw new Error('strength_cloud_unavailable');
   let timer;
+  const uploads = pendingUploads.get(uid) || new Set();
+  pendingUploads.set(uid, uploads);
+  const write = setDoc(doc(db, 'users', uid, 'strengthSessions', summary.id), firestoreSummary(summary));
+  uploads.add(write);
+  const settled = () => {
+    uploads.delete(write);
+    if (!uploads.size && pendingUploads.get(uid) === uploads) pendingUploads.delete(uid);
+  };
+  write.then(settled, settled);
   try {
     // Firestore can retain an offline write without settling its Promise.
     // Bound the foreground wait, not the SDK write: it cannot be cancelled.
     // A late success never removes the outbox record or claims sync here;
     // the next retry writes the same document ID and remains idempotent.
     await Promise.race([
-      setDoc(doc(db, 'users', uid, 'strengthSessions', summary.id), firestoreSummary(summary)),
+      write,
       new Promise((_, reject) => {
         timer = setTimeout(() => reject(new Error('strength_cloud_timeout')), UPLOAD_DEADLINE_MS);
       }),
@@ -45,6 +58,25 @@ async function upload(uid, summary) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+// Call after accountWork.pause(uid), before selecting records for deletion.
+// The SDK may finish a timed-out upload later; deletion must wait for that
+// actual write, or fail recoverably while offline, to avoid recreating data.
+export async function prepareStrengthDataDeletion(uid) {
+  const key = storage.forUser(uid).scopedKey(KEYS.STRENGTH_OUTBOX);
+  let timer;
+  try {
+    await Promise.race([
+      (async () => {
+        await outboxOperations.get(key)?.catch(() => {});
+        await Promise.allSettled([...(pendingUploads.get(uid) || [])]);
+      })(),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Strength is still syncing. Reconnect and retry deleting your data.')), UPLOAD_DEADLINE_MS);
+      }),
+    ]);
+  } finally { clearTimeout(timer); }
 }
 
 async function readOutbox(local) {
@@ -68,10 +100,12 @@ async function readOutbox(local) {
 
 export async function flushStrengthOutbox(uid) {
   const local = storage.forUser(uid);
-  return serializeOutboxOperation(local, async () => {
+  return serializeOutboxOperation(uid, local, async (check) => {
     const queue = pruneOutbox(await readOutbox(local), Date.now(), STRENGTH_DEFAULTS.outboxMaxAgeMs);
+    check();
     const remaining = [];
     for (let index = 0; index < queue.length; index += 1) {
+      check();
       const item = queue[index];
       try {
         await upload(uid, item.summary);
@@ -85,7 +119,9 @@ export async function flushStrengthOutbox(uid) {
         }
       }
     }
+    check();
     await local.setStrengthOutbox(remaining);
+    check();
     return { uploaded: queue.length - remaining.length, remaining: remaining.length };
   });
 }
@@ -93,17 +129,22 @@ export async function flushStrengthOutbox(uid) {
 export async function saveStrengthSummary(uid, input) {
   const local = storage.forUser(uid);
   const summary = serializeStrengthSummary(input);
-  return serializeOutboxOperation(local, async () => {
+  return serializeOutboxOperation(uid, local, async (check) => {
     const current = pruneOutbox(await readOutbox(local), Date.now(), STRENGTH_DEFAULTS.outboxMaxAgeMs);
+    check();
     await local.setStrengthOutbox(enqueueSummary(current, summary));
+    check();
     try {
       await upload(uid, summary);
     } catch {
+      check();
       return { summary, synced: false };
     }
     const latest = pruneOutbox(await readOutbox(local), Date.now(), STRENGTH_DEFAULTS.outboxMaxAgeMs)
       .filter((item) => item.summary.id !== summary.id);
+    check();
     await local.setStrengthOutbox(latest);
+    check();
     return { summary, synced: true };
   });
 }

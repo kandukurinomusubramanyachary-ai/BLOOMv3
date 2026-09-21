@@ -17,6 +17,7 @@ const SAFETY_RULES = [
     triggerPatterns: [
       /\b(severe|heavy|uncontrollable|soaking) bleeding\b/i,
       /\bbleeding\b.{0,50}\b(soak(?:ing)?|changing).{0,30}\b(pad|tampon).{0,30}\b(hour|an hour)\b/i,
+      /\bsoak(?:ing)?\b.{0,30}\b(pad|tampon)\b.{0,30}\b(?:every|an|per) hour\b/i,
     ],
     behavior: 'recommend urgent medical care now',
   },
@@ -67,7 +68,8 @@ function detectSafety(message = '') {
   const matches = SAFETY_RULES.filter((rule) => rule.triggerPatterns.some((pattern) => pattern.test(text))).sort((a, b) => b.priority - a.priority);
   const rule = matches[0];
   if (!rule) return { triggered: false, category: null, reason: null, priority: 0, matches: [] };
-  if (matches.length > 1 && !matches.some((item) => ['self_harm', 'pregnancy_emergency'].includes(item.category))) return { triggered: true, category: 'urgent_medical', reason: 'red_flag_symptom' };
+  const urgentMatches = matches.filter((item) => isUrgentCategory(item.category));
+  if (urgentMatches.length > 1 && !urgentMatches.some((item) => ['self_harm', 'pregnancy_emergency'].includes(item.category))) return { triggered: true, category: 'urgent_medical', reason: 'red_flag_symptom' };
   return { triggered: true, category: rule.category, reason: rule.category === 'self_harm' ? 'self_harm_language' : 'deterministic_rule', priority: rule.priority, matches: matches.map((item) => item.category), behavior: rule.behavior };
 }
 

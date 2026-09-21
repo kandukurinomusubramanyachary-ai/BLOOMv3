@@ -1,0 +1,94 @@
+name: Native builds
+
+on:
+  push:
+    branches: [main, release/bloom-v3]
+  pull_request:
+    branches: [main, release/bloom-v3]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  EXPO_NO_DOTENV: '1'
+  EXPO_NO_TELEMETRY: '1'
+  EXPO_PUBLIC_BLOOM_DEV_AUTH: '0'
+  EXPO_PUBLIC_BLOOM_STRENGTH: '1'
+
+jobs:
+  android:
+    name: Android release compilation
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: npm install --global npm@10.9.9
+      - run: npm ci
+      - run: npm run check:native-config
+      - name: Generate Android project
+        run: npx expo prebuild --platform android --no-install
+      - name: Compile release APK and AAB
+        working-directory: android
+        run: ./gradlew :app:assembleRelease :app:bundleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-compilation-${{ github.sha }}
+          path: |
+            android/app/build/outputs/apk/release/*.apk
+            android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+          retention-days: 7
+
+  ios:
+    name: iOS release compilation
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - name: Select Xcode 26.6
+        run: sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
+      - run: npm install --global npm@10.9.9
+      - run: npm ci
+      - run: npm run check:native-config
+      - name: Generate iOS project and install pods
+        run: npx expo prebuild --platform ios
+      - name: Compile for physical iOS devices without signing
+        run: >-
+          xcodebuild -workspace ios/Bloom.xcworkspace -scheme Bloom
+          -configuration Release -sdk iphoneos -destination 'generic/platform=iOS'
+          -derivedDataPath ios-build-inspect CODE_SIGNING_ALLOWED=NO build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-compilation-${{ github.sha }}
+          path: ios-build-inspect/Build/Products/Release-iphoneos/Bloom.app
+          if-no-files-found: error
+          retention-days: 7
+
+  native-gate:
+    name: Native build gate
+    if: always()
+    needs: [android, ios]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require both platform builds
+        env:
+          ANDROID_RESULT: ${{ needs.android.result }}
+          IOS_RESULT: ${{ needs.ios.result }}
+        run: test "$ANDROID_RESULT" = success && test "$IOS_RESULT" = success

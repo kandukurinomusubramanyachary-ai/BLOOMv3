@@ -105,6 +105,97 @@ test('camera error copy distinguishes HTTPS, permission, missing camera, busy an
   assert.equal(describeCameraError({ code: 'camera_timeout' }).kind, 'timeout');
 });
 
+test('slow inference leaves a rendering gap and sustained overload releases the camera', async () => {
+  const f = fixture();
+  f.detector.detect = () => { f.state.detections++; return { poses: [], latencyMs: 200 }; };
+  const session = startCameraSession(f.options); await session.ready;
+  f.frame(0);
+  f.video.currentTime++; f.frame(220);
+  assert.equal(f.state.detections, 1, 'do not immediately repeat a 200ms inference');
+  for (let ts = 300; ts <= 5400; ts += 300) { f.video.currentTime++; f.frame(ts); }
+  assert.equal(f.state.errors[0]?.code, 'slow_device');
+  assert.equal(describeCameraError(f.state.errors[0]).kind, 'performance');
+  assert.equal(f.state.stops, 1);
+  assert.equal(f.state.closes, 1);
+});
+
+test('a brief slow initialization does not reject an otherwise usable device', async () => {
+  const f = fixture();
+  let latencyMs = 200;
+  f.detector.detect = () => ({ poses: [], latencyMs });
+  const session = startCameraSession(f.options); await session.ready;
+  f.frame(0); latencyMs = 20;
+  for (let ts = 300; ts < 6000; ts += 100) { f.video.currentTime++; f.frame(ts); }
+  assert.equal(f.state.errors.length, 0);
+  assert.ok(f.state.frames.length > 40);
+  session.stop();
+});
+
+test('low camera FPS reduces input size before offering guided mode', async () => {
+  const f = fixture();
+  const sizes = [];
+  f.detector.setInputSize = size => sizes.push(size);
+  const session = startCameraSession(f.options); await session.ready;
+  for (let ts = 0; ts <= 8000 && !f.state.errors.length; ts += 50) {
+    if (ts % 250 === 0) f.video.currentTime++;
+    f.frame(ts);
+  }
+  assert.ok(sizes.includes(512));
+  assert.ok(sizes.includes(384));
+  assert.equal(f.state.errors[0]?.code, 'slow_device');
+  assert.equal(f.state.stops, 1);
+  assert.equal(f.state.closes, 1);
+});
+
+test('reduced processing can recover tracking without forcing guided mode', async () => {
+  const f = fixture();
+  let size = 512;
+  f.detector.setInputSize = value => { size = value; };
+  f.detector.detect = () => ({ poses: [], latencyMs: size === 512 ? 160 : 35 });
+  const session = startCameraSession(f.options); await session.ready;
+  for (let ts = 0; ts < 12000; ts += 20) { f.video.currentTime++; f.frame(ts); }
+  assert.equal(size, 384);
+  assert.equal(f.state.errors.length, 0);
+  assert.ok(f.state.frames.length > 70);
+  session.stop();
+});
+
+test('a stalled camera fails safely, while a paused camera does not accrue low FPS time', async () => {
+  for (const paused of [true, false]) {
+    const f = fixture();
+    const session = startCameraSession(f.options); await session.ready;
+    f.frame(0); f.state.enabled = !paused;
+    for (let ts = 100; ts < 10000; ts += 100) f.frame(ts);
+    assert.equal(f.state.errors.length, paused ? 0 : 1);
+    if (paused) {
+      f.state.enabled = true;
+      for (let ts = 10000; ts < 17000; ts += 100) { f.video.currentTime++; f.frame(ts); }
+      assert.equal(f.state.errors.length, 0);
+    }
+    session.stop();
+  }
+});
+
+test('transient model load failures retry within a bounded attempt count', async () => {
+  const f = fixture();
+  let attempts = 0;
+  const session = startCameraSession({ ...f.options, createDetector: async () => {
+    attempts++;
+    if (attempts < 3) throw new Error('Temporary model fetch failure');
+    return f.detector;
+  } });
+  await session.ready;
+  assert.equal(attempts, 3);
+  assert.equal(f.state.errors.length, 0);
+  session.stop();
+  const failed = fixture();
+  attempts = 0;
+  await startCameraSession({ ...failed.options, createDetector: async () => { attempts++; throw new Error('Offline'); } }).ready;
+  assert.equal(attempts, 3);
+  assert.equal(failed.state.errors.length, 1);
+  assert.equal(failed.state.stops, 1);
+});
+
 test('portrait and landscape contain previews keep all landmarks visible and mirrored', () => {
   for (const [viewWidth, viewHeight] of [[280, 360], [680, 230]]) {
     const transform = createCoverTransform({ sourceWidth: 640, sourceHeight: 480, viewWidth, viewHeight, mirrored: true, fit: 'contain' });

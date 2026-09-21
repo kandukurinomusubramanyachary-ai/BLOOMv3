@@ -153,6 +153,8 @@ test('Firebase reuses only a matching default app, preserving named apps and rej
 
 test('release validation accepts complete configuration and flags missing, local and unsafe public fields', () => {
   assert.deepEqual(validateReleaseConfiguration(releaseEnvironment()), []);
+  assert.deepEqual(validateReleaseConfiguration({ ...releaseEnvironment(), EXPO_PUBLIC_BLOOM_STRENGTH: '1' }), []);
+  assert.ok(validateReleaseConfiguration({ ...releaseEnvironment(), MEG_DEV_AUTH: '1' }).some(issue => issue.startsWith('MEG_DEV_AUTH')));
   const bad = { ...releaseEnvironment(), EXPO_PUBLIC_FIREBASE_APP_ID: '', EXPO_PUBLIC_BLOOM_DEV_AUTH: '1', EXPO_PUBLIC_MEG_API_URL: 'http://localhost:3001', EXPO_PUBLIC_SUPPORT_URL: 'https://192.168.1.2/support', EXPO_PUBLIC_PRIVATE_KEY: 'never-print-this-value' };
   const issues = validateReleaseConfiguration(bad);
   for (const name of ['EXPO_PUBLIC_FIREBASE_APP_ID', 'EXPO_PUBLIC_BLOOM_DEV_AUTH', 'EXPO_PUBLIC_MEG_API_URL', 'EXPO_PUBLIC_SUPPORT_URL', 'EXPO_PUBLIC_PRIVATE_KEY']) assert.ok(issues.some(issue => issue.startsWith(name)));

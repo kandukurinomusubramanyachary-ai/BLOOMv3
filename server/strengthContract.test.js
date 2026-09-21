@@ -15,6 +15,15 @@ const { createRepStateMachine } = require('../src/features/strength/engine/repSt
 
 const baseline = { activeSide: 'left', hipX: 0.5, shoulderMid: { x: 0.5 } };
 
+test('native release routes every exercise to guided Strength', () => {
+  for (const platform of ['android', 'ios']) {
+    for (const id of [...Object.keys(POSE_ENGINE_BY_EXERCISE), ...GUIDED_ONLY_IDS]) {
+      assert.equal(modeForExercise(id, platform), 'guided');
+    }
+  }
+  assert.equal(modeForExercise('wall-pushup', 'web'), 'pose');
+});
+
 // The canonical catalog → pose engine mapping (contract).
 test('catalog exercise maps to the correct deterministic pose engine', () => {
   assert.equal(poseEngineIdForExercise('bodyweight-squat'), 'bodyweight-squat-v1');

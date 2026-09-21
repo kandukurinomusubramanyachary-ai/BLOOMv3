@@ -1,4 +1,5 @@
-import * as FileSystem from 'expo-file-system';
+// Preserve the existing binary/UTF-8 export contract on SDK 54+.
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import { format } from 'date-fns';
@@ -11,6 +12,7 @@ function exportPayload(state = {}) {
     PERIODS: Array.isArray(state.periods) ? state.periods : [],
     MEALS: Array.isArray(state.meals) ? state.meals : [],
     MOVEMENTS: Array.isArray(state.movements) ? state.movements : [],
+    STRENGTH_SESSIONS: Array.isArray(state.strengthSessions) ? state.strengthSessions : [],
     MEDICATIONS: Array.isArray(state.medications) ? state.medications : [],
     DAILY_PLANS: Array.isArray(state.dailyPlans) ? state.dailyPlans : [],
     MEG_CONVERSATIONS: Array.isArray(state.megConversations) ? state.megConversations : [],

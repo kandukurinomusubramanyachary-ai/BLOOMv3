@@ -8,17 +8,31 @@
       "environment": "preview",
       "distribution": "internal",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "image": "sdk-57"
+      },
+      "env": {
+        "EXPO_PUBLIC_BLOOM_DEV_AUTH": "0",
+        "EXPO_PUBLIC_BLOOM_STRENGTH": "1"
+      },
+      "ios": {
+        "image": "sdk-57"
       }
     },
     "production": {
       "environment": "production",
       "distribution": "store",
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "image": "sdk-57"
       },
       "ios": {
-        "simulator": false
+        "simulator": false,
+        "image": "sdk-57"
+      },
+      "env": {
+        "EXPO_PUBLIC_BLOOM_DEV_AUTH": "0",
+        "EXPO_PUBLIC_BLOOM_STRENGTH": "1"
       }
     }
   }

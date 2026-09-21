@@ -49,6 +49,7 @@ export async function createPoseDetector(options = {}) {
     outputSegmentationMasks: false,
   });
   let closed = false;
+  let inputLongSide = config.downsampleLongSide;
   // Bound the pixels copied into WASM on phones. Preserve the source aspect
   // ratio so landmarks still map to the uncropped camera preview.
   const canvas = document.createElement('canvas');
@@ -56,10 +57,13 @@ export async function createPoseDetector(options = {}) {
   if (!context) { landmarker.close(); throw new Error('pose_canvas_unavailable'); }
 
   return {
+    setInputSize(longSide) {
+      if (Number.isFinite(longSide)) inputLongSide = Math.max(256, Math.min(config.downsampleLongSide, longSide));
+    },
     detect(video, timestamp) {
       if (closed) return { poses: [], latencyMs: 0, sourceWidth: 0, sourceHeight: 0 };
       const began = performance.now();
-      const scale = Math.min(1, config.downsampleLongSide / Math.max(video.videoWidth, video.videoHeight));
+      const scale = Math.min(1, inputLongSide / Math.max(video.videoWidth, video.videoHeight));
       const width = Math.max(1, Math.round(video.videoWidth * scale));
       const height = Math.max(1, Math.round(video.videoHeight * scale));
       if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
