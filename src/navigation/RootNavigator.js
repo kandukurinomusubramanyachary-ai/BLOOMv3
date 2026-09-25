@@ -18,6 +18,7 @@ import DoctorReportScreen from '../screens/DoctorReportScreen';
 import SplashScreen from '../screens/SplashScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import LegalScreen from '../screens/LegalScreen';
+import OnboardingV3Screen from '../features/onboardingV3/OnboardingV3Screen';
 import AppLockModal from '../components/AppLockModal';
 import { useReducedMotion } from '../components/Motion';
 import { COLORS, navigationColorsForTheme } from '../utils/constants';
@@ -177,6 +178,17 @@ export default function RootNavigator() {
                 flex: 1,
                 minHeight: 0,
                 overflow: 'hidden',
+                backgroundColor: COLORS.canvas,
+              },
+            }}
+          />
+          <Stack.Screen
+            name="OnboardingV3Preview"
+            component={OnboardingV3Screen}
+            options={{
+              cardStyle: {
+                flex: 1,
+                minHeight: 0,
                 backgroundColor: COLORS.canvas,
               },
             }}
