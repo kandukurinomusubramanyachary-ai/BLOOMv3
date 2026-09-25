@@ -58,6 +58,9 @@ export default function ProfileScreen({ navigation }) {
       items: [
         { icon: 'notifications-outline', title: 'Reminders', subtitle: 'Choose when Bloom gently checks in', route: 'Reminders' },
         { icon: 'options-outline', title: 'Personalisation', subtitle: `${themeLabel}, ${modeLabel.toLowerCase()}, goals and guidance`, route: 'Preferences' },
+        ...((typeof __DEV__ !== 'undefined' && __DEV__) ? [
+          { icon: 'sparkles-outline', title: 'Onboarding V3 Preview', subtitle: 'Explore the new isolated first-time user flow', route: 'OnboardingV3Preview' },
+        ] : []),
       ],
     },
   ];
