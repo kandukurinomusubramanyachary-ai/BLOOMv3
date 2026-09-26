@@ -35,3 +35,4 @@ require('./nativeRelease.test');
 require('./dependencyCompatibility.test');
 require('./uiHardening.test');
 require('./theme.test');
+require('./onboardingTour.test');

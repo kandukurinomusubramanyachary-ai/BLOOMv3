@@ -25,7 +25,7 @@ import MovementGuide from './components/MovementGuide';
 // FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 const Passthrough = ({ children }) => children;
 
-export default function StrengthExperience({ TrackedPlayer, TourTarget, onWorkoutStart, onSummaryShown }) {
+export default function StrengthExperience({ TrackedPlayer, TourTarget, onWorkoutStart, onSummaryShown, guideHint }) {
   const { user } = useAuth();
   const uid = user?.uid;
   const ownerRef = useRef(uid); ownerRef.current = uid;
@@ -114,13 +114,13 @@ export default function StrengthExperience({ TrackedPlayer, TourTarget, onWorkou
     // One camera, one workout: the tracked player stays mounted across
     // exercises (stable key), so the camera and MediaPipe session start
     // exactly once per workout. Guided players keep per-exercise keys.
-    return <Target ids={['strength-workout-progress', 'strength-guidance', 'strength-reps', 'strength-pause']}><Player key={pose ? 'tracked:' + run.id : 'guided:' + run.id + ':' + run.index} exercise={exercise} sets={sets} TourTarget={TourTarget}
+    return <Player key={pose ? 'tracked:' + run.id : 'guided:' + run.id + ':' + run.index} exercise={exercise} sets={sets} TourTarget={TourTarget}
       onExit={exit} onComplete={save} onNext={next} nextLabel={nextItem ? 'Next exercise' : 'Finish workout'}
       workoutProgress={{ current: run.index + 1, total: run.plan.exercises.length }}
       onFallback={() => setRun(current => ({ ...current, guided: true }))}
       nextExercise={continuousNext || undefined}
       onAdvance={continuousNext ? () => setRun(current => current && current.id === run.id ? { ...current, index: current.index + 1 } : current) : undefined}
-      onEndWorkout={pose ? () => setView('finished') : undefined} /></Target>;
+      onEndWorkout={pose ? () => setView('finished') : undefined} />;
   }
   if (view === 'transition' && run) {
     const { exercise, sets } = run.plan.exercises[run.index];
@@ -177,11 +177,11 @@ export default function StrengthExperience({ TrackedPlayer, TourTarget, onWorkou
   }
   const recent = <View style={s.section}><Text style={s.sectionTitle}>Recent movement</Text>{!records.length ? <StrengthEmpty title="Your first workout belongs here." body="Choose something that feels right today. Your saved sessions will appear here." action="Explore workouts" onAction={() => setView('library')} /> : records.slice(0, view === 'progress' ? 20 : 3).map(item => <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={'View ' + item.name + ' session'} onPress={() => setRecentRecord(item)} style={({ pressed }) => [s.activity, pressed && { opacity: 0.65 }]}><View style={s.flex}><Text style={s.activityTitle}>{item.name}</Text><Text style={s.supporting}>{new Date(item.completedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} · {item.sessionMode === 'pose' ? 'Camera guidance' : 'Paced guidance'}{item.completionState === 'stopped' ? ' · Finished early' : ''}</Text></View><Icon name="chevron-forward" size={20} color={c.muted} /></Pressable>)}</View>;
   if (view === 'progress') return <StrengthScreenFrame header={header}>{nav}<Text style={s.title}>Little by little.</Text><Text style={s.body}>A record of showing up, not a score to chase.</Text>{loadingState}{!loading && !loadError ? <><StatsHeader stats={stats} />{records.length > 0 ? <><View style={s.metrics}><Metric value={stats.sessions} label="movement sessions" /><Metric value={stats.totalMinutes} label="total minutes" /></View><Text style={s.supporting}>Time includes rests. Guided reps are paced, not measured.</Text>{stats.areas.length ? <View style={s.section}><Text style={s.sectionTitle}>Where you’ve moved</Text>{stats.areas.map(([area, count]) => <View key={area} style={s.areaRow}><Text style={s.body}>{areaLabel(area)}</Text><Text style={s.supporting}>{count} sessions</Text></View>)}</View> : null}</> : null}{recent}</> : null}</StrengthScreenFrame>;
-  return <StrengthScreenFrame header={header}>{nav}<View style={s.section}><Text style={s.title}>Ready to move?</Text><Text style={s.body}>A little strength. A little time for you.</Text></View>
+  return <StrengthScreenFrame header={header}>{nav}{guideHint ? <StrengthNote icon="information-circle-outline">{guideHint}</StrengthNote> : null}<View style={s.section}><Text style={s.title}>Ready to move?</Text><Text style={s.body}>A little strength. A little time for you.</Text></View>
     {Platform.OS !== 'web' ? <StrengthNote icon="time-outline" title="Guided Strength">Camera-free workouts with paced reps and rest timers. Reps follow the timer; they are not measured from your movement.</StrengthNote> : null}
     <Target id='strength-recommendation'><View style={s.recommendation}><View style={s.recommendTop}><Icon name="fitness-outline" size={28} color={c.accent} /><Text style={s.supporting}>Today’s suggestion</Text></View><Text style={s.recommendName}>{WORKOUT_PLANS[0].name}</Text><Text style={s.body}>Three familiar movements. Room to go at your own pace.</Text><Text style={s.metaText}>~{planMinutes(WORKOUT_PLANS[0])} min · Steady · Full body</Text><Text style={s.supporting}>3 exercises · No weights needed</Text><StrengthButton title="View today’s workout" icon="arrow-forward" onPress={() => choosePlan(WORKOUT_PLANS[0])} /></View></Target>
     <Pressable accessibilityRole="button" accessibilityLabel="Choose a gentle start" onPress={() => choosePlan(WORKOUT_PLANS[1])} style={({ pressed }) => [s.gentle, pressed && { opacity: 0.65 }]}><Icon name="leaf-outline" size={24} color={c.sage} /><View style={s.flex}><Text style={s.activityTitle}>A lower-energy day?</Text><Text style={s.supporting}>Keep it gentle with a shorter session.</Text></View><Icon name="chevron-forward" size={20} color={c.sage} /></Pressable>
-    {loadingState}{!loading && !loadError ? <StatsHeader stats={stats} /> : null}<StrengthButton title="Explore workouts" variant="secondary" onPress={() => setView('library')} />{!loading && !loadError ? recent : null}
+    {loadingState}{!loading && !loadError ? <StatsHeader stats={stats} /> : null}<Target id='strength-browse'><StrengthButton title="Explore workouts" variant="secondary" onPress={() => setView('library')} /></Target>{!loading && !loadError ? recent : null}
   </StrengthScreenFrame>;
 }
 

@@ -39,10 +39,10 @@ export default function ProcessingStep({ onComplete }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       onComplete?.();
-    }, 1500);
+    }, reduceMotion ? 250 : 800);
 
     return () => clearTimeout(timer);
-  }, [onComplete]);
+  }, [onComplete, reduceMotion]);
 
   return (
     <View style={styles.container}>
@@ -51,10 +51,9 @@ export default function ProcessingStep({ onComplete }) {
           <LotusMark size={68} decorative={false} accessibilityLabel="Bloom lotus" />
         </Animated.View>
 
-        <Text style={styles.eyebrow}>ORGANIZING YOUR SPACE</Text>
         <Text style={styles.title}>Putting your Bloom together…</Text>
         <Text style={styles.subtitle}>
-          Connecting your cycle rhythm, symptoms, and energy into a gentle daily picture.
+          Turning what you shared into one useful place to begin.
         </Text>
       </Entrance>
     </View>
@@ -75,12 +74,6 @@ const styles = createThemedStyles({
   },
   lotusWrap: {
     marginBottom: 24,
-  },
-  eyebrow: {
-    ...TYPOGRAPHY.eyebrow,
-    color: COLORS.brand,
-    letterSpacing: 1.2,
-    marginBottom: 8,
   },
   title: {
     ...TYPOGRAPHY.screenTitle,

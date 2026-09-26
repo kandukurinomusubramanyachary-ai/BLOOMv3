@@ -46,7 +46,7 @@ function normalizeOnboardingAnswers(raw = {}) {
     : [];
 
   return {
-    firstName: firstName || 'Friend',
+    firstName: firstName || null,
     hasExplicitName: Boolean(firstName),
     reasonsForJoining,
     cyclePattern,
@@ -64,9 +64,16 @@ function normalizeOnboardingAnswers(raw = {}) {
 function resolvePrimaryFocus(answers) {
   const { priorities, reasonsForJoining } = answers;
 
-  if (priorities.length > 0) {
-    return priorities[0];
-  }
+  const selectedPriority = [
+    'understand_cycle',
+    'manage_symptoms',
+    'emotional_support',
+    'build_strength',
+    'improve_consistency',
+    'healthier_habits',
+    'prepare_doctor',
+  ].find(priority => priorities.includes(priority));
+  if (selectedPriority) return selectedPriority;
 
   // Fallbacks if user skipped priorities:
   if (reasonsForJoining.includes('fitness_strength')) return 'build_strength';
@@ -84,7 +91,7 @@ function resolvePrimaryFocus(answers) {
  */
 function generateFirstAction(answers) {
   const primaryFocus = resolvePrimaryFocus(answers);
-  const name = answers.firstName || 'you';
+  const name = answers.firstName;
 
   switch (primaryFocus) {
     case 'emotional_support':
@@ -107,7 +114,7 @@ function generateFirstAction(answers) {
         title: 'Begin a gentle Strength session',
         badge: 'Movement',
         icon: 'fitness',
-        description: 'Explore calm, hormone-aware movement paced to respect your daily energy reserve.',
+        description: 'Explore a calm, guided session paced for the energy you have today.',
         actionLabel: 'Explore Strength',
         route: 'Strength',
         contextHint: 'Camera guidance is available on web; guided pacing on phone.',
@@ -126,6 +133,19 @@ function generateFirstAction(answers) {
         contextHint: 'Quick 3-step check-in, no medical jargon.',
       };
 
+    case 'improve_consistency':
+      return {
+        id: 'daily_checkin',
+        type: 'checkin',
+        title: 'Begin with one quick check-in',
+        badge: 'Daily rhythm',
+        icon: 'checkmark-circle',
+        description: 'Take a short moment to notice how today feels. Small entries can build a useful picture over time.',
+        actionLabel: 'Start 30-sec check-in',
+        route: 'DailyCheckIn',
+        contextHint: 'One small check-in is enough to begin.',
+      };
+
     case 'healthier_habits':
       return {
         id: 'diet_explore',
@@ -133,7 +153,7 @@ function generateFirstAction(answers) {
         title: 'Explore nourishing food ideas',
         badge: 'Nourishment',
         icon: 'nutrition',
-        description: 'Discover balanced, blood-sugar-friendly meal inspiration without strict calorie tracking.',
+        description: 'Explore balanced meal ideas without strict calorie tracking.',
         actionLabel: 'View Diet & Meals',
         route: 'Diet',
         contextHint: 'Gentle food reflections, never judgment.',
@@ -188,16 +208,16 @@ function buildPersonalizedSummary(rawAnswers) {
   let cycleNarrative = 'Your body has its own natural rhythm.';
   let cycleHeadline = 'Cycle rhythm';
   if (cyclePattern === 'very_irregular') {
-    cycleNarrative = 'Your cycle has been unpredictable lately. Bloom is designed specifically to support shifting windows without expecting a textbook 28-day schedule.';
+    cycleNarrative = 'Your cycle has been unpredictable lately. Bloom can help you record shifting dates without expecting a textbook 28-day schedule.';
     cycleHeadline = 'Unpredictable cycle rhythm';
   } else if (cyclePattern === 'no_recent_period') {
     cycleNarrative = 'You haven’t had a recent period. Bloom focuses on your daily symptoms, energy, and comfort rather than pressuring you with missing cycle dates.';
     cycleHeadline = 'Flexible tracking mode';
   } else if (cyclePattern === 'sometimes_unpredictable') {
-    cycleNarrative = 'Your cycle shifts from time to time. Bloom adapts your estimates based on real logged dates rather than rigid calculations.';
+    cycleNarrative = 'Your cycle shifts from time to time. Your logged dates can help you see its rhythm without relying on a rigid calendar.';
     cycleHeadline = 'Adaptive cycle estimates';
   } else if (cyclePattern === 'regular') {
-    cycleNarrative = 'Your cycle is mostly regular. Bloom will help you observe how subtle phase transitions correlate with energy, cravings, and stamina.';
+    cycleNarrative = 'Your cycle is mostly regular. You can log energy, cravings, and stamina alongside your dates and notice what feels useful.';
     cycleHeadline = 'Regular cycle cadence';
   } else if (reasonsForJoining.includes('irregular_periods')) {
     cycleNarrative = 'Your cycle has varied widely. Bloom helps you track without assuming a textbook 28-day cadence.';
@@ -218,7 +238,7 @@ function buildPersonalizedSummary(rawAnswers) {
       : symptomLabels.length === 2
         ? `${symptomLabels[0]} and ${symptomLabels[1]}`
         : `${symptomLabels.slice(0, 2).join(', ')}, and ${symptomLabels[2] || symptomLabels[1]}`;
-    symptomNarrative = `Your body has been carrying ${listString}. Instead of dismissing these, we will track them quietly to uncover relief patterns.`;
+    symptomNarrative = `You mentioned ${listString}. Bloom gives you a quiet place to record when they show up and review your own notes over time.`;
     symptomHeadline = `${symptoms.length} physical signal${symptoms.length === 1 ? '' : 's'} to monitor`;
   }
 
@@ -237,9 +257,9 @@ function buildPersonalizedSummary(rawAnswers) {
   } else if (emotionalState === 'anxious_health') {
     emotionalNarrative = 'Health worries can feel heavy when you carry them alone. Bloom organizes your real observations so you have clarity instead of uncertainty.';
   } else if (emotionalState === 'stressed') {
-    emotionalNarrative = `Stress takes a real toll on cycle and energy. Bloom’s short 30-second check-ins are designed to lighten the load, not add to it.`;
+    emotionalNarrative = 'You have been feeling stressed. Bloom keeps check-ins short so reflecting does not feel like another task.';
   } else if (energyLabel) {
-    emotionalNarrative = `Your energy has been ${energyLabel} lately. Bloom paces recommendations to your actual capacity each day.`;
+    emotionalNarrative = `Your energy has been ${energyLabel} lately. You can choose suggestions that feel manageable today.`;
   } else {
     emotionalNarrative = 'We’ll check in softly with your mood and energy so you can notice emotional patterns without feeling judged.';
   }
@@ -252,7 +272,7 @@ function buildPersonalizedSummary(rawAnswers) {
   const recommendedAction = generateFirstAction(answers);
 
   return {
-    firstName: hasExplicitName ? firstName : 'Friend',
+    firstName: hasExplicitName ? firstName : null,
     greeting: hasExplicitName ? `Bloom is ready for you, ${firstName}.` : 'Bloom is ready for you.',
     affirmation,
     cards: [
@@ -295,7 +315,7 @@ function buildOnboardingResult(rawAnswers) {
   const onboardingRecord = {
     version: '3.0.0',
     completedAt,
-    firstName: answers.firstName,
+    firstName: answers.hasExplicitName ? answers.firstName : null,
     hasExplicitName: answers.hasExplicitName,
     reasonsForJoining: answers.reasonsForJoining,
     cyclePattern: answers.cyclePattern,
@@ -324,7 +344,7 @@ function buildOnboardingResult(rawAnswers) {
 
   // 3. Home Screen Personalization Contract
   const homePersonalizationHandoff = {
-    firstName: answers.firstName,
+    firstName: answers.hasExplicitName ? answers.firstName : null,
     primaryPriority: primaryFocus,
     topSymptoms: answers.symptoms.slice(0, 4),
     cyclePattern: answers.cyclePattern,

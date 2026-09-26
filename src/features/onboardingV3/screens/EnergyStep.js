@@ -26,7 +26,6 @@ export default function EnergyStep({ initialEnergy = null, onNext, onSkip }) {
         showsVerticalScrollIndicator={false}
       >
         <Entrance distance={8} duration={200} style={styles.shell}>
-          <Text style={styles.eyebrow}>STEP 6 OF 7</Text>
           <Text style={styles.title}>How has your energy been lately?</Text>
           <Text style={styles.subtitle}>
             Notice your reserve without judging yourself for needing more rest.
@@ -78,7 +77,7 @@ export default function EnergyStep({ initialEnergy = null, onNext, onSkip }) {
             })}
           </View>
 
-          <ReasonCallout text="Bloom matches strength workouts and daily suggestions to your actual capacity, never pressuring you to overexert." />
+          <ReasonCallout text="Bloom can use this to keep movement and daily suggestions realistic." />
         </Entrance>
 
         <View style={styles.footer}>
@@ -118,12 +117,6 @@ const styles = createThemedStyles({
   },
   shell: {
     width: '100%',
-  },
-  eyebrow: {
-    ...TYPOGRAPHY.eyebrow,
-    color: COLORS.brand,
-    letterSpacing: 1,
-    marginBottom: 8,
   },
   title: {
     ...TYPOGRAPHY.screenTitle,

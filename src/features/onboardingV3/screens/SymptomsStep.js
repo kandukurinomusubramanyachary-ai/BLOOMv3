@@ -32,10 +32,9 @@ export default function SymptomsStep({ initialSymptoms = [], onNext, onSkip }) {
         showsVerticalScrollIndicator={false}
       >
         <Entrance distance={8} duration={200} style={styles.shell}>
-          <Text style={styles.eyebrow}>STEP 4 OF 7</Text>
           <Text style={styles.title}>What has your body been dealing with lately?</Text>
           <Text style={styles.subtitle}>
-            Tap any that feel familiar recently. Bloom helps you find relief patterns without pressure.
+            Choose anything you have noticed recently. Leave this blank if nothing fits.
           </Text>
 
           <View style={styles.chipsContainer}>
@@ -50,7 +49,7 @@ export default function SymptomsStep({ initialSymptoms = [], onNext, onSkip }) {
             ))}
           </View>
 
-          <ReasonCallout text="Bloom pre-populates your daily check-in with these choices so logging takes just seconds." />
+          <ReasonCallout text="These choices can make future check-ins quicker." />
         </Entrance>
 
         <View style={styles.footer}>
@@ -59,14 +58,6 @@ export default function SymptomsStep({ initialSymptoms = [], onNext, onSkip }) {
             onPress={handleContinue}
             accessibilityLabel="Continue to emotional state question"
           />
-          {selected.length === 0 ? (
-            <Button
-              title="Skip"
-              variant="ghost"
-              onPress={onSkip}
-              accessibilityLabel="Skip symptoms question"
-            />
-          ) : null}
         </View>
       </ScrollView>
     </View>
@@ -90,12 +81,6 @@ const styles = createThemedStyles({
   },
   shell: {
     width: '100%',
-  },
-  eyebrow: {
-    ...TYPOGRAPHY.eyebrow,
-    color: COLORS.brand,
-    letterSpacing: 1,
-    marginBottom: 8,
   },
   title: {
     ...TYPOGRAPHY.screenTitle,

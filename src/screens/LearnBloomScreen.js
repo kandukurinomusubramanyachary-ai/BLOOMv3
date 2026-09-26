@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../components/Icon';
@@ -23,7 +23,9 @@ const GROUPS = [
 ];
 
 export default function LearnBloomScreen({ navigation }) {
-  const { tourProgress, startTour } = useProductTour();
+  const { dismissInvitation, tourProgress, requestTourReplay } = useProductTour();
+
+  useEffect(() => dismissInvitation(), [dismissInvitation]);
 
   function status(id) {
     const value = tourProgress[id]?.status;
@@ -33,21 +35,19 @@ export default function LearnBloomScreen({ navigation }) {
   }
 
   function replay(item) {
+    requestTourReplay(item.id, 0);
     if (item.route === 'DailyCheckIn') navigation.navigate(item.route);
     else if (item.route === 'Profile') navigation.navigate(item.route);
     else navigation.navigate('Main', { screen: item.route });
-    setTimeout(() => startTour(item.id, 0), 350);
   }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.header}>
         <IconButton icon='chevron-back' accessibilityLabel='Back to Profile' onPress={() => navigation.goBack()} />
-        <Text style={styles.headerTitle}>Learn Bloom</Text>
-        <View style={styles.headerSpacer} />
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Learn Bloom</Text>
+        <Text accessibilityRole='header' style={styles.title}>Learn Bloom</Text>
         <Text style={styles.subtitle}>Short, optional guides for the places that matter. Replay anything whenever you want.</Text>
         {GROUPS.map(group => (
           <View key={group.title} style={styles.group}>
@@ -78,9 +78,7 @@ export default function LearnBloomScreen({ navigation }) {
 
 const styles = createThemedStyles({
   safeArea: { flex: 1, backgroundColor: COLORS.canvas },
-  header: { minHeight: 60, width: '100%', maxWidth: 600, alignSelf: 'center', paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  headerTitle: { ...TYPOGRAPHY.componentTitle, color: COLORS.ink },
-  headerSpacer: { width: 48 },
+  header: { minHeight: 60, width: '100%', maxWidth: 600, alignSelf: 'center', paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center' },
   scroll: { flex: 1 },
   content: { width: '100%', maxWidth: 600, alignSelf: 'center', padding: 20, paddingBottom: 48 },
   title: { ...TYPOGRAPHY.screenTitle, color: COLORS.ink },

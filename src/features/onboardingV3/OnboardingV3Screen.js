@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect } from 'react';
-import { View, StyleSheet, SafeAreaView, Platform, Text } from 'react-native';
+import { View, SafeAreaView } from 'react-native';
 import { useOnboardingState } from './hooks/useOnboardingState';
 import { ONBOARDING_STEPS, TOTAL_INTERACTIVE_STEPS } from './data/options';
 import ProgressBar from './components/ProgressBar';
@@ -43,8 +43,6 @@ export default function OnboardingV3Screen({
     updateAnswers,
     goToNextStep,
     goToPrevStep,
-    jumpToStep,
-    resetOnboarding,
     result,
   } = useOnboardingState({ initialStep });
 
@@ -65,19 +63,18 @@ export default function OnboardingV3Screen({
       if (onComplete) {
         onComplete(result, action);
       } else if (navigation?.navigate) {
-        navigation.navigate('Main');
-        setTimeout(() => requestOverviewInvitation(action), 350);
+        navigateToRecommendation(action);
       }
     },
-    [navigation, onComplete, requestOverviewInvitation, result]
+    [navigateToRecommendation, navigation, onComplete, result]
   );
 
   const handleFinish = useCallback(() => {
     if (onComplete) {
       onComplete(result, null);
     } else if (navigation?.navigate) {
+      requestOverviewInvitation(null);
       navigation.navigate('Main');
-      setTimeout(() => requestOverviewInvitation(null), 350);
     }
   }, [navigation, onComplete, requestOverviewInvitation, result]);
 
@@ -98,9 +95,6 @@ export default function OnboardingV3Screen({
             currentStep={currentStep}
             totalSteps={TOTAL_INTERACTIVE_STEPS}
             onBack={canGoBack ? goToPrevStep : null}
-            onSkip={handleSkip}
-            showSkip
-            onReset={resetOnboarding}
           />
         ) : null}
 
@@ -173,10 +167,8 @@ export default function OnboardingV3Screen({
           {currentStep === ONBOARDING_STEPS.RESULT && (
             <ResultStep
               summary={result.summary}
-              fullResult={result}
               onPrimaryAction={handlePrimaryAction}
               onFinish={handleFinish}
-              onReset={resetOnboarding}
             />
           )}
         </View>

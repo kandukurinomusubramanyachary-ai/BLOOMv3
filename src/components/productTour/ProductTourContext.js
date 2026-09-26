@@ -3,17 +3,13 @@ import { AccessibilityInfo } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../context/AuthContext';
 import { PRODUCT_TOUR_STORAGE_KEY, TOUR_SETS, TOUR_SET_LABELS } from './tourSteps';
+import { createTourRecord, isTourHandled, productTourStorageKey } from './tourState';
 
 const ProductTourContext = createContext(null);
 const DEFAULT_PROGRESS = {};
 
-function storageKey(uid) {
-  return `${PRODUCT_TOUR_STORAGE_KEY}:${encodeURIComponent(String(uid || 'guest'))}`;
-}
-
-function isHandled(record) {
-  return record?.status === 'completed' || record?.status === 'skipped';
-}
+const storageKey = uid => productTourStorageKey(PRODUCT_TOUR_STORAGE_KEY, uid);
+const isHandled = isTourHandled;
 
 export function ProductTourProvider({ children }) {
   const { user } = useAuth();
@@ -27,8 +23,11 @@ export function ProductTourProvider({ children }) {
   const [reduceMotion, setReduceMotion] = useState(false);
   const [tourStateReady, setTourStateReady] = useState(false);
   const [recommendation, setRecommendation] = useState(null);
+  const [pendingReplay, setPendingReplay] = useState(null);
   const recommendationHandler = useRef(null);
   const pendingOverviewRef = useRef(null);
+  const pendingReplayRef = useRef(null);
+  const pendingReplayStarterRef = useRef(null);
   const featureEntryRef = useRef(null);
   const featureVisitCounter = useRef(0);
   const targetsRef = useRef(new Map());
@@ -38,8 +37,13 @@ export function ProductTourProvider({ children }) {
     const uid = user?.uid;
     setTourStateReady(false);
     setVisible(false);
+    setFinalVisible(false);
     setInvitation(null);
     setActiveTourId(null);
+    setRecommendation(null);
+    setPendingReplay(null);
+    pendingReplayRef.current = null;
+    targetsRef.current.clear();
     setTourProgress(DEFAULT_PROGRESS);
     setOverviewInvitation(null);
     if (!uid) return undefined;
@@ -73,6 +77,9 @@ export function ProductTourProvider({ children }) {
   const registerTarget = useCallback((id, ref) => {
     if (ref) targetsRef.current.set(id, ref);
     else targetsRef.current.delete(id);
+    if (ref && pendingReplayRef.current) {
+      requestAnimationFrame(() => pendingReplayStarterRef.current?.(0));
+    }
   }, []);
 
   const steps = activeTourId ? (TOUR_SETS[activeTourId] || []) : [];
@@ -89,6 +96,37 @@ export function ProductTourProvider({ children }) {
     setFinalVisible(false);
     setVisible(true);
   }, []);
+
+  const isTargetReady = useCallback((tourId) => {
+    const firstStep = TOUR_SETS[tourId]?.[0];
+    const node = firstStep ? targetsRef.current.get(firstStep.id)?.current : null;
+    if (!node) return false;
+    if (typeof node.getBoundingClientRect !== 'function') return true;
+    const rect = node.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  }, []);
+
+  const startPendingReplay = useCallback((attempt = 0) => {
+    const pending = pendingReplayRef.current;
+    if (!pending) return;
+    if (isTargetReady(pending.tourId)) {
+      pendingReplayRef.current = null;
+      setPendingReplay(null);
+      startTour(pending.tourId, pending.stepIndex, pending.recommendation);
+      return;
+    }
+    if (attempt < 60) requestAnimationFrame(() => startPendingReplay(attempt + 1));
+  }, [isTargetReady, startTour]);
+  pendingReplayStarterRef.current = startPendingReplay;
+
+  const requestTourReplay = useCallback((tourId, stepIndex = 0, recommendation = null) => {
+    if (!TOUR_SETS[tourId]?.length) return false;
+    const pending = { tourId, stepIndex, recommendation };
+    pendingReplayRef.current = pending;
+    setPendingReplay(pending);
+    requestAnimationFrame(() => startPendingReplay(0));
+    return true;
+  }, [startPendingReplay]);
 
   const showTourInvitation = useCallback((tourId, visitId = null) => {
     if (!tourStateReady || !tourId || !TOUR_SETS[tourId] || isHandled(tourProgress[tourId]) || visible || invitation) return false;
@@ -111,12 +149,14 @@ export function ProductTourProvider({ children }) {
   const declineInvitation = useCallback(() => {
     if (!invitation?.tourId) return;
     const tourId = invitation.tourId;
-    const record = { status: 'skipped', completedAt: null, skippedAt: new Date().toISOString() };
+    const record = createTourRecord('skipped');
     const next = { ...tourProgress, [tourId]: record };
     if (tourId === 'appOverview') persist(next, { status: 'handled', handledAt: new Date().toISOString() });
     else persist(next);
     setInvitation(null);
   }, [invitation, persist, tourProgress]);
+
+  const dismissInvitation = useCallback(() => setInvitation(null), []);
 
   const requestOverviewInvitation = useCallback((recommendation = null) => {
     if (!tourStateReady) {
@@ -146,7 +186,7 @@ export function ProductTourProvider({ children }) {
   const next = useCallback(() => {
     if (!activeTourId || !steps.length) return;
     if (currentTourStep >= steps.length - 1) {
-      const next = { ...tourProgress, [activeTourId]: { status: 'completed', completedAt: new Date().toISOString(), skipped: false } };
+      const next = { ...tourProgress, [activeTourId]: createTourRecord('completed') };
       persist(next);
       setFinalVisible(true);
       return;
@@ -157,7 +197,7 @@ export function ProductTourProvider({ children }) {
   const back = useCallback(() => setCurrentTourStep(value => Math.max(0, value - 1)), []);
 
   const skip = useCallback(() => {
-    if (activeTourId) persist({ ...tourProgress, [activeTourId]: { status: 'skipped', completedAt: null, skippedAt: new Date().toISOString() } });
+    if (activeTourId) persist({ ...tourProgress, [activeTourId]: createTourRecord('skipped') });
     setFinalVisible(false);
     setVisible(false);
     setInvitation(null);
@@ -198,6 +238,7 @@ export function ProductTourProvider({ children }) {
     invitation,
     finalVisible,
     recommendation,
+    pendingReplay,
     activeTourId,
     currentTourStep,
     currentStep,
@@ -215,15 +256,17 @@ export function ProductTourProvider({ children }) {
     requestOverviewInvitation,
     acceptInvitation,
     declineInvitation,
+    dismissInvitation,
     runRecommendation,
     setRecommendationHandler,
+    requestTourReplay,
     next,
     back,
     skip,
     finish,
     resetTour,
     closeTour: skip,
-  }), [acceptInvitation, activeTourId, back, currentStep, currentTourStep, declineInvitation, enterFeature, finalVisible, finish, invitation, next, recommendation, reduceMotion, registerTarget, requestOverviewInvitation, resetTour, runRecommendation, setRecommendationHandler, showTourInvitation, skip, startIfNeeded, startTour, steps, tourProgress, tourStateReady, visible]);
+  }), [acceptInvitation, activeTourId, back, currentStep, currentTourStep, declineInvitation, dismissInvitation, enterFeature, finalVisible, finish, invitation, next, pendingReplay, recommendation, reduceMotion, registerTarget, requestOverviewInvitation, requestTourReplay, resetTour, runRecommendation, setRecommendationHandler, showTourInvitation, skip, startIfNeeded, startTour, steps, tourProgress, tourStateReady, visible]);
 
   return <ProductTourContext.Provider value={value}>{children}</ProductTourContext.Provider>;
 }
