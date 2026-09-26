@@ -10,6 +10,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ProductTourTarget from '../components/productTour/ProductTourTarget';
+import { useProductTour } from '../components/productTour';
 import Icon from '../components/Icon';
 import { format, isValid, parseISO } from 'date-fns';
 import { useApp } from '../context/AppContext';
@@ -269,6 +271,7 @@ function safeDateKey(value) {
 export default function DailyCheckInScreen({ route, navigation }) {
   const { state, saveCheckin } = useApp();
   const { user } = useAuth();
+  const { startIfNeeded } = useProductTour();
   const date = safeDateKey(route?.params?.date);
   const existingCheckin = useMemo(
     () => normalizeCheckin(
@@ -279,6 +282,7 @@ export default function DailyCheckInScreen({ route, navigation }) {
 
   const [step, setStep] = useState(0);
   const scrollRef = useRef(null);
+  useEffect(() => { startIfNeeded('checkin'); }, [startIfNeeded]);
   useEffect(() => {
     // A new step starts at its first field, regardless of the previous scroll.
     const frame = requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: false }));
@@ -492,6 +496,7 @@ export default function DailyCheckInScreen({ route, navigation }) {
                   </Text>
                 </View>
 
+                <ProductTourTarget id='checkin-body'>
                 <Card style={styles.formCard}>
                   <Field title='Bleeding'>
                     <SingleChoiceGroup
@@ -531,6 +536,7 @@ export default function DailyCheckInScreen({ route, navigation }) {
                     ))}
                   </Field>
 
+                  <ProductTourTarget id='checkin-mood'>
                   <Field title='Mood' last>
                     <SingleChoiceGroup
                       options={MOOD_OPTIONS}
@@ -539,7 +545,9 @@ export default function DailyCheckInScreen({ route, navigation }) {
                       label='Mood'
                     />
                   </Field>
+                  </ProductTourTarget>
                 </Card>
+                </ProductTourTarget>
               </Entrance>
             ) : null}
 
@@ -797,12 +805,14 @@ export default function DailyCheckInScreen({ route, navigation }) {
                 }}
               />
             ) : (
+              <ProductTourTarget id='checkin-save'>
               <Button
                 title={error ? 'Try saving again' : existingCheckin ? 'Save changes' : 'Save check-in'}
                 icon='checkmark-circle-outline'
                 onPress={handleSave}
                 loading={saving}
               />
+              </ProductTourTarget>
             )}
             <Button
               title={step === 0 ? 'Cancel' : 'Back'}

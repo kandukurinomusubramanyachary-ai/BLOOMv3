@@ -31,6 +31,8 @@ import {
 } from '../services/megLocalQueue';
 import { Entrance, useReducedMotion } from '../components/Motion';
 import { LotusMark } from '../components/BrandMark';
+import ProductTourTarget from '../components/productTour/ProductTourTarget';
+import { useProductTour } from '../components/productTour';
 const { createMegRevealPlan } = require('../services/megReveal');
 
 let idCounter = 0;
@@ -449,6 +451,7 @@ export default function MegScreen({ route, navigation }) {
     deleteMegConversation = async () => {},
     clearMegHistory = async () => {},
   } = useApp();
+  const { startIfNeeded } = useProductTour();
   const conversations = Array.isArray(state.megConversations) ? state.megConversations : [];
   const memoryEnabled = !!state.settings?.megMemory;
   const online = useOnlineStatus();
@@ -1014,6 +1017,12 @@ export default function MegScreen({ route, navigation }) {
             prompt: 'I am not sure where to start. Can we talk it through?',
           };
 
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => startIfNeeded('meg'));
+    startIfNeeded('meg');
+    return unsubscribe;
+  }, [navigation, startIfNeeded]);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <KeyboardAvoidingView
@@ -1022,6 +1031,7 @@ export default function MegScreen({ route, navigation }) {
       >
         <View style={styles.shell}>
           <View style={styles.header}>
+            <ProductTourTarget id='meg-history'>
             <Pressable
               onPress={() => setManageOpen(true)}
               disabled={typing}
@@ -1037,6 +1047,7 @@ export default function MegScreen({ route, navigation }) {
             >
               <Icon name='time-outline' size={22} color={COLORS.muted} />
             </Pressable>
+            </ProductTourTarget>
             <View style={styles.centeredHeaderTitle}>
               <Text style={styles.title}>Meg</Text>
             </View>
@@ -1098,6 +1109,7 @@ export default function MegScreen({ route, navigation }) {
           >
             {!hasConversation ? (
               <Entrance distance={8} duration={240}>
+                <ProductTourTarget id='meg-welcome'>
                 <View style={styles.welcome}>
                   <View style={styles.presence} accessibilityRole='status'>
                     <View style={styles.presenceIcon}>
@@ -1163,6 +1175,7 @@ export default function MegScreen({ route, navigation }) {
                     </Pressable>
                   </View>
 
+                  <ProductTourTarget id='meg-context'>
                   <Pressable
                     onPress={() => handleSend(contextNotice.prompt)}
                     disabled={typing}
@@ -1187,12 +1200,14 @@ export default function MegScreen({ route, navigation }) {
                     </View>
                     <Icon name='arrow-forward' size={17} color={COLORS.muted} />
                   </Pressable>
+                  </ProductTourTarget>
 
                   <ConversationStarters
                     disabled={typing}
                     onSelect={(prompt) => handleSend(prompt.text, prompt.mode)}
                   />
                 </View>
+                </ProductTourTarget>
               </Entrance>
             ) : (
               <View style={styles.messages}>

@@ -7,6 +7,8 @@ import { COLORS, createThemedStyles } from '../utils/constants';
 import { useReducedMotion } from '../components/Motion';
 import useKeyboardVisible from '../components/useKeyboardVisible';
 import { LotusMark } from '../components/BrandMark';
+import ProductTourTarget from '../components/productTour/ProductTourTarget';
+import { useProductTour } from '../components/productTour';
 import TodayScreen from '../screens/TodayScreen';
 import TimelineScreen from '../screens/TimelineScreen';
 import MegScreen from '../screens/MegScreen';
@@ -67,7 +69,7 @@ function TabIcon({ icon, label, focused, reduceMotion }) {
   );
 }
 
-function BloomTabBar({ state, descriptors, navigation }) {
+function BloomTabBar({ state, descriptors, navigation, enterFeature }) {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
   const keyboardVisible = useKeyboardVisible();
@@ -118,12 +120,18 @@ function BloomTabBar({ state, descriptors, navigation }) {
               target: route.key,
               canPreventDefault: true,
             });
-            if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params);
+            if (!focused && !event.defaultPrevented) {
+              enterFeature(route.name === 'Strength' ? 'strengthHome' : route.name.toLowerCase());
+              navigation.navigate(route.name, route.params);
+            }
           };
 
           const onLongPress = () => navigation.emit({ type: 'tabLongPress', target: route.key });
 
+          const tourTarget = route.name === 'Meg' ? 'meg' : route.name === 'Timeline' ? 'timeline' : route.name === 'Strength' ? 'strength' : null;
+
           return (
+            <ProductTourTarget key={route.key} id={tourTarget} style={styles.tourTarget}>
             <Pressable
               key={route.key}
               onPress={onPress}
@@ -142,6 +150,7 @@ function BloomTabBar({ state, descriptors, navigation }) {
             >
               <TabIcon icon={tab?.icon || 'ellipse'} label={String(label)} focused={focused} reduceMotion={reduceMotion} />
             </Pressable>
+            </ProductTourTarget>
           );
         })}
       </View>
@@ -151,10 +160,11 @@ function BloomTabBar({ state, descriptors, navigation }) {
 
 export default function MainTabNavigator() {
   const { width } = useWindowDimensions();
+  const { enterFeature } = useProductTour();
   return (
     <Tab.Navigator
       sceneContainerStyle={[styles.scene, width >= 900 && styles.railScene]}
-      tabBar={(props) => <BloomTabBar {...props} />}
+      tabBar={(props) => <BloomTabBar {...props} enterFeature={enterFeature} />}
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,
@@ -209,6 +219,7 @@ const styles = createThemedStyles({
     backgroundColor: COLORS.brandSoft,
   },
   nonInteractive: { pointerEvents: 'none' },
+  tourTarget: { flex: 1 },
   tabButton: {
     zIndex: 1,
     flex: 1,

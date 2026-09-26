@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { View, StyleSheet, SafeAreaView, Platform, Text } from 'react-native';
 import { useOnboardingState } from './hooks/useOnboardingState';
 import { ONBOARDING_STEPS, TOTAL_INTERACTIVE_STEPS } from './data/options';
@@ -14,6 +14,7 @@ import PrioritiesStep from './screens/PrioritiesStep';
 import ProcessingStep from './screens/ProcessingStep';
 import ResultStep from './screens/ResultStep';
 import { COLORS, createThemedStyles } from '../../utils/constants';
+import { useProductTour } from '../../components/productTour';
 
 /**
  * Self-contained Bloom V3 Onboarding Module Container.
@@ -26,6 +27,14 @@ export default function OnboardingV3Screen({
   initialStep = ONBOARDING_STEPS.WELCOME,
   onComplete,
 }) {
+  const { requestOverviewInvitation, setRecommendationHandler } = useProductTour();
+  const navigateToRecommendation = useCallback((action) => {
+    if (!navigation?.navigate) return;
+    if (action?.route === 'DailyCheckIn') navigation.navigate('DailyCheckIn');
+    else if (action?.route === 'Meg' || action?.route === 'Strength' || action?.route === 'Diet') navigation.navigate('Main', { screen: action.route });
+    else navigation.navigate('Main');
+  }, [navigation]);
+  useEffect(() => { setRecommendationHandler(navigateToRecommendation); }, [navigateToRecommendation, setRecommendationHandler]);
   const {
     currentStep,
     answers,
@@ -56,16 +65,11 @@ export default function OnboardingV3Screen({
       if (onComplete) {
         onComplete(result, action);
       } else if (navigation?.navigate) {
-        if (action.route === 'DailyCheckIn') {
-          navigation.navigate('DailyCheckIn');
-        } else if (action.route === 'Meg' || action.route === 'Strength' || action.route === 'Diet') {
-          navigation.navigate('Main', { screen: action.route });
-        } else {
-          navigation.navigate('Main');
-        }
+        navigation.navigate('Main');
+        setTimeout(() => requestOverviewInvitation(action), 350);
       }
     },
-    [navigation, onComplete, result]
+    [navigation, onComplete, requestOverviewInvitation, result]
   );
 
   const handleFinish = useCallback(() => {
@@ -73,8 +77,9 @@ export default function OnboardingV3Screen({
       onComplete(result, null);
     } else if (navigation?.navigate) {
       navigation.navigate('Main');
+      setTimeout(() => requestOverviewInvitation(null), 350);
     }
-  }, [navigation, onComplete, result]);
+  }, [navigation, onComplete, requestOverviewInvitation, result]);
 
   if (!isReady) {
     return <View style={styles.container} />;

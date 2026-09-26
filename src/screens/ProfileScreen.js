@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Platform, View, Text, TextInput, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../components/Icon';
@@ -12,10 +12,14 @@ import IconButton from '../components/IconButton';
 import { LotusMark } from '../components/BrandMark';
 import { preferredDisplayName } from '../utils/displayName';
 import appConfig from '../../app.json';
+import { useProductTour } from '../components/productTour';
+import ProductTourTarget from '../components/productTour/ProductTourTarget';
 
 export default function ProfileScreen({ navigation }) {
   const { state, resetAllData, deleteAllAccountData } = useApp();
   const { user, logOut, deleteAccount } = useAuth();
+  const { startIfNeeded } = useProductTour();
+  useEffect(() => { startIfNeeded('profile'); }, [startIfNeeded]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState('');
@@ -56,6 +60,7 @@ export default function ProfileScreen({ navigation }) {
     {
       title: 'Your preferences',
       items: [
+        { icon: 'sparkles-outline', title: 'Learn Bloom', subtitle: 'Replay optional guides for Bloom', route: 'LearnBloom' },
         { icon: 'notifications-outline', title: 'Reminders', subtitle: 'Choose when Bloom gently checks in', route: 'Reminders' },
         { icon: 'options-outline', title: 'Personalisation', subtitle: `${themeLabel}, ${modeLabel.toLowerCase()}, goals and guidance`, route: 'Preferences' },
         ...((typeof __DEV__ !== 'undefined' && __DEV__) ? [
@@ -180,14 +185,17 @@ export default function ProfileScreen({ navigation }) {
             </View>
           </Card>
 
-          {menuSections.map((section) => (
+          {menuSections.map((section) => {
+            const tourTargetIds = section.title === 'Your preferences' ? ['profile-preferences', 'profile-appearance'] : ['profile-privacy'];
+            return (
             <View key={section.title} style={styles.menuSection}>
               <Text style={styles.sectionTitle}>{section.title}</Text>
+              <ProductTourTarget ids={tourTargetIds}>
               <View style={styles.menuGroup}>
                 {section.items.map((item, index) => (
                   <Pressable
                     key={item.title}
-                    onPress={() => navigation.navigate(item.route, item.params)}
+                    onPress={() => item.action ? item.action() : navigation.navigate(item.route, item.params)}
                     accessibilityRole='button'
                     accessibilityLabel={`${item.title}. ${item.subtitle}`}
                     style={({ pressed, hovered, focused }) => [
@@ -209,9 +217,12 @@ export default function ProfileScreen({ navigation }) {
                   </Pressable>
                 ))}
               </View>
+              </ProductTourTarget>
             </View>
-          ))}
+            );
+          })}
 
+          <ProductTourTarget id='profile-account'>
           <View style={styles.menuSection}>
             <Text style={styles.sectionTitle}>Account</Text>
             <View style={styles.menuGroup}>
@@ -241,6 +252,7 @@ export default function ProfileScreen({ navigation }) {
             </View>
             {logoutError ? <Text style={styles.logoutError} accessibilityRole='alert'>{logoutError}</Text> : null}
           </View>
+          </ProductTourTarget>
 
           <View style={styles.dataSection}>
             <Text style={styles.sectionTitle}>Your data</Text>

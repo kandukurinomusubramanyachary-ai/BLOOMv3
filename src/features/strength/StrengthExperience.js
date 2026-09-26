@@ -23,13 +23,16 @@ import MovementGuide from './components/MovementGuide';
 // FIRST VIEWPORT: Invitation, one recommendation and action, then weekly activity.
 // FORM: User-pinned mobile Operate flow. No unrelated app or engine changes.
 // FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
-export default function StrengthExperience({ TrackedPlayer }) {
+const Passthrough = ({ children }) => children;
+
+export default function StrengthExperience({ TrackedPlayer, TourTarget, onWorkoutStart, onSummaryShown }) {
   const { user } = useAuth();
   const uid = user?.uid;
   const ownerRef = useRef(uid); ownerRef.current = uid;
   const local = useMemo(() => uid ? storage.forUser(uid) : null, [uid]);
   const navigation = useNavigation();
   const { colors: c, styles: s } = useStrengthStyles(sheet);
+  const Target = TourTarget || Passthrough;
   const [view, setView] = useState('home');
   const [returnView, setReturnView] = useState('home');
   const [records, setRecords] = useState([]);
@@ -58,6 +61,9 @@ export default function StrengthExperience({ TrackedPlayer }) {
   }, [local, uid]);
   useEffect(() => { setRecords([]); setRun(null); setRecentRecord(null); setSelected(null); setPlan(null); setView('home'); void load(); return () => { loadVersion.current++; }; }, [load]);
   useEffect(() => {
+    if (view === 'finished') onSummaryShown?.();
+  }, [onSummaryShown, view]);
+  useEffect(() => {
     navigation.setOptions({ tabBarStyle: immersive ? { display: 'none' } : undefined });
     return () => navigation.setOptions({ tabBarStyle: undefined });
   }, [immersive, navigation]);
@@ -71,6 +77,7 @@ export default function StrengthExperience({ TrackedPlayer }) {
   const choosePlan = value => { setPlan({ ...value, exercises: value.exercises.map(item => ({ ...item })) }); setReturnView(view); setView('overview'); };
   const chooseExercise = exercise => { setSelected(exercise); setInspectIndex(null); setReturnView(view); setView('detail'); };
   const start = value => {
+    onWorkoutStart?.();
     setRun({ id: 'workout-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7), owner: uid, epoch: accountWork.epoch(uid), plan: value, index: 0, guided: false, results: [] });
     setView('session');
   };
@@ -107,13 +114,13 @@ export default function StrengthExperience({ TrackedPlayer }) {
     // One camera, one workout: the tracked player stays mounted across
     // exercises (stable key), so the camera and MediaPipe session start
     // exactly once per workout. Guided players keep per-exercise keys.
-    return <Player key={pose ? 'tracked:' + run.id : 'guided:' + run.id + ':' + run.index} exercise={exercise} sets={sets}
+    return <Target ids={['strength-workout-progress', 'strength-guidance', 'strength-reps', 'strength-pause']}><Player key={pose ? 'tracked:' + run.id : 'guided:' + run.id + ':' + run.index} exercise={exercise} sets={sets} TourTarget={TourTarget}
       onExit={exit} onComplete={save} onNext={next} nextLabel={nextItem ? 'Next exercise' : 'Finish workout'}
       workoutProgress={{ current: run.index + 1, total: run.plan.exercises.length }}
       onFallback={() => setRun(current => ({ ...current, guided: true }))}
       nextExercise={continuousNext || undefined}
       onAdvance={continuousNext ? () => setRun(current => current && current.id === run.id ? { ...current, index: current.index + 1 } : current) : undefined}
-      onEndWorkout={pose ? () => setView('finished') : undefined} />;
+      onEndWorkout={pose ? () => setView('finished') : undefined} /></Target>;
   }
   if (view === 'transition' && run) {
     const { exercise, sets } = run.plan.exercises[run.index];
@@ -127,11 +134,13 @@ export default function StrengthExperience({ TrackedPlayer }) {
     const measured = run.results.filter(item => item.sessionMode === 'pose').reduce((sum, item) => sum + item.reps, 0);
     const paced = run.results.filter(item => item.sessionMode !== 'pose').reduce((sum, item) => sum + item.reps, 0);
     return <StrengthScreenFrame header={<StrengthHeader title="Your workout" />} footer={<><StrengthButton title="Done" onPress={exit} /><StrengthButton title="View progress" variant="ghost" onPress={() => { setRun(null); setView('progress'); }} /></>}>
-      <View style={s.finishMark}><Icon name="checkmark-circle-outline" size={40} color={c.sage} /></View>
-      <Text style={s.title}>Beautiful work.</Text><Text style={s.body}>You made time for yourself today.</Text><Text style={s.sectionTitle}>{run.plan.name}</Text>
-      <View style={s.metrics}><Metric value={completeCount + ' / ' + run.plan.exercises.length} label="exercises completed" /><Metric value={Math.round(run.results.reduce((sum, item) => sum + item.durationSec, 0) / 60) + ' min'} label="session time" /></View>
-      {measured > 0 ? <Text style={s.body}>{measured} camera-counted reps</Text> : null}{paced > 0 ? <Text style={s.body}>{paced} paced reps · not measured</Text> : null}
-      <StatsHeader stats={stats} /><Text style={s.supporting}>Your movement summaries are saved on this device. Camera sessions sync when available.</Text>
+      <Target id='strength-summary-result'>
+        <View style={s.finishMark}><Icon name="checkmark-circle-outline" size={40} color={c.sage} /></View>
+        <Text style={s.title}>Beautiful work.</Text><Text style={s.body}>You made time for yourself today.</Text><Text style={s.sectionTitle}>{run.plan.name}</Text>
+        <View style={s.metrics}><Metric value={completeCount + ' / ' + run.plan.exercises.length} label="exercises completed" /><Metric value={Math.round(run.results.reduce((sum, item) => sum + item.durationSec, 0) / 60) + ' min'} label="session time" /></View>
+        {measured > 0 ? <Text style={s.body}>{measured} camera-counted reps</Text> : null}{paced > 0 ? <Text style={s.body}>{paced} paced reps · not measured</Text> : null}
+      </Target>
+      <Target id='strength-summary-history'><StatsHeader stats={stats} /></Target><Text style={s.supporting}>Your movement summaries are saved on this device. Camera sessions sync when available.</Text>
     </StrengthScreenFrame>;
   }
   if (view === 'overview' && plan) return <StrengthScreenFrame header={<StrengthHeader title="Workout overview" onBack={() => setView(returnView)} />} footer={<StrengthButton title="Start workout" icon="play" onPress={() => start(plan)} />}>
@@ -152,12 +161,12 @@ export default function StrengthExperience({ TrackedPlayer }) {
 
   const header = <StrengthHeader title="Strength" icon="fitness-outline" />;
   const loadingState = loading ? <StrengthSkeleton /> : loadError ? <StrengthEmpty title="Your history couldn’t load" body="Your workout choices are still available. Try loading your saved activity again." action="Try again" onAction={load} icon="alert-circle-outline" /> : null;
-  const nav = <View style={s.nav}>{['home', 'library', 'progress'].map(destination => <StrengthButton key={destination} title={{ home: 'Today', library: 'Library', progress: 'Progress' }[destination]} variant={view === destination ? 'secondary' : 'ghost'} style={s.navItem} accessibilityState={{ selected: view === destination }} onPress={() => setView(destination)} />)}</View>;
+  const nav = <Target id='strength-progress'><View style={s.nav}>{['home', 'library', 'progress'].map(destination => <StrengthButton key={destination} title={{ home: 'Today', library: 'Workouts', progress: 'Progress' }[destination]} variant={view === destination ? 'secondary' : 'ghost'} style={s.navItem} accessibilityState={{ selected: view === destination }} onPress={() => setView(destination)} />)}</View></Target>;
   if (view === 'library') {
     const entries = filter.kind === 'workouts' ? WORKOUT_PLANS : EXERCISE_LIBRARY.map(item => singleMovePlan(item));
     const visible = entries.filter(item => (filter.area === 'all' || item.focus === filter.area) && (filter.level === 'all' || item.level === filter.level) && (filter.time === 'all' || (filter.time === 'short' ? planMinutes(item) <= 10 : filter.time === 'medium' ? planMinutes(item) > 10 && planMinutes(item) <= 20 : planMinutes(item) > 20)));
     return <StrengthScreenFrame header={header}>{nav}<Text style={s.title}>Find your kind of movement.</Text>
-      <View style={s.nav}>{['workouts', 'movements'].map(kind => <StrengthButton key={kind} title={kind === 'workouts' ? 'Workouts' : 'Single movements'} variant={filter.kind === kind ? 'secondary' : 'ghost'} style={s.flex} accessibilityState={{ selected: filter.kind === kind }} onPress={() => setFilter(current => ({ ...current, kind }))} />)}</View>
+      <Target id='strength-browse'><View style={s.nav}>{['workouts', 'movements'].map(kind => <StrengthButton key={kind} title={kind === 'workouts' ? 'Workouts' : 'Single movements'} variant={filter.kind === kind ? 'secondary' : 'ghost'} style={s.flex} accessibilityState={{ selected: filter.kind === kind }} onPress={() => setFilter(current => ({ ...current, kind }))} />)}</View></Target>
       <FilterRow label="Target area" values={FOCUS_AREAS} value={filter.area} onChange={area => setFilter(current => ({ ...current, area }))} />
       <StrengthButton title={moreFilters ? 'Fewer filters' : 'Time & effort filters'} variant="ghost" icon="options-outline" onPress={() => setMoreFilters(!moreFilters)} />
       {moreFilters ? <><FilterRow label="Time" values={[{ id: 'all', label: 'Any time' }, { id: 'short', label: 'Up to 10 min' }, { id: 'medium', label: '10–20 min' }, { id: 'long', label: '20+ min' }]} value={filter.time} onChange={time => setFilter(current => ({ ...current, time }))} /><FilterRow label="Effort" values={[{ id: 'all', label: 'Any effort' }, ...Object.values(LEVELS)]} value={filter.level} onChange={level => setFilter(current => ({ ...current, level }))} /></> : null}
@@ -170,7 +179,7 @@ export default function StrengthExperience({ TrackedPlayer }) {
   if (view === 'progress') return <StrengthScreenFrame header={header}>{nav}<Text style={s.title}>Little by little.</Text><Text style={s.body}>A record of showing up, not a score to chase.</Text>{loadingState}{!loading && !loadError ? <><StatsHeader stats={stats} />{records.length > 0 ? <><View style={s.metrics}><Metric value={stats.sessions} label="movement sessions" /><Metric value={stats.totalMinutes} label="total minutes" /></View><Text style={s.supporting}>Time includes rests. Guided reps are paced, not measured.</Text>{stats.areas.length ? <View style={s.section}><Text style={s.sectionTitle}>Where you’ve moved</Text>{stats.areas.map(([area, count]) => <View key={area} style={s.areaRow}><Text style={s.body}>{areaLabel(area)}</Text><Text style={s.supporting}>{count} sessions</Text></View>)}</View> : null}</> : null}{recent}</> : null}</StrengthScreenFrame>;
   return <StrengthScreenFrame header={header}>{nav}<View style={s.section}><Text style={s.title}>Ready to move?</Text><Text style={s.body}>A little strength. A little time for you.</Text></View>
     {Platform.OS !== 'web' ? <StrengthNote icon="time-outline" title="Guided Strength">Camera-free workouts with paced reps and rest timers. Reps follow the timer; they are not measured from your movement.</StrengthNote> : null}
-    <View style={s.recommendation}><View style={s.recommendTop}><Icon name="fitness-outline" size={28} color={c.accent} /><Text style={s.supporting}>Today’s suggestion</Text></View><Text style={s.recommendName}>{WORKOUT_PLANS[0].name}</Text><Text style={s.body}>Three familiar movements. Room to go at your own pace.</Text><Text style={s.metaText}>~{planMinutes(WORKOUT_PLANS[0])} min · Steady · Full body</Text><Text style={s.supporting}>3 exercises · No weights needed</Text><StrengthButton title="View today’s workout" icon="arrow-forward" onPress={() => choosePlan(WORKOUT_PLANS[0])} /></View>
+    <Target id='strength-recommendation'><View style={s.recommendation}><View style={s.recommendTop}><Icon name="fitness-outline" size={28} color={c.accent} /><Text style={s.supporting}>Today’s suggestion</Text></View><Text style={s.recommendName}>{WORKOUT_PLANS[0].name}</Text><Text style={s.body}>Three familiar movements. Room to go at your own pace.</Text><Text style={s.metaText}>~{planMinutes(WORKOUT_PLANS[0])} min · Steady · Full body</Text><Text style={s.supporting}>3 exercises · No weights needed</Text><StrengthButton title="View today’s workout" icon="arrow-forward" onPress={() => choosePlan(WORKOUT_PLANS[0])} /></View></Target>
     <Pressable accessibilityRole="button" accessibilityLabel="Choose a gentle start" onPress={() => choosePlan(WORKOUT_PLANS[1])} style={({ pressed }) => [s.gentle, pressed && { opacity: 0.65 }]}><Icon name="leaf-outline" size={24} color={c.sage} /><View style={s.flex}><Text style={s.activityTitle}>A lower-energy day?</Text><Text style={s.supporting}>Keep it gentle with a shorter session.</Text></View><Icon name="chevron-forward" size={20} color={c.sage} /></Pressable>
     {loadingState}{!loading && !loadError ? <StatsHeader stats={stats} /> : null}<StrengthButton title="Explore workouts" variant="secondary" onPress={() => setView('library')} />{!loading && !loadError ? recent : null}
   </StrengthScreenFrame>;

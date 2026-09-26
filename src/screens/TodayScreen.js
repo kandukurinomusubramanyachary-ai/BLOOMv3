@@ -22,6 +22,8 @@ import BrandMark from '../components/BrandMark';
 import Button from '../components/Button';
 import IconButton from '../components/IconButton';
 import { MotionScrollView, Parallax, ScrollReveal } from '../components/Motion';
+import ProductTourTarget from '../components/productTour/ProductTourTarget';
+import { useProductTour } from '../components/productTour';
 
 const PHASES = ['Menstruation', 'Follicular', 'Ovulation', 'Luteal'];
 
@@ -239,6 +241,7 @@ function WeeklySnapshot({ state, today }) {
 export default function TodayScreen({ navigation }) {
   const { state, saveDailyPlan } = useApp();
   const { user } = useAuth();
+  const { startIfNeeded, enterFeature } = useProductTour();
   const checkinLaunchRef = useRef(false);
   const [opening, setCheckinOpening] = useState(false);
   const [checkinLaunchError, setCheckinLaunchError] = useState('');
@@ -258,6 +261,11 @@ export default function TodayScreen({ navigation }) {
   }, []);
 
   useEffect(() => navigation.addListener('focus', resetCheckinLaunch), [navigation, resetCheckinLaunch]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => startIfNeeded('today'));
+    return unsubscribe;
+  }, [navigation, startIfNeeded]);
 
   useEffect(() => {
     if (!state.todayCheckin || todayPlan) return;
@@ -289,6 +297,7 @@ export default function TodayScreen({ navigation }) {
     setCheckinLaunchError('');
     try {
       logCheckinEvent('navigation_action', { result: 'opening', source: 'TodayScreen' });
+      enterFeature('checkin');
       navigation.navigate('DailyCheckIn', { date: today });
     } catch (error) {
       checkinLaunchRef.current = false;
@@ -300,7 +309,7 @@ export default function TodayScreen({ navigation }) {
         source: 'TodayScreen',
       }, error);
     }
-  }, [navigation, state.todayCheckin, today, user]);
+  }, [enterFeature, navigation, state.todayCheckin, today, user]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -311,18 +320,22 @@ export default function TodayScreen({ navigation }) {
               <BrandMark size='small' showWordmark={false} decorative />
               <Text style={styles.brandName}>Bloom</Text>
             </View>
-            <IconButton
-              icon='person-outline'
-              onPress={() => navigation.navigate('Profile')}
-              accessibilityLabel='Open your profile'
-              variant='outline'
-            />
+            <ProductTourTarget id='profile'>
+              <IconButton
+                icon='person-outline'
+                onPress={() => { enterFeature('profile'); navigation.navigate('Profile'); }}
+                accessibilityLabel='Open your profile'
+                variant='outline'
+              />
+            </ProductTourTarget>
           </View>
 
-          <View style={styles.hero}>
-            <Text style={styles.greeting}>{greeting}</Text>
-            <Text style={styles.dateLabel}>{dateLabel}</Text>
-          </View>
+          <ProductTourTarget id='home-today'>
+            <View style={styles.hero}>
+              <Text style={styles.greeting}>{greeting}</Text>
+              <Text style={styles.dateLabel}>{dateLabel}</Text>
+            </View>
+          </ProductTourTarget>
 
           {state.lastError ? (
             <View style={styles.errorBanner} accessibilityLiveRegion='polite'>
@@ -331,29 +344,33 @@ export default function TodayScreen({ navigation }) {
             </View>
           ) : null}
 
-          {state.todayCheckin ? (
-            <CheckInSummary checkin={state.todayCheckin} onReview={openCheckIn} />
-          ) : (
-            <View style={styles.checkinCard}>
-              <Text style={styles.checkinPrompt}>How is your body feeling today?</Text>
-              <Text style={styles.checkinHint}>A 30-second check-in helps Bloom notice your patterns.</Text>
-              <Button
-                title='Start 30-sec check-in'
-                icon='add-circle'
-                onPress={openCheckIn}
-                loading={opening}
-                loadingLabel='Opening check-in…'
-                style={styles.checkinButton}
-              />
-              {checkinLaunchError ? (
-                <Text style={styles.launchError} accessibilityRole='alert' accessibilityLiveRegion='assertive'>{checkinLaunchError}</Text>
-              ) : null}
-            </View>
-          )}
+          <ProductTourTarget id='daily-checkin'>
+            {state.todayCheckin ? (
+              <CheckInSummary checkin={state.todayCheckin} onReview={openCheckIn} />
+            ) : (
+              <View style={styles.checkinCard}>
+                <Text style={styles.checkinPrompt}>How is your body feeling today?</Text>
+                <Text style={styles.checkinHint}>A 30-second check-in helps Bloom notice your patterns.</Text>
+                <Button
+                  title='Start 30-sec check-in'
+                  icon='add-circle'
+                  onPress={openCheckIn}
+                  loading={opening}
+                  loadingLabel='Opening check-in…'
+                  style={styles.checkinButton}
+                />
+                {checkinLaunchError ? (
+                  <Text style={styles.launchError} accessibilityRole='alert' accessibilityLiveRegion='assertive'>{checkinLaunchError}</Text>
+                ) : null}
+              </View>
+            )}
+          </ProductTourTarget>
 
-          <Parallax amount={12}>
-            <CycleContext state={state} navigation={navigation} />
-          </Parallax>
+          <ProductTourTarget id='today-cycle'>
+            <Parallax amount={12}>
+              <CycleContext state={state} navigation={navigation} />
+            </Parallax>
+          </ProductTourTarget>
 
           <ScrollReveal>
             <View style={styles.careCard}>
@@ -367,12 +384,14 @@ export default function TodayScreen({ navigation }) {
             </View>
           </ScrollReveal>
 
-          <ScrollReveal>
-            <View style={styles.snapshotSection}>
-              <Text style={styles.sectionTitle}>This week's snapshot</Text>
-              <WeeklySnapshot state={state} today={today} />
-            </View>
-          </ScrollReveal>
+          <ProductTourTarget id='today-snapshot'>
+            <ScrollReveal>
+              <View style={styles.snapshotSection}>
+                <Text style={styles.sectionTitle}>This week's snapshot</Text>
+                <WeeklySnapshot state={state} today={today} />
+              </View>
+            </ScrollReveal>
+          </ProductTourTarget>
         </View>
       </MotionScrollView>
     </SafeAreaView>
