@@ -19,6 +19,7 @@ import SplashScreen from '../screens/SplashScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import LegalScreen from '../screens/LegalScreen';
 import OnboardingV3Screen from '../features/onboardingV3/OnboardingV3Screen';
+import LearnBloomScreen from '../screens/LearnBloomScreen';
 import AppLockModal from '../components/AppLockModal';
 import { useReducedMotion } from '../components/Motion';
 import { COLORS, navigationColorsForTheme } from '../utils/constants';
@@ -193,6 +194,7 @@ export default function RootNavigator() {
               },
             }}
           />
+          <Stack.Screen name="LearnBloom" component={LearnBloomScreen} />
         </Stack.Navigator>
       </NavigationContainer>
 

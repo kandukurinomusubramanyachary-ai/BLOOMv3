@@ -19,7 +19,8 @@ export default function SessionPlayer(props) {
   return <GuidedPlayer key={props.exercise.id + ':' + props.sets} {...props} />;
 }
 
-function GuidedPlayer({ exercise, sets, onExit, onComplete, onNext, nextLabel = 'Next exercise', workoutProgress }) {
+function GuidedPlayer({ exercise, sets, onExit, onComplete, onNext, nextLabel = 'Next exercise', workoutProgress, TourTarget }) {
+  const Target = TourTarget || View;
   const { colors: c, styles: s } = useStrengthStyles(sheet);
   const { width, fontScale } = useWindowDimensions();
   const focused = useIsFocused();
@@ -162,8 +163,8 @@ function GuidedPlayer({ exercise, sets, onExit, onComplete, onNext, nextLabel = 
       : isRest
         ? <><StrengthButton title="Skip rest" onPress={controls.skipRest} testID="strength-skip-rest" />
           <View style={s.controlRow}><StrengthButton title="Add +15 sec" variant="secondary" onPress={controls.addRest} style={s.flex} testID="strength-add-rest" />
-            <StrengthButton title="Pause" variant="ghost" onPress={controls.pause} style={s.flex} testID="strength-pause" /></View></>
-        : <StrengthButton title="Pause" icon="pause-outline" onPress={controls.pause} testID="strength-pause" />;
+            <Target id="strength-pause" style={s.flex}><StrengthButton title="Pause" variant="ghost" onPress={controls.pause} style={s.flex} testID="strength-pause" /></Target></View></>
+        : <Target id="strength-pause"><StrengthButton title="Pause" icon="pause-outline" onPress={controls.pause} testID="strength-pause" /></Target>;
 
   const ringProgress = isCountdown ? 1 - state.remaining / 3
     : hold ? 1 - state.remaining / Math.max(1, state.holdSec) : state.repProgress;
@@ -173,8 +174,8 @@ function GuidedPlayer({ exercise, sets, onExit, onComplete, onNext, nextLabel = 
   const timerText = <><Text style={[s.timer, isRest && { color: c.sage }]}>{bigLabel}</Text><Text style={s.timerLabel}>{smallLabel}</Text></>;
 
   return <StrengthScreenFrame testID="strength-guided-session"
-    header={<StrengthHeader title={exercise.name} subtitle={progressText} onBack={requestExit}
-      backLabel={isIdle ? 'Back to workout' : 'End exercise'} progress={progressValue} />}
+    header={<Target id="strength-workout-progress"><StrengthHeader title={exercise.name} subtitle={progressText} onBack={requestExit}
+      backLabel={isIdle ? 'Back to workout' : 'End exercise'} progress={progressValue} /></Target>}
     footer={<>{footer}{voiceAvailable ? <StrengthButton title={muted ? 'Unmute' : 'Mute'}
       icon={muted ? 'volume-mute-outline' : 'volume-high-outline'} variant="ghost"
       onPress={() => setMuted(!muted)} testID="strength-guided-mute" /> : null}</>}
@@ -202,13 +203,13 @@ function GuidedPlayer({ exercise, sets, onExit, onComplete, onNext, nextLabel = 
             color={c.accent} trackColor={c.line} animated={!isPaused}
             pulseKey={!isPaused && state.lastEvent === 'rep' ? state.eventNonce : null}>{timerText}</ProgressRing>}
       </View>
-      <View style={s.cueArea}>
+      <Target id="strength-guidance"><View style={s.cueArea}>
         <Text style={s.cue}>{isPaused ? 'Your timer is paused. Take all the time you need.'
           : isRest ? 'Nice work. Let your breath settle before the next set.'
             : isCountdown ? 'A little space, a steady breath. We’ll begin together.'
               : exercise.cues?.[cueIndex] || exercise.intro}</Text>
         {!isPaused && !isRest && !isCountdown ? <Text style={s.supporting}>Paced guidance, not measured reps.</Text> : null}
-      </View>
+      </View></Target>
       {isRest ? <View style={s.nextSet}>
         <Text style={s.nextTitle}>{exercise.name}</Text><Text style={s.body}>{target} in the next set</Text>
         <Text style={s.supporting}>{exercise.cues?.[0] || exercise.intro}</Text>

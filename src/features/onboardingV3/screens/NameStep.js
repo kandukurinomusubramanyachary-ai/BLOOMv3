@@ -30,10 +30,9 @@ export default function NameStep({ initialName = '', onNext, onSkip }) {
         keyboardShouldPersistTaps="handled"
       >
         <Entrance distance={8} duration={200} style={styles.shell}>
-          <Text style={styles.eyebrow}>STEP 1 OF 7</Text>
           <Text style={styles.title}>What should Bloom call you?</Text>
           <Text style={styles.subtitle}>
-            A first name or nickname — whatever feels most natural to see when you open Bloom.
+            A first name or nickname is enough. This is only used to make Bloom feel more personal.
           </Text>
 
           <View style={styles.inputWrap}>
@@ -57,20 +56,21 @@ export default function NameStep({ initialName = '', onNext, onSkip }) {
             />
           </View>
 
-          <ReasonCallout text="We use your name to personalize your daily greetings and make Meg’s responses feel warm." />
+          <ReasonCallout text="Bloom uses this for greetings. You can skip it or change it later." />
         </Entrance>
 
         <View style={styles.footer}>
           <Button
             title={cleanName ? `Continue as ${cleanName}` : 'Continue'}
             onPress={handleSubmit}
+            disabled={!cleanName}
             accessibilityLabel="Continue to next question"
           />
           {!cleanName ? (
             <Button
               title="Skip for now"
               variant="ghost"
-              onPress={() => onNext({ firstName: '' })}
+              onPress={onSkip}
               accessibilityLabel="Skip name input"
             />
           ) : null}
@@ -99,12 +99,6 @@ const styles = createThemedStyles({
   },
   shell: {
     width: '100%',
-  },
-  eyebrow: {
-    ...TYPOGRAPHY.eyebrow,
-    color: COLORS.brand,
-    letterSpacing: 1,
-    marginBottom: 8,
   },
   title: {
     ...TYPOGRAPHY.screenTitle,

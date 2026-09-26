@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ONBOARDING_STEPS } from '../data/options';
 import { buildOnboardingResult } from '../utils/personalization';
+import { restoreOnboardingHistory } from '../utils/onboardingDraft';
 
 const STORAGE_KEY = '@bloom:v3:onboarding:draft';
 
@@ -35,7 +36,7 @@ export function useOnboardingState({ initialStep = ONBOARDING_STEPS.WELCOME } = 
               if (parsed.answers) setAnswers(parsed.answers);
               if (typeof parsed.step === 'number') {
                 setCurrentStep(parsed.step);
-                setHistory([ONBOARDING_STEPS.WELCOME, parsed.step]);
+                setHistory(restoreOnboardingHistory(parsed.history, parsed.step, initialStep));
               }
             }
           } catch {
@@ -51,14 +52,14 @@ export function useOnboardingState({ initialStep = ONBOARDING_STEPS.WELCOME } = 
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [initialStep]);
 
   // Save draft whenever state changes
   useEffect(() => {
     if (!isReady) return;
-    const payload = JSON.stringify({ answers, step: currentStep });
+    const payload = JSON.stringify({ answers, step: currentStep, history });
     AsyncStorage.setItem(STORAGE_KEY, payload).catch(() => {});
-  }, [answers, currentStep, isReady]);
+  }, [answers, currentStep, history, isReady]);
 
   const updateAnswers = useCallback((patch) => {
     setAnswers((prev) => ({

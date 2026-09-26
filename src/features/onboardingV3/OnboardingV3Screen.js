@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { View, StyleSheet, SafeAreaView, Platform, Text } from 'react-native';
+import React, { useCallback, useEffect } from 'react';
+import { View, SafeAreaView } from 'react-native';
 import { useOnboardingState } from './hooks/useOnboardingState';
 import { ONBOARDING_STEPS, TOTAL_INTERACTIVE_STEPS } from './data/options';
 import ProgressBar from './components/ProgressBar';
@@ -14,6 +14,7 @@ import PrioritiesStep from './screens/PrioritiesStep';
 import ProcessingStep from './screens/ProcessingStep';
 import ResultStep from './screens/ResultStep';
 import { COLORS, createThemedStyles } from '../../utils/constants';
+import { useProductTour } from '../../components/productTour';
 
 /**
  * Self-contained Bloom V3 Onboarding Module Container.
@@ -26,6 +27,14 @@ export default function OnboardingV3Screen({
   initialStep = ONBOARDING_STEPS.WELCOME,
   onComplete,
 }) {
+  const { requestOverviewInvitation, setRecommendationHandler } = useProductTour();
+  const navigateToRecommendation = useCallback((action) => {
+    if (!navigation?.navigate) return;
+    if (action?.route === 'DailyCheckIn') navigation.navigate('DailyCheckIn');
+    else if (action?.route === 'Meg' || action?.route === 'Strength' || action?.route === 'Diet') navigation.navigate('Main', { screen: action.route });
+    else navigation.navigate('Main');
+  }, [navigation]);
+  useEffect(() => { setRecommendationHandler(navigateToRecommendation); }, [navigateToRecommendation, setRecommendationHandler]);
   const {
     currentStep,
     answers,
@@ -34,8 +43,6 @@ export default function OnboardingV3Screen({
     updateAnswers,
     goToNextStep,
     goToPrevStep,
-    jumpToStep,
-    resetOnboarding,
     result,
   } = useOnboardingState({ initialStep });
 
@@ -56,25 +63,20 @@ export default function OnboardingV3Screen({
       if (onComplete) {
         onComplete(result, action);
       } else if (navigation?.navigate) {
-        if (action.route === 'DailyCheckIn') {
-          navigation.navigate('DailyCheckIn');
-        } else if (action.route === 'Meg' || action.route === 'Strength' || action.route === 'Diet') {
-          navigation.navigate('Main', { screen: action.route });
-        } else {
-          navigation.navigate('Main');
-        }
+        navigateToRecommendation(action);
       }
     },
-    [navigation, onComplete, result]
+    [navigateToRecommendation, navigation, onComplete, result]
   );
 
   const handleFinish = useCallback(() => {
     if (onComplete) {
       onComplete(result, null);
     } else if (navigation?.navigate) {
+      requestOverviewInvitation(null);
       navigation.navigate('Main');
     }
-  }, [navigation, onComplete, result]);
+  }, [navigation, onComplete, requestOverviewInvitation, result]);
 
   if (!isReady) {
     return <View style={styles.container} />;
@@ -93,9 +95,6 @@ export default function OnboardingV3Screen({
             currentStep={currentStep}
             totalSteps={TOTAL_INTERACTIVE_STEPS}
             onBack={canGoBack ? goToPrevStep : null}
-            onSkip={handleSkip}
-            showSkip
-            onReset={resetOnboarding}
           />
         ) : null}
 
@@ -168,10 +167,8 @@ export default function OnboardingV3Screen({
           {currentStep === ONBOARDING_STEPS.RESULT && (
             <ResultStep
               summary={result.summary}
-              fullResult={result}
               onPrimaryAction={handlePrimaryAction}
               onFinish={handleFinish}
-              onReset={resetOnboarding}
             />
           )}
         </View>

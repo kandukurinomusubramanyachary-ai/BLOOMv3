@@ -27,10 +27,9 @@ export default function EmotionsStep({ initialEmotion = null, onNext, onSkip }) 
         showsVerticalScrollIndicator={false}
       >
         <Entrance distance={8} duration={200} style={styles.shell}>
-          <Text style={styles.eyebrow}>STEP 5 OF 7</Text>
           <Text style={styles.title}>Emotionally, how have things felt lately?</Text>
           <Text style={styles.subtitle}>
-            Your feelings aren’t separate from your cycle. Bloom gives you space to be honest without being graded.
+            Choose what feels closest. There is nothing to get right here.
           </Text>
 
           <View style={styles.optionsList}>
@@ -46,8 +45,8 @@ export default function EmotionsStep({ initialEmotion = null, onNext, onSkip }) 
             ))}
           </View>
 
-          <ReasonCallout text="Meg tunes her tone to your emotional space — offering gentle validation rather than unsolicited advice." />
-          <PrivacyAssurance compact text="Your emotional logs are strictly private and never shared." />
+          <ReasonCallout text="This helps Bloom respond with the right amount of care and context." />
+          <PrivacyAssurance compact text="Your emotional check-ins stay private." />
         </Entrance>
 
         <View style={styles.footer}>
@@ -87,12 +86,6 @@ const styles = createThemedStyles({
   },
   shell: {
     width: '100%',
-  },
-  eyebrow: {
-    ...TYPOGRAPHY.eyebrow,
-    color: COLORS.brand,
-    letterSpacing: 1,
-    marginBottom: 8,
   },
   title: {
     ...TYPOGRAPHY.screenTitle,

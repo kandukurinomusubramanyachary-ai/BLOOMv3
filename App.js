@@ -10,6 +10,7 @@ import { markStartupReady } from './src/diagnostics/startupDiagnostics';
 import { setActiveTheme, statusBarStyleForTheme } from './src/utils/constants';
 import DeviceFrame, { SafeAreaShim } from './src/components/DeviceFrame';
 import { normalizeWaterReminderSettings, waterReminderService } from './src/services/waterReminders';
+import { ProductTourProvider, ProductTourOverlay } from './src/components/productTour';
 
 function WaterReminderScheduleGuard() {
   const { state, saveSettings } = useApp();
@@ -42,11 +43,12 @@ function WaterReminderScheduleGuard() {
 function AuthenticatedBloom() {
   const { state } = useApp();
   return (
-    <>
+    <ProductTourProvider>
       <StatusBar style={statusBarStyleForTheme(state.resolvedTheme)} />
       <WaterReminderScheduleGuard />
       <RootNavigator />
-    </>
+      <ProductTourOverlay />
+    </ProductTourProvider>
   );
 }
 

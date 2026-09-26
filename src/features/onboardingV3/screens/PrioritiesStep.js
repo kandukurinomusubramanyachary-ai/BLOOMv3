@@ -12,19 +12,10 @@ import { COLORS, createThemedStyles, TYPOGRAPHY } from '../../../utils/constants
  * Select up to 3. Directly dictates the personalized first action.
  */
 export default function PrioritiesStep({ initialPriorities = [], onNext, onSkip }) {
-  const [selected, setSelected] = useState(initialPriorities);
+  const [selected, setSelected] = useState(initialPriorities.slice(0, 1));
 
   function toggle(id) {
-    if (selected.includes(id)) {
-      setSelected(selected.filter((item) => item !== id));
-    } else {
-      if (selected.length >= 3) {
-        // Replace oldest or cap at 3
-        setSelected([...selected.slice(1), id]);
-      } else {
-        setSelected([...selected, id]);
-      }
-    }
+    setSelected(selected.includes(id) ? [] : [id]);
   }
 
   function handleContinue() {
@@ -39,10 +30,9 @@ export default function PrioritiesStep({ initialPriorities = [], onNext, onSkip 
         showsVerticalScrollIndicator={false}
       >
         <Entrance distance={8} duration={200} style={styles.shell}>
-          <Text style={styles.eyebrow}>STEP 7 OF 7</Text>
           <Text style={styles.title}>What would you most like Bloom to help you with?</Text>
           <Text style={styles.subtitle}>
-            Choose up to 3 focus areas. This helps us personalize your first steps.
+            Choose the one that matters most right now. You can change it later.
           </Text>
 
           <View style={styles.optionsList}>
@@ -53,7 +43,6 @@ export default function PrioritiesStep({ initialPriorities = [], onNext, onSkip 
                 description={opt.description}
                 tag={opt.tag}
                 icon={opt.icon}
-                multiple
                 selected={selected.includes(opt.id)}
                 onPress={() => toggle(opt.id)}
               />
@@ -65,7 +54,7 @@ export default function PrioritiesStep({ initialPriorities = [], onNext, onSkip 
 
         <View style={styles.footer}>
           <Button
-            title={selected.length > 0 ? `See your personalized Bloom (${selected.length}/3)` : 'Continue'}
+            title={selected.length > 0 ? 'See what Bloom understood' : 'Continue'}
             onPress={handleContinue}
             accessibilityLabel="Complete onboarding questions and view summary"
           />
@@ -100,12 +89,6 @@ const styles = createThemedStyles({
   },
   shell: {
     width: '100%',
-  },
-  eyebrow: {
-    ...TYPOGRAPHY.eyebrow,
-    color: COLORS.brand,
-    letterSpacing: 1,
-    marginBottom: 8,
   },
   title: {
     ...TYPOGRAPHY.screenTitle,

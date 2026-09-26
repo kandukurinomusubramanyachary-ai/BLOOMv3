@@ -32,7 +32,6 @@ export default function ReasonsStep({ initialSelections = [], onNext, onSkip }) 
         showsVerticalScrollIndicator={false}
       >
         <Entrance distance={8} duration={200} style={styles.shell}>
-          <Text style={styles.eyebrow}>STEP 2 OF 7</Text>
           <Text style={styles.title}>What brought you to Bloom?</Text>
           <Text style={styles.subtitle}>
             Select all that apply. There are no right or wrong answers.
@@ -52,7 +51,7 @@ export default function ReasonsStep({ initialSelections = [], onNext, onSkip }) 
             ))}
           </View>
 
-          <ReasonCallout text="Bloom customizes your Home tab and cycle estimations based on your personal focus." />
+          <ReasonCallout text="What you choose helps Bloom keep the most relevant parts close at hand." />
         </Entrance>
 
         <View style={styles.footer}>
@@ -92,12 +91,6 @@ const styles = createThemedStyles({
   },
   shell: {
     width: '100%',
-  },
-  eyebrow: {
-    ...TYPOGRAPHY.eyebrow,
-    color: COLORS.brand,
-    letterSpacing: 1,
-    marginBottom: 8,
   },
   title: {
     ...TYPOGRAPHY.screenTitle,

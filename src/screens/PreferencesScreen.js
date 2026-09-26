@@ -17,6 +17,7 @@ import {
 import Button from '../components/Button';
 import ScreenHeader from '../components/ScreenHeader';
 import ScreenScaffold from '../components/ScreenScaffold';
+import ProductTourTarget from '../components/productTour/ProductTourTarget';
 
 const TRACKING_MODES = [
   {
@@ -245,6 +246,7 @@ export default function PreferencesScreen({ navigation }) {
             </View>
           </View>
 
+          <ProductTourTarget id='profile-appearance'>
           <View style={styles.section}>
             <SectionHeading
               icon='contrast-outline'
@@ -263,6 +265,7 @@ export default function PreferencesScreen({ navigation }) {
               ))}
             </View>
           </View>
+          </ProductTourTarget>
 
           <View style={styles.section}>
             <SectionHeading

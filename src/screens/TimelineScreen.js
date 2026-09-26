@@ -24,6 +24,8 @@ import { localDateKey } from '../utils/dateKey';
 import { COLORS, createThemedStyles } from '../utils/constants';
 import { MotionScrollView, ScrollReveal, useReducedMotion } from '../components/Motion';
 import BrandMark from '../components/BrandMark';
+import ProductTourTarget from '../components/productTour/ProductTourTarget';
+import { useProductTour } from '../components/productTour';
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const PHONE_MAX_WIDTH = 430;
@@ -673,6 +675,7 @@ function EditPeriodButton({ onPress, title = 'Log period dates', icon = 'water' 
 
 export default function TimelineScreen({ navigation }) {
   const { state } = useApp();
+  const { startIfNeeded } = useProductTour();
   const { width: viewportWidth } = useWindowDimensions();
   const [mode, setMode] = useState('month');
   const [focusDate, setFocusDate] = useState(new Date());
@@ -683,6 +686,12 @@ export default function TimelineScreen({ navigation }) {
   );
   const narrowMonth = mode === 'month' && viewportWidth < 390;
   const compactMonth = mode === 'month' && viewportWidth <= 340;
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => startIfNeeded('timeline'));
+    startIfNeeded('timeline');
+    return unsubscribe;
+  }, [navigation, startIfNeeded]);
 
   function changeMode(nextMode) {
     setMode(nextMode);
@@ -726,22 +735,28 @@ export default function TimelineScreen({ navigation }) {
           ]}
           showsVerticalScrollIndicator={false}
         >
-          {mode === 'month' ? (
-            <MonthCalendar
-              focusDate={focusDate}
-              selectedDate={selectedDate}
-              model={model}
-              onSelect={setSelectedDate}
-              onOpenDay={(day) => navigation.navigate('DayDetail', { date: dateKey(day) })}
-              compact={compactMonth}
-            />
-          ) : (
-            <YearCalendar focusDate={focusDate} model={model} onOpenMonth={openMonth} />
-          )}
+          <ProductTourTarget id='timeline-cycle'>
+            {mode === 'month' ? (
+              <MonthCalendar
+                focusDate={focusDate}
+                selectedDate={selectedDate}
+                model={model}
+                onSelect={setSelectedDate}
+                onOpenDay={(day) => navigation.navigate('DayDetail', { date: dateKey(day) })}
+                compact={compactMonth}
+              />
+            ) : (
+              <YearCalendar focusDate={focusDate} model={model} onOpenMonth={openMonth} />
+            )}
+          </ProductTourTarget>
 
           <ScrollReveal><CalendarLegend confidence={model.predictionConfidence} /></ScrollReveal>
-          <ScrollReveal><CycleInsightsCard model={model} averageCycleLength={state.averageCycleLength} currentPhase={state.currentPhase} /></ScrollReveal>
-          <ScrollReveal><CycleHistory model={model} onLogPrevious={() => navigation.navigate('LogPeriod')} /></ScrollReveal>
+          <ProductTourTarget id='timeline-estimates'>
+            <ScrollReveal><CycleInsightsCard model={model} averageCycleLength={state.averageCycleLength} currentPhase={state.currentPhase} /></ScrollReveal>
+          </ProductTourTarget>
+          <ProductTourTarget id='timeline-history'>
+            <ScrollReveal><CycleHistory model={model} onLogPrevious={() => navigation.navigate('LogPeriod')} /></ScrollReveal>
+          </ProductTourTarget>
         </MotionScrollView>
 
         <EditPeriodButton

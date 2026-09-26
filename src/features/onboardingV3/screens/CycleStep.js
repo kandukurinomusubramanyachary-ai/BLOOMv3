@@ -35,7 +35,6 @@ export default function CycleStep({
         showsVerticalScrollIndicator={false}
       >
         <Entrance distance={8} duration={200} style={styles.shell}>
-          <Text style={styles.eyebrow}>STEP 3 OF 7</Text>
           <Text style={styles.title}>How would you describe your cycle?</Text>
           <Text style={styles.subtitle}>
             Cycles don’t have to follow a standard 28-day schedule. Choose whatever feels closest.
@@ -91,7 +90,7 @@ export default function CycleStep({
             </View>
           )}
 
-          <ReasonCallout text="Your cycle does not need to be regular for Bloom to help. This adapts our estimation algorithms so they never rush you." />
+          <ReasonCallout text="Bloom uses this to keep cycle estimates flexible and relevant to you." />
         </Entrance>
 
         <View style={styles.footer}>
@@ -102,7 +101,7 @@ export default function CycleStep({
           />
           {!pattern ? (
             <Button
-              title="I'm not sure / Skip"
+              title="I’m not sure"
               variant="ghost"
               onPress={onSkip}
               accessibilityLabel="Skip cycle details"
@@ -131,12 +130,6 @@ const styles = createThemedStyles({
   },
   shell: {
     width: '100%',
-  },
-  eyebrow: {
-    ...TYPOGRAPHY.eyebrow,
-    color: COLORS.brand,
-    letterSpacing: 1,
-    marginBottom: 8,
   },
   title: {
     ...TYPOGRAPHY.screenTitle,

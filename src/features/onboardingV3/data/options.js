@@ -46,7 +46,7 @@ const REASONS_OPTIONS = [
     id: 'fitness_strength',
     label: 'I want help with fitness / strength',
     icon: 'fitness-outline',
-    description: 'Gentle, hormone-respectful workouts that feel sustainable',
+    description: 'Gentle workouts that feel sustainable for your energy',
   },
   {
     id: 'emotional_support',
@@ -79,7 +79,7 @@ const CYCLE_PATTERN_OPTIONS = [
     id: 'sometimes_unpredictable',
     label: 'Sometimes unpredictable',
     tag: 'Fluctuating',
-    description: 'Can shift by a week or two depending on stress and life',
+    description: 'Can shift by a week or two from one cycle to another',
   },
   {
     id: 'very_irregular',
@@ -90,7 +90,7 @@ const CYCLE_PATTERN_OPTIONS = [
   {
     id: 'no_recent_period',
     label: 'I haven’t had a period recently',
-    tag: 'Paused / Missing',
+    tag: 'No recent period',
     description: 'It has been several months, or postpartum/birth control transition',
   },
   {
@@ -122,7 +122,7 @@ const SYMPTOM_OPTIONS = [
   { id: 'unwanted_hair', label: 'Unwanted facial/body hair', icon: 'body-outline', category: 'physical' },
   { id: 'headaches', label: 'Headaches or brain fog', icon: 'medical-outline', category: 'physical' },
   { id: 'weight_changes', label: 'Weight resistance / shifts', icon: 'fitness-outline', category: 'physical' },
-  { id: 'irregular_periods', label: 'Late or skipped periods', icon: 'calendar-outline', category: 'cycle' },
+  { id: 'irregular_periods', label: 'Periods that vary', icon: 'calendar-outline', category: 'cycle' },
 ];
 
 const EMOTIONAL_STATE_OPTIONS = [
@@ -236,7 +236,7 @@ const PRIORITY_OPTIONS = [
   {
     id: 'emotional_support',
     label: 'Feel emotionally supported',
-    tag: 'Meg AI care',
+    tag: 'Meg support',
     icon: 'chatbubbles-outline',
     description: 'A compassionate space that listens without judgment',
   },
@@ -245,7 +245,7 @@ const PRIORITY_OPTIONS = [
     label: 'Build strength safely',
     tag: 'Movement',
     icon: 'fitness-outline',
-    description: 'Gentle, hormone-friendly movement paced to my body',
+    description: 'Gentle movement paced to the energy I have today',
   },
   {
     id: 'improve_consistency',
@@ -266,7 +266,7 @@ const PRIORITY_OPTIONS = [
     label: 'Nourish food & energy',
     tag: 'Diet & nourishment',
     icon: 'nutrition-outline',
-    description: 'Blood sugar-friendly ideas without rigid food rules',
+    description: 'Balanced meal ideas without rigid food rules',
   },
 ];
 

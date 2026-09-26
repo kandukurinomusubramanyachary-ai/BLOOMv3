@@ -30,7 +30,8 @@ function historySummary(result, exercise) {
   };
 }
 
-export default function TrackedStrengthScreen({ exercise, sets = 1, onExit, onFallback, onComplete, onNext, nextLabel, workoutProgress, nextExercise, onAdvance, onEndWorkout }) {
+export default function TrackedStrengthScreen({ exercise, sets = 1, onExit, onFallback, onComplete, onNext, nextLabel, workoutProgress, nextExercise, onAdvance, onEndWorkout, TourTarget }) {
+  const Target = TourTarget || View;
   const { user } = useAuth();
   const { height, width } = useWindowDimensions();
   const [viewport, setViewport] = useState({ width, height: height - 180 });
@@ -185,12 +186,12 @@ export default function TrackedStrengthScreen({ exercise, sets = 1, onExit, onFa
 
   return <StrengthScreenFrame testID="strength-camera-screen" contentStyle={s.content} fitViewport
     onViewportLayout={event => setViewport(event.nativeEvent.layout)}
-    header={<StrengthHeader title={exercise?.name || 'Camera guidance'} subtitle={[progressLabel, `${phaseLabel(phase)} · Set ${currentSet} of ${totalSets}`].filter(Boolean).join(' · ')}
-      onBack={saveOrExit} backLabel={phase === 'workout_rest' ? 'Finish workout' : hasProgress ? 'Finish and save Strength session' : 'Back to Strength'} progress={progressFraction} />}
+    header={<Target id="strength-workout-progress"><StrengthHeader title={exercise?.name || 'Camera guidance'} subtitle={[progressLabel, `${phaseLabel(phase)} · Set ${currentSet} of ${totalSets}`].filter(Boolean).join(' · ')}
+      onBack={saveOrExit} backLabel={phase === 'workout_rest' ? 'Finish workout' : hasProgress ? 'Finish and save Strength session' : 'Back to Strength'} progress={progressFraction} /></Target>}
     footer={phase === 'select' ? <>
       {!unavailable ? <StrengthButton title="Enable camera" icon="camera-outline" onPress={beginCamera} /> : null}
       <StrengthButton title="Continue guided" variant={unavailable ? 'primary' : 'secondary'} onPress={onFallback} />
-    </> : working ? <SessionControls paused={phase === 'paused'} muted={muted} onPause={togglePause} onMute={() => setMuted(!muted)} onStop={stop} voiceAvailable={voiceAvailable} />
+    </> : working ? <SessionControls TourTarget={TourTarget} paused={phase === 'paused'} muted={muted} onPause={togglePause} onMute={() => setMuted(!muted)} onStop={stop} voiceAvailable={voiceAvailable} />
       : cameraActive && (phase === 'ready' || voiceAvailable) ? <View style={s.readyControls}>
         {phase === 'ready' ? <StrengthButton title="Start exercise" icon="play-outline" onPress={startCountdown} style={s.growButton} /> : null}
         {voiceAvailable ? <StrengthButton title={muted ? 'Unmute' : 'Mute'} icon={muted ? 'volume-mute-outline' : 'volume-high-outline'} variant="secondary" onPress={() => setMuted(!muted)} style={phase !== 'ready' && s.growButton} /> : null}
@@ -268,13 +269,13 @@ export default function TrackedStrengthScreen({ exercise, sets = 1, onExit, onFa
         </View>
       </View> : null}
       {working ? <View style={s.group}>
-        <View style={s.repRow}>
+        <Target id="strength-reps"><View style={s.repRow}>
           <View accessible accessibilityLabel={`${reps} of ${targetReps} repetitions this set`}>
             <Animated.Text style={[s.repValue, { transform: [{ scale: repScale }] }]}>{String(reps).padStart(2, '0')}<Text style={s.repTarget}> / {targetReps}</Text></Animated.Text>
           </View>
           <View style={s.setInfo}><Text style={s.supporting}>Set {currentSet} of {totalSets}</Text><SetProgress current={currentSet} total={totalSets} /></View>
-        </View>
-        <FramingGuide tone={trackingPaused ? 'adjust' : 'neutral'} instruction={phase === 'paused' ? (trackingPaused ? cueText || 'Move back into view when you are ready.' : 'Paused. Take the time you need.') : cueText || 'Move at your own pace.'} icon={phase === 'paused' && !trackingPaused ? 'pause-outline' : undefined} />
+        </View></Target>
+        <Target id="strength-guidance"><FramingGuide tone={trackingPaused ? 'adjust' : 'neutral'} instruction={phase === 'paused' ? (trackingPaused ? cueText || 'Move back into view when you are ready.' : 'Paused. Take the time you need.') : cueText || 'Move at your own pace.'} icon={phase === 'paused' && !trackingPaused ? 'pause-outline' : undefined} /></Target>
       </View> : null}
       {phase !== 'countdown' && phase !== 'between_sets' && phase !== 'workout_rest' && phase !== 'resuming' ? <View style={s.group}>
         <StrengthButton title={showOptions ? 'Hide camera options' : 'Camera options'} variant="ghost" onPress={() => setShowOptions(value => !value)} accessibilityState={{ expanded: showOptions }} />
