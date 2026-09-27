@@ -51,6 +51,13 @@ button{font-family:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
 
 .page{max-width:1240px;margin:0 auto;padding:26px 28px 56px}
+button{min-height:36px}
+.pillset .pill{min-height:34px}
+.date-selector button{min-height:36px}
+.chart-wrap{min-width:0}
+.card-head{flex-wrap:wrap}
+.legend{max-width:100%}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
 /* ---------- header ---------- */
 .top{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;margin-bottom:18px}
@@ -104,6 +111,7 @@ button{font-family:inherit}
 
 /* ---------- filters ---------- */
 .filters{display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin:0 0 22px}
+.filter-note{flex-basis:100%;margin:-10px 0 0;font-size:11px;color:var(--ink-3)}
 .fgroup{display:flex;align-items:center;gap:9px}
 .flabel{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
 .pillset{display:inline-flex;gap:6px;flex-wrap:wrap}
@@ -129,13 +137,14 @@ button{font-family:inherit}
 .card-note svg{flex:none}
 
 /* ---------- KPI cards ---------- */
-.s-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.s-kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
 .kpi-card{
   background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
   box-shadow:var(--shadow);padding:14px 16px 13px;min-width:0;
 }
 .kpi-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
 .kpi-label{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.metric-help{margin-left:3px;text-decoration:none;color:var(--accent);cursor:help;font-size:12px}.metric-help:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:50%}
 .kpi-spark{width:72px;flex:none;opacity:.95}
 .kpi-value{font-size:25px;font-weight:650;letter-spacing:-.015em;margin:5px 0 2px;font-variant-numeric:tabular-nums}
 .kpi-delta{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
@@ -193,6 +202,7 @@ button{font-family:inherit}
 .ret-stat .r-label{font-size:11.5px;color:var(--ink-3);font-weight:600}
 .ret-stat .r-value{font-size:19px;font-weight:650;font-variant-numeric:tabular-nums}
 .ret-stat .r-n{font-size:10.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.ret-stats.ret-four{grid-template-columns:repeat(4,1fr)}
 .ret-line{margin-top:12px;font-size:12.5px;color:var(--ink-2)}
 
 /* ---------- funnel ---------- */
@@ -314,6 +324,9 @@ table.tbl{width:100%;border-collapse:collapse}
 .empty-state p{margin:0 auto 18px;max-width:430px;font-size:13.5px;color:var(--ink-2)}
 .empty-state .e-sub{font-size:12.5px;color:var(--ink-3);margin-top:6px}
 .grid.is-empty > section{display:none}
+.error-state{grid-column:span 12;text-align:center;padding:64px 24px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.error-state h3{margin:0 0 6px;font-size:16px}.error-state p{margin:0 auto 18px;max-width:440px;color:var(--ink-2)}
+.grid.is-error > section{display:none}
 
 /* ---------- skeletons ---------- */
 .sk{
@@ -331,22 +344,35 @@ table.tbl{width:100%;border-collapse:collapse}
 
 /* ---------- responsive ---------- */
 @media (max-width:1080px){
+  .feature-row{grid-template-columns:120px 1fr 155px;gap:10px}
+  .s-kpis{gap:10px}
   .sp7,.sp5{grid-column:span 6}
   .s-kpis{grid-template-columns:repeat(3,1fr)}
   .insight-grid{grid-template-columns:repeat(2,1fr)}
   .tiles.c4{grid-template-columns:repeat(2,1fr)}
 }
 @media (max-width:720px){
-  .page{padding:20px 16px 44px}
+  .page{padding:18px 12px 36px}
+  .card{padding:16px 14px}
+  .date-selector{max-width:100%;overflow-x:auto}
+  .date-selector button{padding:6px 9px;font-size:12px}
+  .filters{gap:12px;align-items:flex-start}
+  .fgroup{align-items:flex-start;flex-direction:column;gap:6px}
+  .card-head{gap:9px}
+  .legend .pill{font-size:11.5px;padding:4px 8px}
   .grid{gap:14px}
-  /* single column, ordered for mobile: KPIs → insights → detail charts */
+  /* single column, ordered for mobile: review pulse → core KPIs → alerts → details */
   .grid > section{grid-column:span 12;order:var(--mo,99)}
   .grid > .empty-state{grid-column:span 12;order:1}
-  .s-kpis{grid-template-columns:repeat(2,1fr)}
-  .s-kpis .kpi-card:last-child{grid-column:span 2}
+  .s-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
   .top{align-items:flex-start;flex-direction:column}
   .top-right{align-items:flex-start}
+  .kpi-top{flex-wrap:wrap}
+  .kpi-spark{width:48px}
   .insight-grid{grid-template-columns:1fr}
+  .ret-stats.ret-four{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .metric-row{flex-wrap:wrap}
+  .metric-row .m-value{white-space:normal;overflow-wrap:anywhere;min-width:0}
   .feature-row{grid-template-columns:1fr;gap:6px}
   .feature-row .f-stat{text-align:left}
   .feature-row .f-stat b{display:inline}
@@ -361,6 +387,10 @@ table.tbl{width:100%;border-collapse:collapse}
   .tbl tbody tr:first-child{border-top:0}
   .legend-rows .lr .lr-count{width:auto;margin-left:auto}
   .legend-rows .lr .lr-pct{width:44px}
+}
+@media (max-width:360px){
+  .s-kpis{grid-template-columns:1fr}
+  .kpi-spark{width:64px}
 }
 </style>
 </head>
@@ -387,13 +417,13 @@ table.tbl{width:100%;border-collapse:collapse}
     </div>
     <div class="top-right">
       <div class="date-selector" role="group" aria-label="Date range">
-        <button type="button" data-range="today">Today</button>
-        <button type="button" data-range="d7">7 days</button>
-        <button type="button" data-range="d30" class="active">30 days</button>
-        <button type="button" data-range="d90">90 days</button>
-        <button type="button" data-range="custom">Custom</button>
+        <button type="button" data-range="today" aria-pressed="false">Today</button>
+        <button type="button" data-range="d7" aria-pressed="false">7 days</button>
+        <button type="button" data-range="d30" class="active" aria-pressed="true">30 days</button>
+        <button type="button" data-range="d90" aria-pressed="false">90 days</button>
+        <button type="button" data-range="custom" aria-pressed="false">Custom</button>
       </div>
-      <div class="updated"><span class="dot"></span><span id="updatedText">Last updated just now</span></div>
+      <div class="updated"><span class="dot" aria-hidden="true"></span><span id="updatedText">Synthetic demo data · deterministic</span></div>
 
       <div class="custom-pop" id="customPop" hidden>
         <div class="cp-row">
@@ -401,7 +431,7 @@ table.tbl{width:100%;border-collapse:collapse}
           <label>To <input type="date" id="cpEnd"></label>
         </div>
         <div class="cp-actions">
-          <span class="cp-note" id="cpNote"></span>
+          <span class="cp-note" id="cpNote" aria-live="polite"></span>
           <button class="btn-primary" id="cpApply" type="button">Apply range</button>
         </div>
       </div>
@@ -412,28 +442,58 @@ table.tbl{width:100%;border-collapse:collapse}
   <div class="filters">
     <div class="fgroup">
       <span class="flabel">Platform</span>
-      <div class="pillset" data-filter="platform">
-        <button type="button" class="pill active" data-value="all">All</button>
-        <button type="button" class="pill" data-value="android">Android</button>
-        <button type="button" class="pill" data-value="ios">iOS</button>
-        <button type="button" class="pill" data-value="web">Web</button>
+      <div class="pillset" data-filter="platform" role="group" aria-label="Filter by platform">
+        <button type="button" class="pill active" data-value="all" aria-pressed="true">All</button>
+        <button type="button" class="pill" data-value="android" aria-pressed="false">Android</button>
+        <button type="button" class="pill" data-value="ios" aria-pressed="false">iOS</button>
+        <button type="button" class="pill" data-value="web" aria-pressed="false">Web</button>
       </div>
     </div>
     <div class="fgroup">
       <span class="flabel">Users</span>
-      <div class="pillset" data-filter="userType">
-        <button type="button" class="pill active" data-value="all">All users</button>
-        <button type="button" class="pill" data-value="new">New users</button>
-        <button type="button" class="pill" data-value="returning">Returning</button>
+      <div class="pillset" data-filter="userType" role="group" aria-label="Filter by user cohort">
+        <button type="button" class="pill active" data-value="all" aria-pressed="true">All users</button>
+        <button type="button" class="pill" data-value="new" aria-pressed="false">New users</button>
+        <button type="button" class="pill" data-value="returning" aria-pressed="false">Returning</button>
       </div>
     </div>
+    <div class="fgroup">
+      <span class="flabel">App build</span>
+      <div class="pillset" data-filter="build" role="group" aria-label="Filter by app build">
+        <button type="button" class="pill active" data-value="all" aria-pressed="true">All builds</button>
+        <button type="button" class="pill" data-value="V3-review-1" aria-pressed="false">review-1</button>
+        <button type="button" class="pill" data-value="V3-review-2" aria-pressed="false">review-2</button>
+        <button type="button" class="pill" data-value="V2.9.4" aria-pressed="false">V2.9.4</button>
+      </div>
+    </div>
+    <div class="fgroup"><span class="flabel">App version</span><div class="pillset" data-filter="version" role="group" aria-label="Filter by app version">
+      <button type="button" class="pill active" data-value="all" aria-pressed="true">All versions</button>
+      <button type="button" class="pill" data-value="3.0.0" aria-pressed="false">3.0.0</button>
+      <button type="button" class="pill" data-value="2.9.0" aria-pressed="false">2.9.0</button>
+    </div></div>
+    <div class="fgroup"><span class="flabel">Release</span><div class="pillset" data-filter="release" role="group" aria-label="Filter by release channel">
+      <button type="button" class="pill active" data-value="all" aria-pressed="true">All channels</button>
+      <button type="button" class="pill" data-value="review_v3" aria-pressed="false">V3 review</button>
+      <button type="button" class="pill" data-value="public" aria-pressed="false">Public</button>
+      <button type="button" class="pill" data-value="internal" aria-pressed="false">Internal</button>
+    </div></div>
+    <div class="fgroup"><span class="flabel">Cohort</span><div class="pillset" data-filter="cohort" role="group" aria-label="Filter by tester cohort">
+      <button type="button" class="pill active" data-value="all" aria-pressed="true">All cohorts</button>
+      <button type="button" class="pill" data-value="v3_review" aria-pressed="false">V3 review</button>
+      <button type="button" class="pill" data-value="dev_internal" aria-pressed="false">Dev / internal</button>
+      <button type="button" class="pill" data-value="general" aria-pressed="false">General</button>
+    </div></div>
+    <p class="filter-note">Version/build/release/test-cohort values are deterministic fixture assignments, not live rollout telemetry.</p>
   </div>
 
   <!-- ============ DASHBOARD GRID ============ -->
   <main class="grid" id="grid">
-    <section class="sp12 s-kpis" id="s-kpis" style="--mo:1" aria-label="Core health"></section>
+    <section class="card sp12" id="s-review" style="--mo:1">
+      <header class="card-head"><div><h2>V3 Review Pulse</h2><p class="sub">Release-cohort snapshot · synthetic demo events</p></div></header><div id="reviewBody"></div>
+    </section>
+    <section class="sp12 s-kpis" id="s-kpis" style="--mo:2" aria-label="Core health"></section>
 
-    <section class="card sp7" id="s-growth" style="--mo:3">
+    <section class="card sp7" id="s-growth" style="--mo:4">
       <header class="card-head">
         <div><h2>User growth</h2><p class="sub" id="growthSub">Daily active and new users</p></div>
         <div class="legend">
@@ -444,93 +504,98 @@ table.tbl{width:100%;border-collapse:collapse}
       <div class="chart-wrap" id="ch-growth"></div>
     </section>
 
-    <section class="card sp5" id="s-retention" style="--mo:4">
+    <section class="card sp5" id="s-retention" style="--mo:5">
       <header class="card-head">
-        <div><h2>Retention</h2><p class="sub">Cohort retention, from real event timestamps</p></div>
+        <div><h2>Retention <abbr class="metric-help" tabindex="0" title="Exact D1, D7 and D30 count an open on that exact day. Returned within 7 days counts any open on days 1 through 7; values use only mature users and display n." aria-label="Retention metric definitions">ⓘ</abbr></h2><p class="sub">Selected signup cohort · exact-day and within-window measures</p></div>
       </header>
       <div id="retentionBody"></div>
     </section>
 
-    <section class="card sp5" id="s-funnel" style="--mo:5">
+    <section class="card sp5" id="s-funnel" style="--mo:6">
       <header class="card-head">
-        <div><h2>Onboarding</h2><p class="sub" id="funnelSub">First open → first return · new signups in the selected range</p></div>
+        <div><h2>Onboarding</h2><p class="sub" id="funnelSub">V3 step reach, next-step continuation and drop-off · step names only</p></div>
       </header>
       <div id="funnelBody"></div>
     </section>
 
-    <section class="card sp7" id="s-features" style="--mo:6">
+    <section class="card sp7" id="s-features" style="--mo:7">
       <header class="card-head">
-        <div><h2>Where users spend time</h2><p class="sub">Unique users per feature, ranked by share of active users</p></div>
+        <div><h2>Feature adoption &amp; value</h2><p class="sub">Unique active users, meaningful actions and open-to-action conversion</p></div>
       </header>
       <div id="featuresBody"></div>
     </section>
 
-    <section class="card sp7" id="s-meg" style="--mo:7">
+    <section class="card sp7" id="s-meg" style="--mo:8">
       <header class="card-head">
         <div><h2>Meg</h2><p class="sub">AI companion · aggregated interaction metrics</p></div>
       </header>
       <div id="megBody"></div>
     </section>
 
-    <section class="card sp5" id="s-checkin" style="--mo:8">
+    <section class="card sp5" id="s-checkin" style="--mo:9">
       <header class="card-head">
         <div><h2>Daily check-in</h2><p class="sub">The 30-second habit</p></div>
       </header>
       <div id="checkinBody"></div>
     </section>
 
-    <section class="card sp6" id="s-strength" style="--mo:9">
+    <section class="card sp6" id="s-feedback" style="--mo:10">
+      <header class="card-head"><div><h2>Feedback &amp; bug reports</h2><p class="sub">Aggregate report volume and follow-through · no message content</p></div></header>
+      <div id="feedbackBody"></div>
+    </section>
+
+    <section class="card sp6" id="s-strength" style="--mo:11">
       <header class="card-head">
         <div><h2>Strength</h2><p class="sub">Workouts &amp; form</p></div>
       </header>
       <div id="strengthBody"></div>
     </section>
 
-    <section class="card sp6" id="s-diet" style="--mo:10">
+    <section class="card sp6" id="s-diet" style="--mo:12">
       <header class="card-head">
         <div><h2>Diet</h2><p class="sub">Meal guidance &amp; food intent</p></div>
       </header>
       <div id="dietBody"></div>
     </section>
 
-    <section class="card sp6" id="s-timeline" style="--mo:11">
+    <section class="card sp6" id="s-timeline" style="--mo:13">
       <header class="card-head">
         <div><h2>Timeline</h2><p class="sub">Cycle &amp; wellness tracking · privacy-safe</p></div>
       </header>
       <div id="timelineBody"></div>
     </section>
 
-    <section class="card sp6" id="s-water" style="--mo:12">
+    <section class="card sp6" id="s-water" style="--mo:14">
       <header class="card-head">
         <div><h2>Water reminders</h2><p class="sub">Opt-in only</p></div>
       </header>
       <div id="waterBody"></div>
     </section>
 
-    <section class="card sp12" id="s-engagement" style="--mo:13">
+    <section class="card sp12" id="s-engagement" style="--mo:15">
       <header class="card-head">
-        <div><h2>Engagement</h2><p class="sub">Are people trying Bloom once, or building a habit?</p></div>
+        <div><h2>Engagement</h2><p class="sub">Distinct active days and meaningful actions in the selected period.</p></div>
       </header>
       <div id="engagementBody"></div>
     </section>
 
-    <section class="card sp12" id="s-insights" style="--mo:2">
+    <section class="card sp12" id="s-insights" style="--mo:3">
       <header class="card-head">
         <div><h2>What needs attention</h2><p class="sub">Rules over measured current-vs-previous data — shown only when a threshold is crossed</p></div>
       </header>
       <div id="insightsBody"></div>
     </section>
 
-    <section class="card sp7" id="s-activity" style="--mo:14">
+    <section class="card sp7" id="s-activity" style="--mo:16">
       <header class="card-head">
-        <div><h2>Recent activity</h2><p class="sub">Anonymous, event-level only</p></div>
+        <div><h2>Recent activity</h2><p class="sub">Latest 24 hours · independent of date/new-vs-returning; platform/version/build/release/cohort filters apply</p></div>
       </header>
       <div id="activityBody"></div>
     </section>
 
-    <section class="card sp5" id="s-system" style="--mo:15">
+    <section class="card sp5" id="s-system" style="--mo:17">
       <header class="card-head">
-        <div><h2>App health</h2><p class="sub">Last 24 hours</p></div>
+        <div><h2>App health</h2><p class="sub">Fixed 24h synthetic demo · not live; ignores date/new-vs-returning, keeps platform/version/build/release/cohort filters</p></div>
       </header>
       <div id="systemBody"></div>
     </section>
@@ -545,7 +610,7 @@ table.tbl{width:100%;border-collapse:collapse}
       </svg>
       <span>All metrics are aggregated and anonymized. No cycle details, Meg conversation text, symptoms, health notes, names or contact details are ever displayed in analytics.</span>
     </div>
-    <span>Bloom Analytics · internal founder tool</span>
+    <span>Bloom Analytics · deterministic synthetic demo</span>
   </footer>
 </div>
 
@@ -556,21 +621,19 @@ table.tbl{width:100%;border-collapse:collapse}
 /* ============================================================================
    BLOOM ANALYTICS — data layer + renderers
 
-   ARCHITECTURE (mirrors production analytics):
-   · A population of users with signup timestamps + event streams is the
-     source of truth (synthetic here, the event store in production).
-   · Every metric is computed with real predicates:
-         platform filter  →  WHERE user.platform = ?
-         user filter      →  WHERE signup_day (IN | <) range   (real cohort)
-     Nothing is ever "aggregate × multiplier".
-   · Retention is true cohort retention from timestamps (matured cohort).
-   · The onboarding funnel never mixes time ranges: "returned another day"
-     is reported as unavailable when no signup has had a day to return.
-   · Insights fire only when a measured rule threshold is crossed.
+   ARCHITECTURE: deterministic synthetic user/event fixtures only.
+   · Platform, version, build, release and tester-cohort filters scope product data.
+   · Signup-cohort metrics use the selected period; total-user KPI explicitly
+     ignores New/Returning, while activity and app-health blocks declare their
+     fixed 24h / cohort behavior in their subtitles.
+   · Activation, retention and funnels use explicit event predicates and expose
+     eligible denominators; immature retention values are unavailable, not zero.
+   · No production ingestion, app connection or health-content collection exists.
+   · Canonical names, properties, dedupe, privacy and planned test contract are in
+     analytics-contract.md.
 
-   To go live: replace buildPopulation()/the event source with your event
-   store (same shape) and fetchAnalytics() with the real API. The full data
-   contract is documented in bloom-analytics-notes.md.
+   Future integration requires a real, validated event store/API, policy review,
+   consent/notice, internal-traffic exclusion and server-side authorization.
    ============================================================================ */
 
 /* ---------------- utils ---------------- */
@@ -579,6 +642,8 @@ const $$ = (s, el=document) => Array.from(el.querySelectorAll(s));
 const fmt = n => Math.round(n).toLocaleString('en-US');
 const a1 = (n, d=0) => n.toLocaleString('en-US', {maximumFractionDigits:d, minimumFractionDigits:d});
 const ai = Math.round;
+const ratio = (num,den) => den ? `${ai(num/den*100)}% · ${fmt(num)}/${fmt(den)}${den<20?' · small n':''}` : 'Not available · n=0';
+const metricHelp = text => `<abbr class="metric-help" tabindex="0" title="${text}" aria-label="Metric definition: ${text}">ⓘ</abbr>`;
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
@@ -600,6 +665,17 @@ function dayDate(d){ const t=new Date(TODAY); t.setDate(t.getDate()-(WINDOW-d));
 function daysAgo(n){const d=new Date(TODAY);d.setDate(d.getDate()-n);return d;}
 function iso(d){const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}
 function parseIso(str){const [y,m,d]=str.split('-').map(Number);return new Date(y,m-1,d,12);}
+function customRangeUpdate(current,from,to){
+  if(!from||!to) return {ok:false,error:'Choose both a start and end date.'};
+  const start=parseIso(from),end=parseIso(to);
+  if(Number.isNaN(start.getTime())||Number.isNaN(end.getTime())) return {ok:false,error:'Choose valid dates.'};
+  if(end<start) return {ok:false,error:'End date must be on or after the start date.'};
+  if(start<daysAgo(DATA_START_DAYS)||end>TODAY) return {ok:false,error:'Choose dates within the available data window.'};
+  const days=Math.round((end-start)/86400000)+1;
+  const customStartDay=WINDOW-Math.round((TODAY-start)/86400000);
+  const customEndDay=WINDOW-Math.round((TODAY-end)/86400000);
+  return {ok:true,next:{...current,range:'custom',customStartDay,customEndDay,customDays:days,emptyReason:null,showEmpty:false}};
+}
 
 /* ---------------- config & state ---------------- */
 const RANGE_DEFS = {
@@ -609,7 +685,7 @@ const RANGE_DEFS = {
   d90:  {label:'90 days', days:90},
   custom:{label:'Custom'}
 };
-const MIN_CUSTOM_DAYS = 14;
+const MIN_CUSTOM_DAYS = 1;
 const WINDOW = 120;                 // days of analytics history (data window)
 const DATA_START_DAYS = WINDOW;
 
@@ -617,7 +693,13 @@ const state = {
   range:'d30',
   platform:'all',
   userType:'all',
+  build:'all',
+  version:'all',
+  release:'all',
+  cohort:'all',
   customDays:30,
+  customStartDay:null,
+  customEndDay:WINDOW,
   seriesVisible:{active:true, 'new':true},
   emptyReason:null,
   showEmpty:false
@@ -645,17 +727,19 @@ const T = {
   base: 0.38, decay: 0.875,
   baseJit: 0.22, decayJit: 0.12,
   platform: {android:.52, ios:.41, web:.07},
-  obStartP: 0.86, obDoneGivenStart: 0.80,
+  obStartP: 0.86,
   ciP: 0.72, ciDoneP: 0.84,
   waterP: 0.38, waterPermP: 0.64,
   aff: { meg:.32, strength:.20, diet:.19, timeline:.38 },
   affJit: 0.15,
-  // real behavioral differences in the last 7 days — the rule engine below
-  // discovers them; nothing is hardcoded into the insights.
+  // Synthetic fixture patterns used to exercise threshold-based insights;
+  // they are not evidence of real user behavior.
   trendWindow: 7,
   stDoneTrend: 0.84,   // strength completions x0.84 in last 7d
   megHookP: 0.06       // in last 7d, a Meg day pulls a next-day return 6% of the time
 };
+
+function uPlatformMode(platform,rng){ if(platform==='web') return rng()<0.58?'tracked':'web_fallback'; return 'guided'; }
 
 function buildPopulation(seed){
   const rng = mulberry32(seed);
@@ -671,6 +755,10 @@ function buildPopulation(seed){
     const pr = rng();
     const platform = pr<0.52?'android':(pr<0.93?'ios':'web');
     const signupH = 7 + Math.floor(rng()*13); // 7am..7pm
+    const appVersion = signupDay >= WINDOW-30 ? '3.0.0' : '2.9.0';
+    const build = signupDay >= WINDOW-14 ? (rng()<0.55?'V3-review-2':'V3-review-1') : (signupDay >= WINDOW-30?'V3-review-1':'V2.9.4');
+    const releaseChannel = signupDay >= WINDOW-30 ? (rng()<0.72?'review_v3':'internal') : 'public';
+    const reviewCohort = releaseChannel==='review_v3'?'v3_review':releaseChannel==='internal'?'dev_internal':'general';
 
     const habitual = rng() < T.habitualP;
     const base = T.base * (1 + (rng()*2-1)*T.baseJit);
@@ -681,11 +769,8 @@ function buildPopulation(seed){
 
     const events = [{ d:signupDay, t:'open', h:signupH }];
     const openDays = new Set([signupDay]);
-    // onboarding (day 0)
+    // V3 onboarding start propensity (step events are generated below).
     const obStart = rng() < T.obStartP;
-    if(obStart) events.push({d:signupDay,t:'ob_start',h:signupH});
-    const obDone = obStart && rng() < T.obDoneGivenStart;
-    if(obDone) events.push({d:signupDay,t:'ob_done',h:signupH});
     // water (one-time opt-in shortly after signup)
     const waterOn = rng() < T.waterP;
     if(waterOn){
@@ -705,9 +790,11 @@ function buildPopulation(seed){
       const h = 7 + Math.floor(rng()*13);
       events.push({d, t:'open', h});
       openDays.add(d);
+      if(rng()<0.72){ events.push({d,t:'today_opened',h}); if(rng()<0.38) events.push({d,t:'today_action',h}); }
       // check-in
       if(rng() < T.ciP){
         events.push({d,t:'ci_start',h});
+        if(rng()<0.025) events.push({d,t:'ci_save_fail',h,code:'CHECKIN_SAVE_RETRY'});
         if(rng() < T.ciDoneP){
           const secs = 24 + Math.floor(rng()*9); // ~24-32s
           events.push({d,t:'ci_done',h,x:secs});
@@ -720,11 +807,17 @@ function buildPopulation(seed){
       const megP = aff.meg*0.5 * (megDays.has(d-1) ? 0.35 : 1);
       if(aff.meg > 0.03 && rng() < megP){
         events.push({d,t:'meg_open',h}); featUsed.add('meg'); megDays.add(d);
-        const convs = 1 + (rng()<0.45 ? 1 : 0);            // 1–2 conversations that day
+        const convs = 1 + (rng()<0.45 ? 1 : 0);
         for(let c=0;c<convs;c++){
-          if(rng() < 0.43) continue;                        // abandoned: opened, left
-          const msgs = 2 + (rng()<0.5 ? 1 : 0);            // 2–3 messages
-          for(let m=0;m<msgs;m++) events.push({d,t:'meg_msg',h});
+          const conversationId=`${i}-${d}-${c}`;
+          events.push({d,t:'meg_conversation_started',h,conversationId});
+          if(rng()<0.05){ events.push({d,t:'meg_request_failed',h,code:rng()<0.5?'MEG_TIMEOUT':'MEG_UPSTREAM'}); continue; }
+          if(rng()<0.34) continue;
+          const msgs=1+Math.floor(rng()*4);
+          for(let m=0;m<msgs;m++){
+            events.push({d,t:'meg_msg',h,conversationId});
+            if(rng()<0.96) events.push({d,t:'meg_response',h,conversationId,x:400+Math.floor(rng()*4200)});
+          }
         }
       }
       if(aff.timeline > 0.03 && rng() < aff.timeline*0.5){
@@ -736,18 +829,41 @@ function buildPopulation(seed){
         if(rng()<0.6) events.push({d,t:'di_view',h});
         if(rng()<0.35) events.push({d,t:'di_item',h});
         if(rng()<0.25) events.push({d,t:'di_meal',h});
+        if(rng()<0.32) events.push({d,t:'di_action',h,action:['find_me_something','craving_rescue','rescue_kit','suggestion_chosen','availability_searched','provider_opened'][Math.floor(rng()*6)]});
       }
       if(aff.strength > 0.03 && rng() < aff.strength*0.45){
         events.push({d,t:'st_open',h}); featUsed.add('strength');
         if(rng()<0.8){ events.push({d,t:'st_view',h});
-          if(rng()<0.85){ events.push({d,t:'st_start',h});
-            if(rng()<0.73*(inTrend?T.stDoneTrend:1)) events.push({d,t:'st_done',h,x:18+Math.floor(rng()*14)});
+          if(rng()<0.85){
+            events.push({d,t:'st_start',h});
+            const mode=uPlatformMode(platform,rng);
+            // Only web attempts camera/pose; a failed attempt enters guided fallback.
+            if(platform==='web'){
+              if(mode==='tracked'){
+                events.push({d,t:'st_camera_permission_granted',h});
+                events.push({d,t:'st_pose_success',h});
+              } else {
+                const failure=rng();
+                if(failure<1/3) events.push({d,t:'st_camera_permission_denied',h});
+                else {
+                  events.push({d,t:'st_camera_permission_granted',h});
+                  if(failure<2/3) events.push({d,t:'st_pose_failure',h,code:'POSE_INIT_FAILED'});
+                  else events.push({d,t:'st_camera_error',h,code:'CAMERA_START_FAILED'});
+                }
+                events.push({d,t:'st_fallback',h,mode});
+              }
+            }
+            events.push({d,t:mode==='tracked'?'st_tracked_entered':'st_guided_entered',h,mode});
+            if(rng()<0.73*(inTrend?T.stDoneTrend:1)){
+              events.push({d,t:'st_done',h,x:18+Math.floor(rng()*14),workout:['mobility','strength','stretch'][Math.floor(rng()*3)]});
+              if(rng()<0.86) events.push({d,t:'st_summary_viewed',h});
+            }
           }
         }
       }
     }
-    // Trend hook: in the last 7 days, a Meg day tends to pull a next-day return
-    // (a real behavioral pattern — e.g. a morning greeting — not a multiplier).
+    // Synthetic fixture hook for deterministic return-rate variation; no causal
+    // interpretation is attached to this generated correlation.
     for(const d of [...megDays]){
       if(d >= WINDOW - T.trendWindow + 1 && d < WINDOW && !megDays.has(d+1) && rng() < T.megHookP){
         megDays.add(d+1);
@@ -757,8 +873,50 @@ function buildPopulation(seed){
         openDays.add(d+1);
       }
     }
-    users[i] = { i, signupDay, signupH, platform, events, openDays, featUsed,
-                 obStart, obDone, waterOn, waFreq };
+    // V3 onboarding step events: step names only, never answers or health values.
+    const onboardingSteps=['welcome','name','reasons','cycle_context','symptoms','emotional_state','energy','priorities','processing','personalized_result'];
+    if(obStart){
+      let reached=true;
+      for(const step of onboardingSteps){
+        if(!reached) break;
+        events.push({d:signupDay,t:'onboarding_step',step,h:signupH});
+        reached=rng()<0.91;
+      }
+      if(reached){ events.push({d:signupDay,t:'onboarding_completed',h:signupH});
+        const category=['daily_checkin','movement','reflection','routine'][Math.floor(rng()*4)];
+        if(rng()<0.88){
+          events.push({d:signupDay,t:'recommendation_shown',category,h:signupH});
+          if(rng()<0.64){
+            events.push({d:signupDay,t:'recommendation_clicked',category,h:signupH});
+            if(rng()<0.88){
+              events.push({d:signupDay,t:'destination_opened',category,h:signupH});
+              if(rng()<0.58) events.push({d:signupDay,t:'recommendation_meaningful_action',category,h:signupH});
+            }
+          }
+        }
+      }
+    }
+    // Check-In contextual Meg handoff events (no answer/context payload).
+    for(const ev of events.filter(ev=>ev.t==='ci_done')){
+      if(rng()<0.28){ events.push({d:ev.d,t:'ci_meg_cta_viewed',h:ev.h});
+        if(rng()<0.55){ events.push({d:ev.d,t:'ci_meg_cta_clicked',h:ev.h});
+          if(rng()<0.9){ events.push({d:ev.d,t:'ci_meg_opened',h:ev.h}); if(rng()<0.75) events.push({d:ev.d,t:'ci_meg_message_sent',h:ev.h}); }
+        }
+      }
+    }
+    // Privacy-safe product operations events: only event names/counts, never text.
+    // These deterministic probabilities deliberately create a small, testable funnel.
+    for(const d of openDays){
+      const h=7+Math.floor(rng()*13);
+      if(rng()<0.004) events.push({d,t:'feedback_submit',h,category:['bug','feature_request','general'][Math.floor(rng()*3)],feature:['Meg','Strength','Check-In','Diet'][Math.floor(rng()*4)],rating:rng()<0.6?1+Math.floor(rng()*5):null,status:['new','triaged','resolved'][Math.floor(rng()*3)]});
+      if(rng()<0.002) events.push({d,t:'bug_report',h,feature:['Meg','Strength','Check-In','Diet'][Math.floor(rng()*4)],status:['new','triaged','resolved'][Math.floor(rng()*3)]});
+      if(rng()<0.007) events.push({d,t:'app_error',h,x:rng()<0.12?'critical':'recoverable',code:['MEG_TIMEOUT','MEG_UPSTREAM','CHECKIN_SAVE_RETRY'][Math.floor(rng()*3)],feature:['Meg','Strength','Check-In'][Math.floor(rng()*3)],screen:['MegChat','StrengthSession','CheckInForm'][Math.floor(rng()*3)]});
+      if(rng()<0.001) events.push({d,t:'analytics_unknown_event',h});
+      if(rng()<0.001) events.push({d,t:'analytics_rejected_event',h});
+      if(rng()<0.002) events.push({d,t:'analytics_duplicate_event',h});
+    }
+    users[i] = { i, signupDay, signupH, platform, appVersion, build, releaseChannel, reviewCohort, events, openDays, featUsed,
+                 obStart, waterOn, waFreq };
   }
   return users;
 }
@@ -774,71 +932,55 @@ function hasOpenIn(u,s,e){
 function activeSet(U,s,e){ const out=[]; for(const u of U){ if(hasOpenIn(u,s,e)) out.push(u); } return out; }
 function newSet(U,s,e){ const out=[]; for(const u of U){ if(inRange(u.signupDay,s,e)) out.push(u); } return out; }
 function usersWith(U,s,e,type){ const out=[]; for(const u of U){ for(const ev of u.events){ if(ev.t===type && inRange(ev.d,s,e)){ out.push(u); break; } } } return out; }
-function countEv(U,s,e,type){ let n=0; for(const u of U){ for(const ev of u.events){ if(ev.t===type && inRange(ev.d,s,e)) n++; } } return n; }
+function countEv(U,s,e,type,value){ let n=0; for(const u of U){ for(const ev of u.events){ if(ev.t===type && inRange(ev.d,s,e) && (value===undefined||ev.x===value)) n++; } } return n; }
 function countEvX(U,s,e,type){ let sx=0,c=0; for(const u of U){ for(const ev of u.events){ if(ev.t===type && inRange(ev.d,s,e) && ev.x!=null){sx+=ev.x;c++;} } } return { avg: c? sx/c : 0 }; }
 function rangeBounds(days,endDay=WINDOW){ return [endDay-days+1, endDay]; }
 
-/* True cohort retention: users who joined on Day 0, active again on Day D.
-   Measured over a fully-matured cohort (signups 30–60 days ago) so D30 is
-   always observable. Denominators are returned for transparency. */
-function retention(U){
-  const s=WINDOW-60, e=WINDOW-30;
-  const cohort = U.filter(u=>inRange(u.signupDay,s,e));
-  const dayRate = d => {
-    let denom=0, num=0;
-    for(const u of cohort){
-      if(u.signupDay + d <= WINDOW){ denom++; if(u.openDays.has(u.signupDay+d)) num++; }
-    }
-    return { rate: denom? num/denom : null, denom };
+/* Selected signup-cohort retention. Each exact day uses only cohort members
+   whose observation window has matured; exact-day and within-7-day are distinct. */
+function retention(U,s,e,userType='all'){
+  if(userType==='returning') return {filtered:true, d1:null,d7:null,d30:null,within7:null,series:Array(31).fill(null),n:{d1:0,d7:0,d30:0,within7:0},cohort:0};
+  // The cohort is the selected signup window, intersected with the selected user population.
+  const cohort=newSet(U,s,e);
+  const dayRate=d=>{
+    const eligible=cohort.filter(u=>u.signupDay+d<=WINDOW);
+    const retained=eligible.filter(u=>u.openDays.has(u.signupDay+d));
+    return {rate:eligible.length?retained.length/eligible.length:null,n:eligible.length,num:retained.length};
   };
-  const series=[];
-  for(let d=0;d<=30;d++){ const r=dayRate(d); series.push(r.rate==null?null:ai(r.rate*1000)/10); }
-  const g=d=>dayRate(d);
-  return { d1:ai(g(1).rate*100), d7:ai(g(7).rate*100), d30:ai(g(30).rate*100),
-           d1n:g(1).denom, d7n:g(7).denom, d30n:g(30).denom, series, cohort:cohort.length };
+  const d1=dayRate(1),d7=dayRate(7),d30=dayRate(30);
+  const within=cohort.filter(u=>u.signupDay+7<=WINDOW);
+  const withinN=within.filter(u=>Array.from(u.openDays).some(d=>d>u.signupDay&&d<=u.signupDay+7));
+  const series=Array.from({length:31},(_,d)=>{const r=dayRate(d);return r.rate==null?null:ai(r.rate*1000)/10;});
+  const pct=r=>r.rate==null?null:ai(r.rate*100);
+  return {filtered:false,d1:pct(d1),d7:pct(d7),d30:pct(d30),within7:within.length?ai(withinN.length/within.length*100):null,
+    series,n:{d1:d1.n,d7:d7.n,d30:d30.n,within7:within.length},nums:{d1:d1.num,d7:d7.num,d30:d30.num,within7:withinN.length},cohort:cohort.length};
 }
 
-/* Onboarding + activation funnel over the signup cohort in [s,e].
-   Stages are CUMULATIVE (a user at stage k has passed every stage before it),
-   so the funnel is monotonic and each drop-off is a true leak.
-   "Returned another day" is only observable for members who have had >=1 day
-   after signup — for a 1-day (Today) range nobody qualifies, and we say so. */
-function funnel(U,s,e){
-  const cohort = U.filter(u=>inRange(u.signupDay,s,e));
-  const within=(u,offMax,type)=>u.events.some(ev=>ev.t===type && ev.d>=u.signupDay && ev.d<=u.signupDay+offMax);
-  const hasReturn=(u)=>{ for(const d of u.openDays){ if(d>u.signupDay) return true; } return false; };
-
-  let s0=cohort, s1, s2, s3, s4, s5matured, s5;
-  s1 = s0.filter(u=>within(u,2,'ob_start'));
-  s2 = s1.filter(u=>within(u,3,'ob_done'));
-  s3 = s2.filter(u=>within(u,7,'ci_done'));
-  // "Second feature" = explored beyond the check-in: opened at least one of
-  // Meg / Timeline / Diet / Strength at any point after signup.
-  s4 = s3.filter(u=>u.featUsed.size>=1);
-  s5matured = s4.filter(u=>u.signupDay < WINDOW);
-  s5 = s5matured.filter(hasReturn);
-  const returnAvailable = s5matured.length>0;
-  const stages=[
-    {name:'Opened Bloom', count:s0.length},
-    {name:'Onboarding started', count:s1.length},
-    {name:'Onboarding completed', count:s2.length},
-    {name:'First check-in', count:s3.length},
-    {name:'Second feature', count:s4.length},
-    {name:'Returned another day', count: returnAvailable? s5.length : null, na: !returnAvailable}
-  ];
-  const drops=[]; let largest=-1, lv=-1;
+/* Step-by-step V3 onboarding reach and continuation for signups in [s,e].
+   Step keys are safe labels only; answer values are never modeled or rendered. */
+const ONBOARDING_STEPS=[
+  ['welcome','Welcome'],['name','Name'],['reasons','Reasons'],['cycle_context','Cycle context'],['symptoms','Symptoms'],
+  ['emotional_state','Emotional state'],['energy','Energy'],['priorities','Priorities'],['processing','Processing'],['personalized_result','Personalized result']
+];
+function funnel(U,s,e,userType='all'){
+  if(userType==='returning') return {filtered:true,stages:[],drops:[],largest:-1,cohort:0};
+  const cohort=newSet(U,s,e);
+  const stages=ONBOARDING_STEPS.map(([key,name])=>({key,name,users:usersWith(cohort,s,e,'onboarding_step').filter(u=>u.events.some(ev=>ev.t==='onboarding_step'&&ev.step===key&&inRange(ev.d,s,e))).length}));
+  const complete=usersWith(cohort,s,e,'onboarding_completed').length;
+  stages.push({key:'completed',name:'Onboarding completed',users:complete});
+  const drops=[];let largest=-1,largestRate=-1;
   for(let i=0;i<stages.length-1;i++){
-    if(stages[i+1].na || !stages[i].count){ drops.push(null); continue; }
-    const v = (1-stages[i+1].count/stages[i].count);
-    drops.push(ai(v*1000)/10);
-    if(v>lv){ lv=v; largest=i; }
+    const reached=stages[i].users, continued=stages[i+1].users;
+    const rate=reached?continued/reached:null;
+    drops.push({continued,rate,drop:rate==null?null:ai((1-rate)*1000)/10});
+    if(rate!=null && 1-rate>largestRate){largest=i;largestRate=1-rate;}
   }
-  return {stages, drops, largest, returnAvailable, cohort:cohort.length};
+  return {filtered:false,stages,drops,largest,cohort:cohort.length};
 }
 
 /* feature usage (predicate: opened this feature in range) */
 const FEATURES=[
-  {key:'today', name:'Today', openT:'ci_start', actT:'ci_done', unit:'check-ins'},
+  {key:'today', name:'Today', openT:'today_opened', actT:'today_action', unit:'meaningful actions'},
   {key:'meg', name:'Meg', openT:'meg_open', actT:'meg_msg', unit:'conversations'},
   {key:'timeline', name:'Timeline', openT:'tl_open', actT:'tl_log', unit:'timeline entries'},
   {key:'diet', name:'Diet', openT:'di_open', actT:'di_item', unit:'food interactions'},
@@ -848,82 +990,72 @@ function featureUsage(U,s,e,activeN){
   return FEATURES.map(f=>{
     const us = usersWith(U,s,e,f.openT);
     const actions = countEv(U,s,e,f.actT);
+    const actionUsers=usersWith(U,s,e,f.actT).length;
+    const conversion=us.length?ai(actionUsers/us.length*100):null;
     const pct = activeN? clamp(ai(us.length/activeN*100),0,100):0;
     let tag=null;
     if(f.key==='today') tag={t:'Core habit',tone:'accent'};
     else if(f.key==='meg') tag={t:'Most engaged',tone:'good'};
     else if(pct<40 && us.length>0) tag={t:'Watch',tone:'warn'};
-    return {key:f.key,name:f.name,users:us.length,actions,unit:f.unit,pct,tag};
+    return {key:f.key,name:f.name,users:us.length,actions,unit:f.unit,pct,conversion,actionUsers,tag};
   }).sort((a,b)=>b.pct-a.pct);
 }
 
 /* a metric bundle for an arbitrary range (used for deltas + insight rules) */
-function bundle(U,s,e){
-  const act = activeSet(U,s,e).length;
-  const ci = countEv(U,s,e,'ci_start'), ciDone = countEv(U,s,e,'ci_done');
-  const stStart = countEv(U,s,e,'st_start'), stDone = countEv(U,s,e,'st_done');
-  const megOpen = usersWith(U,s,e,'meg_open').length;
+function bundle(U,s,e,userType='all'){
+  const scoped=scopeActive(U,s,e,userType);
+  const act = scoped.length;
+  const ci = countEv(scoped,s,e,'ci_start'), ciDone = countEv(scoped,s,e,'ci_done');
+  const stStart = countEv(scoped,s,e,'st_start'), stDone = countEv(scoped,s,e,'st_done');
+  const megOpen = usersWith(scoped,s,e,'meg_open').length;
   let megRet=0;
-  for(const u of U){ const days=new Set(); let opened=false;
+  for(const u of scoped){ const days=new Set(); let opened=false;
     for(const ev of u.events){ if(ev.t==='meg_open'&&inRange(ev.d,s,e)){days.add(ev.d);opened=true;} }
     if(opened && days.size>=2) megRet++;
   }
   return { active:act,
-    new: newSet(U,s,e).length,
+    new: userType==='returning'?0:newSet(U,s,e).length,
     ciRate: ci? ciDone/ci : 0, ciDone, ci,
     stRate: stStart? stDone/stStart : 0, stDone, stStart,
-    megReturnRate: megOpen? megRet/megOpen : 0 };
+    megUsers:megOpen,megReturnRate: megOpen? megRet/megOpen : 0 };
 }
 
-/* Activation = a new user completed at least one meaningful Bloom action
-   within 14 days of joining (day 0 is the join itself). Meaningful = a
-   completed check-in or opening any core feature (Meg / Timeline / Diet /
-   Strength). Measured only over cohort members who have had a full 14-day
-   window, so current vs previous comparisons are observation-fair. */
-const MEANINGFUL = new Set(['ci_done','meg_open','tl_open','di_open','st_open']);
-const ACTIVATION_WINDOW = 14;
-function activationRate(U,s,e){
-  const nu = newSet(U,s,e).filter(u=>u.signupDay <= e-ACTIVATION_WINDOW);
-  if(!nu.length) return null;
-  let n=0;
-  for(const u of nu){
-    if(u.events.some(ev=>MEANINGFUL.has(ev.t) && ev.d>u.signupDay && ev.d<=u.signupDay+ACTIVATION_WINDOW)) n++;
-  }
-  return n/nu.length;
+const PRIMARY_MEANINGFUL=new Set(['ci_done','meg_msg','st_start','tl_log','di_action']);
+function activationMetrics(U,s,e,userType='all'){
+  if(userType==='returning') return {primary:null,primaryN:0,primaryUsers:0,engaged7:null,engaged7N:0,engaged7Users:0};
+  const cohort=newSet(U,s,e);
+  const qualifiesPrimary=u=>u.events.some(ev=>PRIMARY_MEANINGFUL.has(ev.t)&&ev.d===u.signupDay);
+  const primary=cohort.filter(qualifiesPrimary);
+  // D7 must be observable; engaged means primary activation PLUS another
+  // meaningful event on a later calendar day, D1 through D7 inclusive.
+  const mature=cohort.filter(u=>u.signupDay+7<=WINDOW);
+  const engaged=mature.filter(u=>qualifiesPrimary(u)&&u.events.some(ev=>PRIMARY_MEANINGFUL.has(ev.t)&&ev.d>u.signupDay&&ev.d<=u.signupDay+7));
+  return {primary:cohort.length?ai(primary.length/cohort.length*100):null,primaryN:cohort.length,primaryUsers:primary.length,
+    engaged7:mature.length?ai(engaged.length/mature.length*100):null,engaged7N:mature.length,engaged7Users:engaged.length};
 }
 
 /* diet first-week adoption: new users in range who opened diet within their
    first 7 days after signup */
 function dietFirstWeek(U,s,e){
-  const nu=newSet(U,s,e); if(!nu.length) return {rate:0,n:nu.length};
+  const nu=newSet(U,s,e).filter(u=>u.signupDay+6<=WINDOW); if(!nu.length) return {rate:null,n:0};
   let n=0;
-  for(const u of nu){ if(u.events.some(ev=>ev.t==='di_open' && ev.d>=u.signupDay && ev.d<=u.signupDay+7)) n++; }
+  for(const u of nu){ if(u.events.some(ev=>ev.t==='di_action' && ev.d>=u.signupDay && ev.d<=u.signupDay+6)) n++; }
   return {rate:n/nu.length, n:nu.length};
 }
 
-/* weekly activation for the KPI sparkline (real weekly cohorts, same 14-day
-   window; weeks without a matured cohort are null) */
-function weeklyActivation(users, weeks=8){
+/* Weekly signup-day primary activation; every signup is observable on its first day. */
+function weeklyPrimaryActivation(users,weeks=8){
   const out=[];
-  for(let wk=weeks-1; wk>=0; wk--){
-    const dEnd = WINDOW - wk*7, dStart = dEnd-6;
-    if(dEnd > WINDOW-ACTIVATION_WINDOW){ out.push(null); continue; } // not matured yet
-    const cohort = users.filter(u=>u.signupDay>=dStart && u.signupDay<=dEnd);
-    if(!cohort.length){ out.push(null); continue; }
-    let n=0;
-    for(const u of cohort){
-      if(u.events.some(ev=>MEANINGFUL.has(ev.t) && ev.d>u.signupDay && ev.d<=u.signupDay+ACTIVATION_WINDOW)) n++;
-    }
-    out.push(ai(n/cohort.length*100));
-  }
+  for(let wk=weeks-1;wk>=0;wk--){const e=WINDOW-wk*7,s=e-6;const c=newSet(users,s,e);if(!c.length){out.push(null);continue;}
+    const n=c.filter(u=>u.events.some(ev=>PRIMARY_MEANINGFUL.has(ev.t)&&ev.d===u.signupDay)).length;out.push(ai(n/c.length*100));}
   return out;
 }
 
 /* cumulative total-users sparkline (real signup counts by day) */
-function totalSpark(users, n=24){
+function totalSpark(users, n=24, endDay=WINDOW){
   const out=[];
   for(let i=0;i<n;i++){
-    const dEnd = WINDOW-(n-1)+i;
+    const dEnd = endDay-(n-1)+i;
     let c=0; for(const u of users){ if(u.signupDay<=dEnd) c++; }
     out.push(c);
   }
@@ -945,8 +1077,9 @@ function scopeActive(U,s,e,userType){
 
 function buildDataset(state, users){
   const days = state.rangeDays;
-  const [s,e] = rangeBounds(days);
-  const [ps,pe] = rangeBounds(days, e-days); // previous equal-length range
+  const [s,e] = state.range==='custom' && state.customStartDay!=null
+    ? [state.customStartDay,state.customEndDay] : rangeBounds(days);
+  const [ps,pe] = rangeBounds(days, e-days); // immediately previous equal-length range
 
   // cohorts for the current + previous range, respecting the user filter
   const activeU   = scopeActive(users,s,e,state.userType);
@@ -954,44 +1087,47 @@ function buildDataset(state, users){
   const allNewN    = newSet(users,s,e).length;
   const prevActAll = activeSet(users,ps,pe).length;
   const prevNewAll = newSet(users,ps,pe).length;
-  const prevRetAll = prevActAll - prevNewAll;
 
-  // The user filter scopes every in-range metric to a real cohort.
+  // The user filter scopes each period metric to a real active-user cohort; the cumulative total-users KPI explicitly ignores it.
   let newN, returningN, prevActiveScoped, prevNewScoped=null, prevRetScoped=null;
+  const activeReturning = activeSet(users,s,e).filter(u=>u.signupDay<s).length;
+  const prevActiveNew = activeSet(users,ps,pe).filter(u=>u.signupDay>=ps).length;
+  const prevActiveReturning = activeSet(users,ps,pe).filter(u=>u.signupDay<ps).length;
   if(state.userType==='new'){
-    newN = activeN; returningN = 0;
-    prevActiveScoped = prevNewAll; prevNewScoped = prevNewAll;
+    newN = allNewN; returningN = 0;
+    prevActiveScoped = prevActiveNew; prevNewScoped = prevNewAll;
   } else if(state.userType==='returning'){
     newN = 0; returningN = activeN;
-    prevActiveScoped = prevRetAll; prevRetScoped = prevRetAll;
+    prevActiveScoped = prevActiveReturning; prevRetScoped = prevActiveReturning;
   } else {
-    newN = allNewN; returningN = activeN - allNewN;
-    prevActiveScoped = prevActAll; prevNewScoped = prevNewAll; prevRetScoped = prevRetAll;
+    newN = allNewN; returningN = activeReturning;
+    prevActiveScoped = prevActAll; prevNewScoped = prevNewAll; prevRetScoped = prevActiveReturning;
   }
 
   // cumulative base growth: signups by end of current range vs end of previous range
   let totalAtE=0, totalAtPrevE=0;
   for(const u of users){ if(u.signupDay<=e) totalAtE++; if(u.signupDay<=pe) totalAtPrevE++; }
-  const actRate = activationRate(users,s,e), actRatePrev = activationRate(users,ps,pe);
-  const pctDelta=(c,p)=> p? ai((c-p)/p*1000)/10 : 0;
+  const activation=activationMetrics(users,s,e,state.userType), activationPrev=activationMetrics(users,ps,pe,state.userType);
+  const pctDelta=(c,p)=> p>0 ? ai((c-p)/p*1000)/10 : null;
   const kpis = {
-    totalUsers: users.length,
-    totalDelta: pctDelta(totalAtE, Math.max(1,totalAtPrevE)),
-    active: activeN, activeDelta: pctDelta(activeN, Math.max(1,prevActiveScoped)),
-    newUsers: newN, newDelta: state.userType==='returning' ? null : pctDelta(newN, Math.max(1,prevNewScoped)),
+    totalUsers: totalAtE,
+    totalDelta: pctDelta(totalAtE, totalAtPrevE),
+    active: activeN, activeDelta: pctDelta(activeN, prevActiveScoped),
+    newUsers: newN, newDelta: state.userType==='returning' ? null : pctDelta(newN, prevNewScoped),
     returning: returningN,
-    returningDelta: state.userType==='new' ? null : pctDelta(returningN, Math.max(1,prevRetScoped)),
-    activation: actRate==null?null:ai(actRate*100),
-    activationDelta: (actRate==null||actRatePrev==null)?null:ai((actRate-actRatePrev)*1000)/10,
-    totalSpark: totalSpark(users),
-    activationSpark: weeklyActivation(users)
+    returningDelta: state.userType==='new' ? null : pctDelta(returningN, prevRetScoped),
+    activation:activation.primary, activationN:activation.primaryN, activationUsers:activation.primaryUsers,
+    engaged7:activation.engaged7, engaged7N:activation.engaged7N, engaged7Users:activation.engaged7Users,
+    activationDelta:(activation.primary==null||activationPrev.primary==null)?null:activation.primary-activationPrev.primary,
+    totalSpark: totalSpark(users,24,e),
+    activationSpark: weeklyPrimaryActivation(users)
   };
 
   // growth series (cohort-scoped daily uniques + signups; hourly for Today)
   const gU = state.userType==='new' ? users.filter(u=>u.signupDay>=s && u.signupDay<=e)
     : state.userType==='returning' ? users.filter(u=>u.signupDay<s) : users;
   const labels=[],tipLabels=[],act=[],nw=[];
-  if(days===1){
+  if(state.range==='today'){
     const aByH=new Array(24).fill(0), nByH=new Array(24).fill(0);
     for(const u of gU){
       if(u.signupDay===WINDOW) nByH[u.signupH]++;
@@ -1015,116 +1151,165 @@ function buildDataset(state, users){
     }
   }
 
-  const ret = retention(users);           // mature cohort — see retention()
-  const fn = funnel(users,s,e);           // signup cohort of the selected range
+  const ret = retention(users,s,e,state.userType); // selected signup cohort; per-day maturity is explicit
+  const fn = funnel(users,s,e,state.userType); // signup cohort of the selected range
   const feat = featureUsage(activeU,s,e,activeN);
 
   // check-in (in-range, cohort-scoped)
   const ciStart = countEv(activeU,s,e,'ci_start'), ciDone = countEv(activeU,s,e,'ci_done');
   const ciX = countEvX(activeU,s,e,'ci_done');
-  const cTrend = mulberry32(0xC1+days*7+state.userType.length*13);
-  const checkin = { started:ciStart, completed:ciDone, rate: ciStart? ai(ciDone/ciStart*100) : 0,
-    avgSec:ai(ciX.avg||27), targetSec:30,
-    trend: Array.from({length:14},(_,i)=> clamp(ai((ciX.avg||27)+(i===13?0:(cTrend()*2-1)*3)),20,36)) };
+  const ciTrend = Array.from({length:14},(_,i)=>{
+    const d=e-13+i, daily=countEvX(activeU,d,d,'ci_done');
+    return daily.avg?ai(daily.avg):null;
+  });
+  const ciFailed=countEv(activeU,s,e,'ci_save_fail');
+  const ciRepeat=usersWith(activeU,s,e,'ci_done').filter(u=>new Set(u.events.filter(ev=>ev.t==='ci_done'&&inRange(ev.d,s,e)).map(ev=>ev.d)).size>=2).length;
+  const checkin = { started:ciStart, completed:ciDone, abandoned:Math.max(0,ciStart-ciDone-ciFailed), failed:ciFailed, repeat:ciRepeat, rate: ciStart? ai(ciDone/ciStart*100) : 0,
+    avgSec:ciX.avg?ai(ciX.avg):null, targetSec:30, trend:ciTrend };
 
-  // meg — a "conversation" is a (user, day) open; abandoned = opened but never messaged that day
-  const megOpen = usersWith(activeU,s,e,'meg_open');
-  const megSent = usersWith(activeU,s,e,'meg_msg');
-  let convDays=0, msgDays=0, megMsgTotal=0;
-  for(const u of activeU){ const conv=new Set(), ms=new Set();
-    for(const ev of u.events){
-      if(ev.t==='meg_open'&&inRange(ev.d,s,e)) conv.add(ev.d);
-      if(ev.t==='meg_msg'&&inRange(ev.d,s,e)){ ms.add(ev.d); megMsgTotal++; }
-    }
-    convDays+=conv.size; msgDays+=ms.size;
-  }
-  const megReturnU = megOpen.filter(u=>{ const ds=new Set(); for(const ev of u.events){ if(ev.t==='meg_open'&&inRange(ev.d,s,e)) ds.add(ev.d);} return ds.size>=2; }).length;
-  const meg = { opened:megOpen.length, sent:megSent.length, conv:convDays,
-    msgPerUser: ai(megMsgTotal/Math.max(1,megSent.length)*10)/10,
-    returning:megReturnU,
-    returnRate: megOpen.length? ai(megReturnU/megOpen.length*100) : 0,
-    abandoned: convDays? ai((1-msgDays/convDays)*100) : 0 };
+  // Meg metrics are conversation-ID based in the synthetic event stream; IDs never render.
+  const megOpens=countEv(activeU,s,e,'meg_open');
+  const megOpenUsers=usersWith(activeU,s,e,'meg_open');
+  const convEvents=[];
+  for(const u of activeU) for(const ev of u.events) if(ev.t==='meg_conversation_started'&&inRange(ev.d,s,e)) convEvents.push({u,ev});
+  const msgEvents=[],responseEvents=[],failEvents=[];
+  for(const u of activeU) for(const ev of u.events) if(inRange(ev.d,s,e)){if(ev.t==='meg_msg')msgEvents.push({u,ev});if(ev.t==='meg_response')responseEvents.push({u,ev});if(ev.t==='meg_request_failed')failEvents.push({u,ev});}
+  const convMap=new Map();
+  for(const {u,ev} of convEvents) convMap.set(ev.conversationId,{user:u.id, messages:0,responses:0});
+  for(const {ev} of msgEvents) if(convMap.has(ev.conversationId)) convMap.get(ev.conversationId).messages++;
+  for(const {ev} of responseEvents) if(convMap.has(ev.conversationId)) convMap.get(ev.conversationId).responses++;
+  const longConversations=[...convMap.values()].filter(c=>c.messages>=3).length;
+  const latencies=responseEvents.map(x=>x.ev.x).filter(Number.isFinite).sort((a,b)=>a-b);
+  const percentile=(arr,p)=>arr.length?arr[Math.min(arr.length-1,Math.ceil(arr.length*p)-1)]:null;
+  const megReturning=megOpenUsers.filter(u=>new Set(u.events.filter(ev=>ev.t==='meg_open'&&inRange(ev.d,s,e)).map(ev=>ev.d)).size>=2).length;
+  const meg={users:megOpenUsers.length,opens:megOpens,firstMessagers:usersWith(activeU,s,e,'meg_msg').length,messages:msgEvents.length,responses:responseEvents.length,
+    failures:failEvents.length,requests:convEvents.length,conversations:convMap.size,longConversations,returning:megReturning,
+    medianLatency:percentile(latencies,.5),p95Latency:percentile(latencies,.95),latencyN:latencies.length,
+    failureUsers:new Set(failEvents.map(x=>x.u.i)).size};
 
   // strength
   const stOpen = usersWith(activeU,s,e,'st_open').length;
   const stView = usersWith(activeU,s,e,'st_view').length;
   const stStartU = usersWith(activeU,s,e,'st_start').length;
   const stDoneU = usersWith(activeU,s,e,'st_done').length;
+  const stTracked=countEv(activeU,s,e,'st_tracked_entered'),stGuided=countEv(activeU,s,e,'st_guided_entered'),stSummary=countEv(activeU,s,e,'st_summary_viewed');
+  const stCamGrant=countEv(activeU,s,e,'st_camera_permission_granted'),stCamDeny=countEv(activeU,s,e,'st_camera_permission_denied');
+  const stPoseOK=countEv(activeU,s,e,'st_pose_success'),stPoseFail=countEv(activeU,s,e,'st_pose_failure'),stFallback=countEv(activeU,s,e,'st_fallback'),stCamError=countEv(activeU,s,e,'st_camera_error');
   const stStart = countEv(activeU,s,e,'st_start'), stDone = countEv(activeU,s,e,'st_done');
   const stX = countEvX(activeU,s,e,'st_done');
-  const strength = { starts:stStart, completed:stDone, rate: stStart? ai(stDone/stStart*100) : 0, avgMin:ai(stX.avg||24),
-    top:{name:'Lower body', count: ai(stDone*0.39), pct:39},
-    funnel:[{name:'Strength opened',count:stOpen},{name:'Workout viewed',count:stView},
-            {name:'Workout started',count:stStartU},{name:'Workout completed',count:stDoneU}] };
+  const enteredUsers=activeU.filter(u=>u.events.some(ev=>(ev.t==='st_tracked_entered'||ev.t==='st_guided_entered')&&inRange(ev.d,s,e))).length;
+  const summaryUsers=usersWith(activeU,s,e,'st_summary_viewed').length;
+  const workoutTypes=['mobility','strength','stretch'].map(workout=>({workout,count:activeU.reduce((n,u)=>n+u.events.filter(ev=>ev.t==='st_done'&&ev.workout===workout&&inRange(ev.d,s,e)).length,0)}));
+  const strength = { starts:stStart, completed:stDone, rate: stStart? ai(stDone/stStart*100) : 0, avgMin:stX.avg?ai(stX.avg):null,
+    tracked:stTracked,guided:stGuided,summary:stSummary,camGrant:stCamGrant,camDeny:stCamDeny,poseOK:stPoseOK,poseFail:stPoseFail,fallback:stFallback,camError:stCamError,workoutTypes,
+    byPlatform:['android','ios','web'].map(platform=>{const cohort=activeU.filter(u=>u.platform===platform);return {platform,starts:countEv(cohort,s,e,'st_start'),completed:countEv(cohort,s,e,'st_done'),cameraErrors:countEv(cohort,s,e,'st_camera_error'),guided:countEv(cohort,s,e,'st_guided_entered'),tracked:countEv(cohort,s,e,'st_tracked_entered'),fallback:countEv(cohort,s,e,'st_fallback')};}),
+    funnel:[{name:'Opened',count:stOpen},{name:'Workout viewed',count:stView},{name:'Workout started',count:stStartU},{name:'Tracked / guided entered',count:enteredUsers},{name:'Completed',count:stDoneU},{name:'Summary viewed',count:summaryUsers}] };
 
   // timeline (privacy-safe: counts only, never cycle/symptom data)
   const tlOpen = usersWith(activeU,s,e,'tl_open');
   const tlLog = usersWith(activeU,s,e,'tl_log');
   let tlRet=0;
   for(const u of tlOpen){ const ds=new Set(); for(const ev of u.events){ if(ev.t==='tl_open'&&inRange(ev.d,s,e)) ds.add(ev.d);} if(ds.size>=2) tlRet++; }
-  const timeline = { opens:countEv(activeU,s,e,'tl_open'), loggers:tlLog.length,
+  const timeline = { opens:countEv(activeU,s,e,'tl_open'), loggers:tlLog.length,repeatUsers:tlRet,openerUsers:tlOpen.length,active:activeN,
     returnRate: tlOpen.length? ai(tlRet/tlOpen.length*100):0,
     pctActive: activeN? ai(tlOpen.length/activeN*100):0 };
 
-  // diet
+  // Diet opens are event totals; retention denominator is unique openers.
+  const dietOpeners=usersWith(activeU,s,e,'di_open');
   let dietRet=0;
-  for(const u of usersWith(activeU,s,e,'di_open')){ const ds=new Set(); for(const ev of u.events){ if(ev.t==='di_open'&&inRange(ev.d,s,e)) ds.add(ev.d);} if(ds.size>=2) dietRet++; }
-  const diet = { opens:countEv(activeU,s,e,'di_open'), viewed:countEv(activeU,s,e,'di_view'),
-    items:countEv(activeU,s,e,'di_item'), meals:countEv(activeU,s,e,'di_meal'),
-    returning:dietRet,
-    intents:[{name:'Quick & filling',pct:38},{name:'Something light',pct:27},{name:'Craving something',pct:22},{name:'Use what I have',pct:13}] };
+  for(const u of dietOpeners){ const ds=new Set(); for(const ev of u.events){ if(ev.t==='di_open'&&inRange(ev.d,s,e)) ds.add(ev.d);} if(ds.size>=2) dietRet++; }
+  const dietActions=['find_me_something','craving_rescue','rescue_kit','suggestion_chosen','availability_searched','provider_opened'].map(action=>({action,count:activeU.reduce((n,u)=>n+u.events.filter(ev=>ev.t==='di_action'&&ev.action===action&&inRange(ev.d,s,e)).length,0)}));
+  const diet = { opens:countEv(activeU,s,e,'di_open'), openers:dietOpeners.length, viewed:countEv(activeU,s,e,'di_view'),
+    items:countEv(activeU,s,e,'di_item'), meals:countEv(activeU,s,e,'di_meal'), returning:dietRet,actions:dietActions };
 
   // water — enabled % measured among active users in the range
   const waterOnN = activeU.filter(u=>u.waterOn).length;
   const permGranted = activeU.filter(u=>u.waterOn && u.events.some(ev=>ev.t==='wa_perm')).length;
   const freqCount={2:0,3:0,4:0};
   for(const u of activeU){ if(u.waterOn) freqCount[u.waFreq]++; }
-  const fTot = freqCount[2]+freqCount[3]+freqCount[4] || 1;
-  const water = { enabledPct: activeN? ai(waterOnN/activeN*100):0, enabledCount:waterOnN,
+  const fTot = freqCount[2]+freqCount[3]+freqCount[4];
+  const water = { enabledPct: activeN? ai(waterOnN/activeN*100):0, enabledCount:waterOnN,active:activeN,permGranted,
     permPct: waterOnN? ai(permGranted/waterOnN*100) : 0,
-    freq:[{h:2,pct:ai(freqCount[2]/fTot*100)},{h:3,pct:ai(freqCount[3]/fTot*100)},{h:4,pct:ai(freqCount[4]/fTot*100)}] };
+    freqTotal:fTot,freq:[{h:2,count:freqCount[2],pct:fTot?ai(freqCount[2]/fTot*100):0},{h:3,count:freqCount[3],pct:fTot?ai(freqCount[3]/fTot*100):0},{h:4,count:freqCount[4],pct:fTot?ai(freqCount[4]/fTot*100):0}] };
 
   // engagement
-  let sessions=0, distDays=[];
+  let activeDayTotal=0, distDays=[];
   for(const u of activeU){
     let cd=0; for(const d of u.openDays){ if(inRange(d,s,e)) cd++; }
-    sessions+=cd; distDays.push(cd);
+    activeDayTotal+=cd; distDays.push(cd);
   }
   const dist=[[1,1],[2,3],[4,6],[7,1e9]].map(([lo,hi])=> distDays.filter(x=>x>=lo&&x<=hi).length);
   const dTot=dist.reduce((a,b)=>a+b,0)||1;
   const meaningfulActions = countEv(activeU,s,e,'ci_done')+countEv(activeU,s,e,'meg_msg')+countEv(activeU,s,e,'tl_log')
     +countEv(activeU,s,e,'di_meal')+countEv(activeU,s,e,'di_item')+countEv(activeU,s,e,'st_done');
-  const engagement={ sessions: activeU.length? ai(sessions/activeU.length*10)/10 : 0, sessionSec:192,
-    actions: activeU.length? ai(meaningfulActions/activeU.length) : 0,
+  const engagement={ activeDays: activeU.length? ai(activeDayTotal/activeU.length*10)/10 : 0,activeUsers:activeU.length,
+    actions: activeU.length? ai(meaningfulActions/activeU.length) : 0,activeActions:meaningfulActions,
     dist:['1 day','2–3 days','4–6 days','7+ days'].map((l,i)=>({label:l,pct:ai(dist[i]/dTot*100),count:dist[i]})) };
 
-  const insights = computeInsights(users, s, e);   // platform-scoped, all users
-  const activity = recentActivity(activeU, s, e);  // cohort-scoped
-
-  // infra metrics come from a separate pipeline (crashlytics / gateway) in
-  // production; kept as a small fixed block here on purpose.
+  const insights = computeInsights(users, s, e, state.userType); // platform/build/release scoped; cohort-aware
+  const activity = recentActivity(users, WINDOW-1, WINDOW); // fixed latest-24h feed; range/user cohort independent
+  // Aggregate counts only; no event payloads are surfaced in the UI.
+  const errorEvents=countEv(activeU,s,e,'app_error');
+  const criticalErrors=countEv(activeU,s,e,'app_error','critical');
+  const errors={users:usersWith(activeU,s,e,'app_error').length, events:errorEvents, critical:criticalErrors, per1k:activeN?ai(errorEvents/activeN*1000*10)/10:0,
+    byCode:['MEG_TIMEOUT','MEG_UPSTREAM','POSE_INIT_FAILED','CAMERA_START_FAILED','CHECKIN_SAVE_RETRY'].map(code=>({code,count:activeU.reduce((n,u)=>n+u.events.filter(ev=>(ev.code===code)&&inRange(ev.d,s,e)).length,0)})).sort((a,b)=>b.count-a.count),
+    recent:activeU.flatMap(u=>u.events.filter(ev=>ev.t==='app_error'&&inRange(ev.d,s,e)).map(ev=>({code:ev.code,feature:ev.feature,screen:ev.screen,platform:u.platform,version:u.appVersion,build:u.build,release:u.releaseChannel,day:ev.d,hour:ev.h}))).sort((a,b)=>b.day-a.day||b.hour-a.hour).slice(0,5)};
+  const feedbackEvents=activeU.flatMap(u=>u.events.filter(ev=>ev.t==='feedback_submit'&&inRange(ev.d,s,e)));
+  const bugEvents=activeU.flatMap(u=>u.events.filter(ev=>ev.t==='bug_report'&&inRange(ev.d,s,e)));
+  const feedback={feedback:usersWith(activeU,s,e,'feedback_submit').length,users:usersWith(activeU,s,e,'feedback_submit').length,
+    bugs:usersWith(activeU,s,e,'bug_report').length,category:['bug','feature_request','general'].map(category=>({category,count:feedbackEvents.filter(ev=>ev.category===category).length})),
+    features:['Meg','Strength','Check-In','Diet'].map(feature=>({feature,count:[...feedbackEvents,...bugEvents].filter(ev=>ev.feature===feature).length})),
+    status:['new','triaged','resolved'].map(status=>({status,count:[...feedbackEvents,...bugEvents].filter(ev=>ev.status===status).length})),
+    ratingN:feedbackEvents.filter(ev=>ev.rating!=null).length,
+    ratingAvg:feedbackEvents.filter(ev=>ev.rating!=null).length?feedbackEvents.filter(ev=>ev.rating!=null).reduce((n,ev)=>n+ev.rating,0)/feedbackEvents.filter(ev=>ev.rating!=null).length:null};
+  const v3Users=activeU.filter(u=>u.reviewCohort==='v3_review');
+  const reviewPopulation=state.userType==='returning'?[]:users.filter(u=>u.reviewCohort==='v3_review'&&inRange(u.signupDay,s,e));
+  const review={reviewUsers:reviewPopulation.length,onboarding:usersWith(reviewPopulation,s,e,'onboarding_completed').length,
+    activated:reviewPopulation.filter(u=>u.events.some(ev=>PRIMARY_MEANINGFUL.has(ev.t)&&ev.d===u.signupDay)).length,
+    returned:v3Users.filter(u=>u.signupDay<s).length,feedback:usersWith(v3Users,s,e,'feedback_submit').length,
+    errorUsers:usersWith(v3Users,s,e,'app_error').length,
+    criticalErrors:countEv(v3Users,s,e,'app_error','critical')};
+  const recommendation={shown:countEv(activeU,s,e,'recommendation_shown'),clicked:countEv(activeU,s,e,'recommendation_clicked'),
+    destination:countEv(activeU,s,e,'destination_opened'),action:countEv(activeU,s,e,'recommendation_meaningful_action'),
+    byCategory:['daily_checkin','movement','reflection','routine'].map(category=>({category,count:activeU.reduce((n,u)=>n+u.events.filter(ev=>ev.t==='recommendation_shown'&&ev.category===category&&inRange(ev.d,s,e)).length,0)}))};
+  const checkinMeg={completed:countEv(activeU,s,e,'ci_done'),viewed:countEv(activeU,s,e,'ci_meg_cta_viewed'),clicked:countEv(activeU,s,e,'ci_meg_cta_clicked'),opened:countEv(activeU,s,e,'ci_meg_opened'),sent:countEv(activeU,s,e,'ci_meg_message_sent')};
+  const now=new Date(), cutoff24=now.getTime()-24*60*60*1000;
+  const events24=users.flatMap(u=>u.events.filter(ev=>{
+    const when=dayDate(ev.d);when.setHours(ev.h==null?12:ev.h,0,0,0);return when.getTime()<=now.getTime()&&when.getTime()>=cutoff24;
+  }).map(ev=>({u,ev})));
+  const latestEvent=events24.sort((a,b)=>b.ev.d-a.ev.d||(b.ev.h||0)-(a.ev.h||0))[0];
+  const dataQuality={received:events24.length,rejected:events24.filter(x=>x.ev.t==='analytics_rejected_event').length,unknown:events24.filter(x=>x.ev.t==='analytics_unknown_event').length,duplicates:events24.filter(x=>x.ev.t==='analytics_duplicate_event').length,last:latestEvent?`${iso(dayDate(latestEvent.ev.d))} ${String(latestEvent.ev.h||0).padStart(2,'0')}:00`:'Not available'};
+  const errorEvents24=events24.filter(x=>x.ev.t==='app_error');
+  const errors24=errorEvents24.length,usersErr24=new Set(errorEvents24.map(x=>x.u.i)).size,critical24=errorEvents24.filter(x=>x.ev.x==='critical').length;
   const system=[
-    {label:'Crash-free sessions',    value:'99.7%', tone:'good'},
-    {label:'API error rate',         value:'0.8%', tone:'good'},
-    {label:'Failed data syncs',      value:'14 · 0.4%', tone:'good'},
-    {label:'Meg request failures',   value:'2.1%', tone:'warn'},
-    {label:'Strength camera errors', value:'0.9%', tone:'good'}
+    {label:'App-error events · fixed 24h',value:`${fmt(errors24)} · synthetic`,tone:errors24?'warn':'good'},
+    {label:'Users affected · fixed 24h',value:`${fmt(usersErr24)} · synthetic`,tone:usersErr24?'warn':'good'},
+    {label:'Critical errors · fixed 24h',value:`${fmt(critical24)} · synthetic`,tone:critical24?'warn':'good'},
+    {label:'Crash-free / API / sync rates',value:'Not modeled · no live telemetry',tone:'good'}
   ];
+  const buildLabel=state.build==='all'?'All builds':state.build;
 
   return { kpis,
-    growth:{labels,tipLabels,active:act,nw,hourly:days===1},
+    growth:{labels,tipLabels,active:act,nw,hourly:state.range==='today'},
     retention:ret, funnel:fn, features:feat, checkin, meg, strength, timeline, diet, water, engagement,
-    insights, activity, system,
+    review, feedback, errors, recommendation, checkinMeg, dataQuality, buildLabel, insights, activity, system,
     range:{days, label: state.rangeLabel} };
 }
 
 /* the single entry point the UI uses — swap this body for the real API call */
 function fetchAnalytics(){
   if(!POPULATION) POPULATION = buildPopulation(20260900);
-  const users = POPULATION.filter(u => state.platform==='all' || u.platform===state.platform);
+  const users = POPULATION.filter(u => (state.platform==='all' || u.platform===state.platform) && (state.build==='all' || u.build===state.build) && (state.version==='all' || u.appVersion===state.version) && (state.release==='all' || u.releaseChannel===state.release) && (state.cohort==='all' || u.reviewCohort===state.cohort));
   return buildDataset({
+    range: state.range,
     rangeDays: rangeDays(),
-    rangeLabel: state.range==='custom' ? `${state.customDays} days` : RANGE_DEFS[state.range].label,
+    rangeLabel: state.range==='custom' ? `${state.customDays} ${state.customDays===1?'day':'days'}` : RANGE_DEFS[state.range].label,
+    customStartDay: state.customStartDay,
+    customEndDay: state.customEndDay,
+    build: state.build,
+    version: state.version,
+    release: state.release,
+    cohort: state.cohort,
     userType: state.userType
   }, users);
 }
@@ -1136,12 +1321,12 @@ function fetchAnalytics(){
    Nothing is predetermined; with different data, different (or no)
    insights appear.
    ============================================================================ */
-function computeInsights(users, s, e){
+function computeInsights(users, s, e,userType='all'){
   const [p7s,p7e] = rangeBounds(7);           // last 7 days
   const [q7s,q7e] = rangeBounds(7, p7s-1);    // the 7 days before that
-  const b7  = bundle(users, p7s, p7e);
-  const b7p = bundle(users, q7s, q7e);
-  const cur = bundle(users, s, e);
+  const b7  = bundle(users, p7s, p7e,userType);
+  const b7p = bundle(users, q7s, q7e,userType);
+  const cur = bundle(users, s, e,userType);
   const out = [];
 
   // Rule: strength completion week-over-week
@@ -1150,16 +1335,14 @@ function computeInsights(users, s, e){
     const steady = b7.stStart >= b7p.stStart*0.9;
     out.push({tone:'warn', icon:'down',
       title:`Strength completion fell ${pct}% this week.`,
-      body:`Completed workouts dropped from ${b7p.stDone} to ${b7.stDone} per week${steady
-        ? ' while starts held steady — users are quitting mid-workout.'
-        : ', and starts fell too — fewer users are reaching workouts at all.'}`});
+      body:`Completions changed from ${b7p.stDone} to ${b7.stDone}; starts ${steady?'held roughly steady':'also changed'}. Samples: ${b7p.stStart} and ${b7.stStart} starts in the compared weeks. No cause is inferred.`});
   }
   // Rule: Meg return week-over-week
-  if(b7p.megReturnRate>0 && b7.megReturnRate > b7p.megReturnRate*1.1){
+  if(b7p.megUsers>=20 && b7.megUsers>=20 && b7p.megReturnRate>0 && b7.megReturnRate > b7p.megReturnRate*1.1){
     const pct = ai((b7.megReturnRate/b7p.megReturnRate-1)*100);
     out.push({tone:'good', icon:'up',
       title:`Meg returning users increased ${pct}%.`,
-      body:`Meg return rate rose from ${ai(b7p.megReturnRate*100)}% to ${ai(b7.megReturnRate*100)}% week over week. The morning greeting may be working.`});
+      body:`Meg return rate was ${ai(b7p.megReturnRate*100)}% (n=${b7p.megUsers}) and ${ai(b7.megReturnRate*100)}% (n=${b7.megUsers}) in the prior and current week. Descriptive only.`});
   }
   // Rule: check-in completion level for the selected range
   if(cur.ci>=50){
@@ -1170,20 +1353,20 @@ function computeInsights(users, s, e){
   }
   // Rule: first-week Diet adoption for the range's new cohort
   const dfw = dietFirstWeek(users, s, e);
-  if(dfw.n>=30){
+  if(userType!=='returning' && dfw.n>=30){
     const r = ai(dfw.rate*100);
     if(r < 30) out.push({tone:'warn', icon:'down',
       title:`Only ${r}% of new users explore Diet during their first week.`,
-      body:`First-week Diet adoption is below the 30% target. A day-3 food prompt could lift first use.`});
+      body:`Observed first-week Diet adoption is below the configured 30% threshold (n=${dfw.n}). No cause is inferred.`});
   }
   // Fallback when nothing is amiss (an honest state, not filler)
   if(!out.length) out.push({tone:'good', icon:'check',
-    title:'No anomalies this period.',
-    body:'Strength, Meg, check-in and Diet are all within their usual bands versus the previous period.'});
+    title:'No configured alert thresholds were triggered.',
+    body:'This prototype checks only its configured Strength, Meg, Check-In and Diet thresholds; it does not assess overall product health.'});
   return out.slice(0,4);
 }
 
-/* ---------------- recent activity (anonymous, from the real event stream) ----------------
+/* ---------------- recent activity (anonymous synthetic event stream) ----------------
    No persistent pseudo-IDs: rows are "Anonymous user" + event + time. */
 const EVENT_LABELS = {
   ci_done:'Completed daily check-in',
@@ -1194,22 +1377,25 @@ const EVENT_LABELS = {
   st_start:'Started Strength workout',
   wa_on:'Set water reminders',
   di_open:'Opened Diet',
-  tl_open:'Opened Timeline'
+  tl_open:'Opened Timeline',
+  app_error:'App error',
+  feedback_submit:'Submitted feedback',
+  bug_report:'Submitted bug report'
 };
 function recentActivity(users, s, e){
   const now = new Date();
   const rows=[];
   for(const u of users){
     for(const ev of u.events){
-      if(ev.d < WINDOW-1) continue;             // today + yesterday only
+      if(ev.d < WINDOW-1) continue; // fixed latest 24-hour style feed, independent of dashboard range
       if(!(ev.t in EVENT_LABELS)) continue;
       const evTime = dayDate(ev.d); evTime.setHours(ev.h, 0, 0, 0);
       let mins = Math.floor((now-evTime)/60000);
-      if(mins < 1 || mins > 28*60) continue;   // must have already happened
+      if(mins < 1 || mins > 24*60) continue;   // must have already happened
       // deterministic sub-hour offset so rows don't share identical timestamps
       const j = (u.i*17 + ev.d*31 + (ev.h||0)*7) % Math.max(2, Math.min(55, mins+1));
       mins = Math.max(1, mins - j);
-      rows.push({ mins, label:EVENT_LABELS[ev.t] + (ev.t==='wa_on'?` to every ${u.waFreq}h`:'') });
+      rows.push({ mins, label:EVENT_LABELS[ev.t] + (ev.t==='wa_on'?` to every ${u.waFreq}h`:ev.t==='app_error'?` · ${ev.code} · ${ev.feature}`:(ev.t==='bug_report'||ev.t==='feedback_submit')?` · ${ev.feature}`:'') });
     }
   }
   rows.sort((a,b)=>a.mins-b.mins);
@@ -1275,7 +1461,7 @@ function skHTML(kind){
     <div class="sk sk-line w80"></div>`;
 }
 function renderSkeletons(){
-  const ids=['s-growth','s-retention','s-funnel','s-features','s-meg','s-checkin','s-strength','s-diet','s-timeline','s-water','s-engagement','s-insights','s-activity','s-system'];
+  const ids=['s-growth','s-retention','s-funnel','s-features','s-meg','s-checkin','s-strength','s-review','s-feedback','s-diet','s-timeline','s-water','s-engagement','s-insights','s-activity','s-system'];
   $('#s-kpis').innerHTML = skHTML('kpis');
   for(const id of ids){
     const el=$('#'+id);
@@ -1292,7 +1478,7 @@ function renderEmpty(){
   const grid=$('#grid');
   grid.classList.add('is-empty');
   let sub='';
-  if(state.emptyReason==='short') sub=`Your selected range only has ${state.customDays} days — metrics need at least ${MIN_CUSTOM_DAYS} days to be meaningful.`;
+  if(state.emptyReason==='short') sub=`Your selected range is ${state.customDays} day(s). Cohort metrics remain unavailable until their observation window matures.`;
   else if(state.emptyReason==='start') sub=`Data before ${daysAgo(DATA_START_DAYS).toLocaleDateString('en-GB',{day:'numeric',month:'long'})} isn't retained in analytics.`;
   let el=grid.querySelector(':scope > .empty-state');
   if(!el){
@@ -1313,43 +1499,59 @@ function clearEmpty(){
   const el=grid.querySelector(':scope > .empty-state');
   if(el) el.remove();
 }
+function renderFailure(){
+  const grid=$('#grid'); grid.classList.add('is-error');
+  let el=grid.querySelector(':scope > .error-state');
+  if(!el){ el=document.createElement('div'); el.className='error-state'; grid.prepend(el); }
+  el.innerHTML='<h3>Analytics could not be rendered</h3><p>The local synthetic dashboard hit an unexpected error. No data was sent anywhere.</p><button class="btn-primary" type="button" data-action="retry">Try again</button>';
+}
+function clearFailure(){
+  const grid=$('#grid'); grid.classList.remove('is-error');
+  const el=grid.querySelector(':scope > .error-state'); if(el) el.remove();
+}
 
 /* ============================================================================
    SECTION RENDERERS  (each reads only from the fetchAnalytics() shape)
    ============================================================================ */
 function renderKpis(ds){
   const k=ds.kpis;
-  const platNote = state.platform==='all' ? 'All-time, across platforms' : `All-time on ${state.platform}`;
+  const platNote = `${state.platform==='all'?'All platforms':state.platform} · ${state.version==='all'?'All versions':state.version} · ${ds.buildLabel} · ${state.release==='all'?'all releases':state.release} · ${state.cohort==='all'?'all tester cohorts':state.cohort} · all-time through period end; New/Returning filter excluded`;
   $('#s-kpis').innerHTML = `
     <div class="kpi-card">
-      <div class="kpi-top"><span class="kpi-label">Total users</span><span class="kpi-spark">${sparkSvg(k.totalSpark)}</span></div>
+      <div class="kpi-top"><span class="kpi-label">Total users ${metricHelp('Cumulative signups through selected period end, scoped to platform/version/build/release/test cohort. New/Returning does not apply.')}</span><span class="kpi-spark">${sparkSvg(k.totalSpark)}</span></div>
       <div class="kpi-value">${fmt(k.totalUsers)}</div>
       ${deltaHtml(k.totalDelta)}
       <div class="kpi-foot">${platNote}</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-top"><span class="kpi-label">Active users</span><span class="kpi-spark">${sparkSvg(ds.growth.active.slice(-24))}</span></div>
+      <div class="kpi-top"><span class="kpi-label">Active users ${metricHelp('Distinct users with at least one app open in the selected date range.')}</span><span class="kpi-spark">${sparkSvg(ds.growth.active.slice(-24))}</span></div>
       <div class="kpi-value">${fmt(k.active)}</div>
       ${deltaHtml(k.activeDelta)}
-      <div class="kpi-foot">Active in the selected range</div>
+      <div class="kpi-foot">Unique users with ≥1 app open in the selected range</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-top"><span class="kpi-label">New users</span></div>
+      <div class="kpi-top"><span class="kpi-label">New users ${metricHelp('Distinct signups in the selected range; these users are not necessarily active.')}</span></div>
       <div class="kpi-value">${fmt(k.newUsers)}</div>
       ${deltaHtml(k.newDelta)}
-      <div class="kpi-foot">Joined in the selected range</div>
+      <div class="kpi-foot">Signups in the selected range; not necessarily active</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-top"><span class="kpi-label">Returning users</span></div>
+      <div class="kpi-top"><span class="kpi-label">Returning users ${metricHelp('Active in the selected range and signed up before its start; distinct people, not total users minus signups.')}</span></div>
       <div class="kpi-value">${fmt(k.returning)}</div>
       ${deltaHtml(k.returningDelta)}
-      <div class="kpi-foot">Were active before, active again</div>
+      <div class="kpi-foot">Active now; signed up before this period</div>
     </div>
     <div class="kpi-card">
-      <div class="kpi-top"><span class="kpi-label">Activation rate</span><span class="kpi-spark">${sparkSvg(k.activationSpark,{color:'#7C8B72'})}</span></div>
+      <div class="kpi-top"><span class="kpi-label">Primary activation ${metricHelp('Unique new signups with a defined meaningful event on signup day divided by signups in range.')}</span><span class="kpi-spark">${sparkSvg(k.activationSpark,{color:'#7C8B72'})}</span></div>
       <div class="kpi-value">${k.activation==null?'—':k.activation+'%'}</div>
-      ${deltaHtml(k.activationDelta, ' pts', k.activation==null?'':'vs previous cohort')}
-      <div class="kpi-foot">New users with a meaningful action in their first 14 days</div>
+      <div class="kpi-delta muted">${ratio(k.activationUsers,k.activationN)} · signup day</div>
+      <div class="kpi-foot">${state.userType==='returning'?'Not applicable to the Returning-only filter.':'Check-In complete, Meg message, Strength start, Timeline action, or Diet action'}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-top"><span class="kpi-label">7-day engaged ${metricHelp('Requires primary activation on signup day and at least one additional meaningful action on a later day, D1 through D7. Denominator includes only signups with D7 observable.')}</span></div>
+      <div class="kpi-value">${k.engaged7==null?'Not available yet':k.engaged7+'%'}</div>
+      <div class="kpi-delta muted">${ratio(k.engaged7Users,k.engaged7N)} · matured cohort</div>
+      <div class="kpi-foot">Primary activation plus another meaningful action on D1–D7</div>
     </div>`;
 }
 
@@ -1361,36 +1563,17 @@ function renderGrowthHead(ds){
 
 function renderRetention(ds){
   const r=ds.retention;
-  const W=460,H=190,P={l:34,r:14,t:20,b:26};
-  const iw=W-P.l-P.r, ih=H-P.t-P.b;
-  const pts=r.series.map((v,i)=>({i,v})).filter(p=>p.v!=null);
-  const x=i=>P.l+i*iw/30, y=v=>P.t+ih*(1-v/100);
-  const d=pts.map((p,idx)=>`${idx?'L':'M'}${x(p.i).toFixed(1)},${y(p.v).toFixed(1)}`).join('');
-  let g='';
-  [0,25,50,75,100].forEach(v=>{
-    g+=`<line x1="${P.l}" x2="${W-P.r}" y1="${y(v)}" y2="${y(v)}" stroke="#EADFD0" stroke-width="1"/>`;
-    g+=`<text x="${P.l-7}" y="${y(v)+3.5}" text-anchor="end" font-size="10" fill="#9A8C7C">${v}%</text>`;
-  });
-  [0,7,14,21,30].forEach(dd=>{
-    g+=`<text x="${x(dd)}" y="${H-8}" text-anchor="middle" font-size="10" fill="#9A8C7C">Day ${dd}</text>`;
-  });
-  if(pts.length>1){
-    g+=`<path d="${d}L${x(pts[pts.length-1].i)},${y(0)}L${x(pts[0].i)},${y(0)}Z" fill="#BF5B4C" opacity=".06"/>`;
-    g+=`<path d="${d}" fill="none" stroke="#BF5B4C" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
-  }
-  [[1,'Day 1',r.d1],[7,'Day 7',r.d7],[30,'Day 30',r.d30]].forEach(([dd,lab,val])=>{
-    g+=`<circle cx="${x(dd)}" cy="${y(val)}" r="3.4" fill="#BF5B4C" stroke="#FFFEFB" stroke-width="1.5"/>`;
-    g+=`<text x="${x(dd)}" y="${y(val)-9}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#A34536">${val}%</text>`;
-  });
-  $('#retentionBody').innerHTML = `
-    <div class="chart-wrap"><svg viewBox="0 0 ${W} ${H}" aria-label="Cohort retention from day 0 to day 30">${g}</svg></div>
-    <div class="ret-stats">
-      <div class="ret-stat"><div class="r-label">Day 1</div><div class="r-value">${r.d1}%</div><div class="r-n">n=${fmt(r.d1n)}</div></div>
-      <div class="ret-stat"><div class="r-label">Day 7</div><div class="r-value">${r.d7}%</div><div class="r-n">n=${fmt(r.d7n)}</div></div>
-      <div class="ret-stat"><div class="r-label">Day 30</div><div class="r-value">${r.d30}%</div><div class="r-n">n=${fmt(r.d30n)}</div></div>
-    </div>
-    <p class="ret-line">${r.d7}% of new users return within their first week.</p>
-    <div class="card-note">${ICONS.lock} Cohort: users who joined 30–60 days ago (n=${fmt(r.cohort)}) — matured through Day 30. Computed from event timestamps.</div>`;
+  if(r.filtered){ $('#retentionBody').innerHTML='<div class="chart-empty">Retention uses signup cohorts; a Returning-only filter has no signup cohort. Choose All users or New users.</div>'; return; }
+  const W=460,H=190,P={l:34,r:14,t:20,b:26},iw=W-P.l-P.r,ih=H-P.t-P.b;
+  const pts=r.series.map((v,i)=>({i,v})).filter(p=>p.v!=null),x=i=>P.l+i*iw/30,y=v=>P.t+ih*(1-v/100);
+  const d=pts.map((p,idx)=>`${idx?'L':'M'}${x(p.i).toFixed(1)},${y(p.v).toFixed(1)}`).join('');let g='';
+  [0,25,50,75,100].forEach(v=>{g+=`<line x1="${P.l}" x2="${W-P.r}" y1="${y(v)}" y2="${y(v)}" stroke="#EADFD0"/><text x="${P.l-7}" y="${y(v)+3.5}" text-anchor="end" font-size="10" fill="#9A8C7C">${v}%</text>`;});
+  [0,7,14,21,30].forEach(dd=>g+=`<text x="${x(dd)}" y="${H-8}" text-anchor="middle" font-size="10" fill="#9A8C7C">Day ${dd}</text>`);
+  if(pts.length>1)g+=`<path d="${d}" fill="none" stroke="#BF5B4C" stroke-width="2"/>`;
+  const stats=[['Exact D1',r.d1,r.n.d1,r.nums.d1],['Exact D7',r.d7,r.n.d7,r.nums.d7],['Exact D30',r.d30,r.n.d30,r.nums.d30],['Returned within 7d',r.within7,r.n.within7,r.nums.within7]];
+  $('#retentionBody').innerHTML=`<div class="chart-wrap"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Exact-day retention curve for the selected signup cohort">${g}</svg></div>
+    <div class="ret-stats ret-four">${stats.map(([label,value,n,num])=>`<div class="ret-stat"><div class="r-label">${label}</div><div class="r-value">${value==null?'Not available yet':value+'%'}</div><div class="r-n">${value==null?'Not available yet':`n=${fmt(n)} · ${fmt(num)}/${fmt(n)}${n<20?' · small n':''}`}</div></div>`).join('')}</div>
+    <div class="card-note">Selected signup cohort (${fmt(r.cohort)} total). Exact D1/D7/D30 require an open on that precise day; “within 7d” means any open on days 1–7. Each metric shows only users with a fully observed window.</div>`;
 }
 
 function funnelHTML(stages, small=false){
@@ -1400,8 +1583,8 @@ function funnelHTML(stages, small=false){
     const w=clamp(s.count/max*100, small?40:47, 100);
     out+=`<div class="fstage"><div class="fbar s${i}" style="width:${w.toFixed(1)}%"><span>${s.name}</span><b>${fmt(s.count)}</b></div></div>`;
     if(i<stages.length-1){
-      const cont=(stages[i+1].count/s.count*100).toFixed(1);
-      out+=`<div class="fdrop">↓ ${cont}% continued</div>`;
+      const cont=s.count?((stages[i+1].count/s.count*100).toFixed(1)):'—';
+      out+=`<div class="fdrop">${cont==='—'?'No users at prior step':`↓ ${cont}% continued`}</div>`;
     }
   });
   return `<div class="funnel${small?' small':''}">${out}</div>`;
@@ -1409,34 +1592,17 @@ function funnelHTML(stages, small=false){
 
 function renderFunnel(ds){
   const f=ds.funnel;
-  const max=f.stages[0].count||1;
-  const lowerNames=['opening Bloom','starting onboarding','completing onboarding','first check-in','exploring another feature','returning another day'];
-  let html='';
-  f.stages.forEach((s,i)=>{
-    if(s.na){
-      html+=`<div class="fstage"><div class="fbar s${i} na" style="width:64%">Return data not available yet</div></div>`;
-    } else {
-      const w=clamp(s.count/max*100,47,100);
-      const isLeakStage=(i===f.largest+1);
-      html+=`<div class="fstage"><div class="fbar s${i}${isLeakStage?' leak':''}" style="width:${w.toFixed(1)}%"><span>${s.name}</span><b>${fmt(s.count)}</b></div></div>`;
-    }
-    if(i<f.stages.length-1){
-      const drop=f.drops[i];
-      if(drop==null){
-        html+=`<div class="fdrop"><span>needs ≥1 day of history after signup</span></div>`;
-      } else {
-        const cont=((f.stages[i+1].count/f.stages[i].count)*100).toFixed(1);
-        const big=(i===f.largest);
-        html+=`<div class="fdrop${big?' big':''}"><span>↓ ${cont}% continued</span><span class="d">${drop}% drop-off</span>${big?'<span class="tag-max">largest leak</span>':''}</div>`;
-      }
-    }
-  });
-  const sentence = f.largest>=0 && f.drops[f.largest]!=null
-    ? `Largest drop: ${ai(f.drops[f.largest])}% between ${lowerNames[f.largest]} and ${lowerNames[f.largest+1]}.`
-    : '';
-  $('#funnelBody').innerHTML = `
-    <div class="funnel">${html}</div>
-    ${sentence?`<div class="f-leak">${ICONS.alert}<span>${sentence}</span></div>`:''}`;
+  if(f.filtered){$('#funnelBody').innerHTML='<div class="chart-empty">Onboarding is a signup funnel. Choose All users or New users.</div>';return;}
+  const rows=f.stages.map((step,i)=>{const next=f.stages[i+1]?.users??null,rate=next==null?null:(step.users?next/step.users:null),drop=rate==null?null:ai((1-rate)*1000)/10;
+    return `<tr><td>${step.name}</td><td>${fmt(step.users)}${step.users<20?' · small n':''}</td><td>${rate==null?'—':`${ai(rate*100)}% · ${fmt(next)}/${fmt(step.users)}`}</td><td>${drop==null?'—':drop+'%'}</td></tr>`;}).join('');
+  const x=ds.recommendation;
+  $('#funnelBody').innerHTML=`<p class="card-note">Step names only. No onboarding answer values are collected or displayed. Cohort n=${fmt(f.cohort)}.</p><div class="tbl-wrap"><table class="tbl"><thead><tr><th>V3 onboarding step</th><th>Reached</th><th>Continued</th><th>Drop-off</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <h3 style="font-size:13px;margin:18px 0 8px">Personalization handoff</h3><div class="metric-rows">
+      <div class="metric-row"><span class="m-label">Recommendation shown</span><span class="m-value">${fmt(x.shown)}</span></div>
+      <div class="metric-row"><span class="m-label">Clicked</span><span class="m-value">${ratio(x.clicked,x.shown)}</span></div>
+      <div class="metric-row"><span class="m-label">Destination opened</span><span class="m-value">${ratio(x.destination,x.clicked)}</span></div>
+      <div class="metric-row"><span class="m-label">Meaningful action completed</span><span class="m-value">${ratio(x.action,x.destination)}</span></div></div>
+    <div class="legend-rows">${x.byCategory.map(c=>`<div class="lr"><span>${c.category.replaceAll('_',' ')}</span><span class="lr-count">${fmt(c.count)} shown</span></div>`).join('')}</div>`;
 }
 
 function renderFeatures(ds){
@@ -1446,51 +1612,82 @@ function renderFeatures(ds){
       <div class="feature-row">
         <div class="f-name">${f.name}${f.tag?`<span class="chip ${f.tag.tone}">${f.tag.t}</span>`:''}</div>
         <div class="f-track"><div class="f-fill${f.tag&&f.tag.tone==='warn'?' dim':''}" style="width:${Math.max(f.pct,4)}%"></div></div>
-        <div class="f-stat"><b>${fmt(f.users)} users · ${f.pct}%</b><span>${fmt(f.actions)} ${f.unit}</span></div>
+        <div class="f-stat"><b>${fmt(f.users)} users · ${f.pct}%</b><span>${fmt(f.actions)} ${f.unit} · conversion ${f.conversion==null?'—':f.conversion+'%'} (${fmt(f.actionUsers)}/${fmt(f.users)})</span></div>
       </div>`).join('')}
     </div>`;
 }
 
 function renderCheckin(ds){
   const c=ds.checkin;
-  const over = c.avgSec > c.targetSec + 2;
-  const timeChip = over
-    ? '<span class="chip warn">above 30s target</span>'
+  const over = c.avgSec!=null && c.avgSec > c.targetSec + 2;
+  const timeChip = c.avgSec==null
+    ? '<span class="chip neutral">no completions</span>'
+    : over ? '<span class="chip warn">above 30s target</span>'
     : '<span class="chip good">within 30s target</span>';
+  const completionChip = c.started===0 ? '<span class="chip neutral">no starts</span>' : c.rate>=80 ? '<span class="chip good">healthy</span>' : '<span class="chip warn">below target</span>';
   const spark = sparkSvg(c.trend, {w:280,h:56,color:over?'#A26F24':'#BF5B4C',threshold:c.targetSec});
   $('#checkinBody').innerHTML = `
     <div class="tiles c2">
       <div class="tile"><div class="t-label">Check-ins started</div><div class="t-value">${fmt(c.started)}</div></div>
       <div class="tile"><div class="t-label">Check-ins completed</div><div class="t-value">${fmt(c.completed)}</div></div>
-      <div class="tile"><div class="t-label">Completion rate</div><div class="t-value">${c.rate}% <span class="chip ${c.rate>=80?'good':'warn'}">${c.rate>=80?'healthy':'slipping'}</span></div></div>
-      <div class="tile"><div class="t-label">Avg time to complete</div><div class="t-value">${c.avgSec}s ${timeChip}</div></div>
+      <div class="tile"><div class="t-label">Abandoned / save failed</div><div class="t-value">${fmt(c.abandoned)} / ${fmt(c.failed)}</div></div>
+      <div class="tile"><div class="t-label">Repeat users (2+ days)</div><div class="t-value">${fmt(c.repeat)}</div></div>
+      <div class="tile"><div class="t-label">Completion rate · done / started</div><div class="t-value">${ratio(c.completed,c.started)} ${completionChip}</div></div>
+      <div class="tile"><div class="t-label">Avg time to complete</div><div class="t-value">${c.avgSec==null?'—':c.avgSec+'s'} <small>· n=${fmt(c.completed)}</small> ${timeChip}</div></div>
     </div>
     <div style="margin-top:14px">
       <div style="font-size:11.5px;font-weight:600;color:var(--ink-3);margin-bottom:6px">Avg completion time · dashed line = 30s target</div>
-      <div class="chart-wrap">${spark}</div>
-    </div>`;
+      <div class="chart-wrap">${spark||'<div class="chart-empty">No recorded completion durations yet.</div>'}</div>
+    </div><div class="card-note">Completion = completed ÷ started. Time trend uses recorded synthetic completion durations (not jittered); missing days are omitted.</div>`;
 }
 
 function renderMeg(ds){
-  const m=ds.meg;
-  const spark = sparkSvg(m.trend || [], {w:150,h:40,color:'#BF5B4C'});
-  $('#megBody').innerHTML = `
-    <div style="display:grid;grid-template-columns:minmax(180px,5fr) 7fr;gap:20px;align-items:start">
-      <div>
-        <div style="font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)">Meg return rate</div>
-        <div style="font-size:34px;font-weight:650;letter-spacing:-.02em;margin:4px 0 2px;font-variant-numeric:tabular-nums">${m.returnRate}%</div>
-        <div style="font-size:12.5px;color:var(--ink-2);margin-bottom:10px">Users who came back to Meg on another day</div>
-      </div>
-      <div class="metric-rows">
-        <div class="metric-row"><span class="m-label">Users who opened Meg</span><span class="m-value">${fmt(m.opened)}</span></div>
-        <div class="metric-row"><span class="m-label">Sent at least one message</span><span class="m-value">${fmt(m.sent)} <small>· ${m.opened?ai(m.sent/m.opened*100):0}%</small></span></div>
-        <div class="metric-row"><span class="m-label">Total conversations</span><span class="m-value">${fmt(m.conv)}</span></div>
-        <div class="metric-row"><span class="m-label">Messages per active Meg user</span><span class="m-value">${m.msgPerUser}</span></div>
-        <div class="metric-row"><span class="m-label">Returning Meg users</span><span class="m-value">${fmt(m.returning)}</span></div>
-        <div class="metric-row"><span class="m-label">Conversations abandoned</span><span class="m-value">${m.abandoned}%</span></div>
-      </div>
-    </div>
-    <div class="card-note" style="color:var(--ink-3)">${ICONS.lock} Aggregated interaction metrics only — conversation content is not included in analytics.</div>`;
+  const m=ds.meg,c=ds.checkinMeg;
+  $('#megBody').innerHTML=`<div class="tiles c4">
+    <div class="tile"><div class="t-label">Unique users / opens</div><div class="t-value">${fmt(m.users)} / ${fmt(m.opens)}</div></div>
+    <div class="tile"><div class="t-label">First-message users</div><div class="t-value">${ratio(m.firstMessagers,m.users)}</div></div>
+    <div class="tile"><div class="t-label">Responses / user messages</div><div class="t-value">${ratio(m.responses,m.messages)}</div></div>
+    <div class="tile"><div class="t-label">Request failures</div><div class="t-value">${ratio(m.failures,m.requests)} <small>· ${fmt(m.failureUsers)} users</small></div></div>
+    <div class="tile"><div class="t-label">Conversations · 3+ messages</div><div class="t-value">${fmt(m.conversations)} · ${ratio(m.longConversations,m.conversations)}</div></div>
+    <div class="tile"><div class="t-label">Median / p95 response</div><div class="t-value">${latency(m.medianLatency)} / ${latency(m.p95Latency)}</div></div>
+    <div class="tile"><div class="t-label">Returning on another day</div><div class="t-value">${fmt(m.returning)} <small>· ${ratio(m.returning,m.users)}</small></div></div>
+    <div class="tile"><div class="t-label">Latency sample</div><div class="t-value">n=${fmt(m.latencyN)}</div></div>
+  </div><h3 style="font-size:13px;margin:18px 0 8px">Check-In → Meg handoff</h3><div class="metric-rows">
+    <div class="metric-row"><span class="m-label">Check-In completed</span><span class="m-value">${fmt(c.completed)}</span></div>
+    <div class="metric-row"><span class="m-label">Contextual CTA viewed</span><span class="m-value">${ratio(c.viewed,c.completed)}</span></div>
+    <div class="metric-row"><span class="m-label">Clicked</span><span class="m-value">${ratio(c.clicked,c.viewed)}</span></div>
+    <div class="metric-row"><span class="m-label">Meg opened</span><span class="m-value">${ratio(c.opened,c.clicked)}</span></div>
+    <div class="metric-row"><span class="m-label">Message sent</span><span class="m-value">${ratio(c.sent,c.opened)}</span></div>
+  </div><div class="card-note">Conversation/session IDs are used only to aggregate counts. Message text, prompts, health answers and response content are excluded.</div>`;
+}
+function latency(ms){return ms==null?'Not available yet':`${(ms/1000).toFixed(1)}s`;}
+
+function renderReview(ds){
+  const r=ds.review;
+  $('#reviewBody').innerHTML=`<div class="tiles c4">
+    <div class="tile"><div class="t-label">V3 review users</div><div class="t-value">${fmt(r.reviewUsers)}</div></div>
+    <div class="tile"><div class="t-label">Onboarding completed</div><div class="t-value">${ratio(r.onboarding,r.reviewUsers)}</div></div>
+    <div class="tile"><div class="t-label">Primary activated</div><div class="t-value">${ratio(r.activated,r.reviewUsers)}</div></div>
+    <div class="tile"><div class="t-label">Returning users</div><div class="t-value">${fmt(r.returned)}</div></div>
+    <div class="tile"><div class="t-label">Feedback submitted</div><div class="t-value">${fmt(r.feedback)}</div></div>
+    <div class="tile"><div class="t-label">Users affected by errors</div><div class="t-value">${fmt(r.errorUsers)}</div></div>
+    <div class="tile"><div class="t-label">Critical errors</div><div class="t-value">${fmt(r.criticalErrors)}</div></div>
+  </div><div class="card-note">V3 review cohort and tester activity only. No App Store prompt, rating, or review hand-off is modeled. Synthetic prototype data.</div>`;
+}
+function renderFeedback(ds){
+  const f=ds.feedback,e=ds.errors;
+  $('#feedbackBody').innerHTML=`<div class="tiles c2">
+    <div class="tile"><div class="t-label">Feedback submitters (unique)</div><div class="t-value">${fmt(f.feedback)}</div></div>
+    <div class="tile"><div class="t-label">Bug reporters (unique)</div><div class="t-value">${fmt(f.bugs)}</div></div>
+    <div class="tile"><div class="t-label">App-error events</div><div class="t-value">${fmt(e.events)} <small>· ${e.per1k}/1k active</small></div></div>
+    <div class="tile"><div class="t-label">Critical errors</div><div class="t-value">${fmt(e.critical)}</div></div>
+    <div class="tile"><div class="t-label">Optional app rating</div><div class="t-value">${f.ratingAvg==null?'—':f.ratingAvg.toFixed(1)+' / 5'} <small>· n=${f.ratingN}</small></div></div>
+  </div><div class="metric-rows"><div class="metric-row"><span class="m-label">Top error codes</span><span class="m-value">${e.byCode.slice(0,3).map(x=>`${x.code} (${x.count})`).join(' · ')||'None'}</span></div>
+  <div class="metric-row"><span class="m-label">Feedback categories · bug / feature request / general</span><span class="m-value">${f.category.map(x=>x.count).join(' / ')}</span></div>
+  <div class="metric-row"><span class="m-label">Report status · new / triaged / resolved</span><span class="m-value">${f.status.map(x=>x.count).join(' / ')}</span></div>
+  <div class="metric-row"><span class="m-label">Top reported feature</span><span class="m-value">${[...f.features].sort((a,b)=>b.count-a.count)[0]?.feature||'—'}</span></div></div>
+  <div class="tbl-wrap"><table class="tbl" aria-label="Recent synthetic app errors"><thead><tr><th>Code / feature</th><th>Platform / version</th><th>Time</th></tr></thead><tbody>${e.recent.map(x=>`<tr class="activity-row"><td>${x.code} · ${x.feature}/${x.screen}</td><td>${x.platform} · ${x.version} · ${x.build}</td><td>${iso(dayDate(x.day))} ${String(x.hour).padStart(2,'0')}:00</td></tr>`).join('')||'<tr><td colspan="3">No errors in selected range.</td></tr>'}</tbody></table></div>
+  <div class="card-note">Distinct submitters; error events. Optional rating is app feedback only. Feature/category/status metadata only—no free text, screenshots, health details or identifiers.</div>`;
 }
 
 function renderStrength(ds){
@@ -1499,16 +1696,16 @@ function renderStrength(ds){
     <div class="tiles c4">
       <div class="tile"><div class="t-label">Workout starts</div><div class="t-value">${fmt(s.starts)}</div></div>
       <div class="tile"><div class="t-label">Completions</div><div class="t-value">${fmt(s.completed)}</div></div>
-      <div class="tile"><div class="t-label">Completion rate</div><div class="t-value">${s.rate}%</div></div>
-      <div class="tile"><div class="t-label">Avg duration</div><div class="t-value">${s.avgMin} min</div></div>
+      <div class="tile"><div class="t-label">Completion rate · done / started</div><div class="t-value">${ratio(s.completed,s.starts)}</div></div>
+      <div class="tile"><div class="t-label">Avg completed duration</div><div class="t-value">${s.avgMin==null?'—':s.avgMin+' min'} <small>· n=${fmt(s.completed)}</small></div></div>
     </div>
     <div class="metric-rows" style="margin-top:12px">
-      <div class="metric-row"><span class="m-label">Most-used workout</span><span class="m-value">${s.top.name} <small>· ${fmt(s.top.count)} completions · ${s.top.pct}%</small></span></div>
-    </div>
-    <div style="margin-top:14px">
-      <div style="font-size:11.5px;font-weight:600;color:var(--ink-3);margin-bottom:8px">Where users quit (unique users)</div>
-      ${funnelHTML(s.funnel, true)}
-    </div>`;
+      <div class="metric-row"><span class="m-label">Tracked / guided entered · web fallback</span><span class="m-value">${fmt(s.tracked)} / ${fmt(s.guided)} · ${fmt(s.fallback)}</span></div>
+      <div class="metric-row"><span class="m-label">Camera permission granted / denied</span><span class="m-value">${ratio(s.camGrant,s.camGrant+s.camDeny)} · ${fmt(s.camDeny)} denied</span></div>
+      <div class="metric-row"><span class="m-label">Pose initialized / failed · camera errors</span><span class="m-value">${ratio(s.poseOK,s.poseOK+s.poseFail)} · ${fmt(s.camError)} errors</span></div>
+    </div><div class="metric-row"><span class="m-label">Completions by synthetic workout key</span><span class="m-value">${s.workoutTypes.map(x=>`${x.workout} ${x.count}`).join(' · ')}</span></div>
+    <div class="tbl-wrap"><table class="tbl" aria-label="Strength results by platform"><thead><tr><th>Platform</th><th>Starts / done</th><th>Guided / tracked / fallback</th><th>Camera errors</th></tr></thead><tbody>${s.byPlatform.map(x=>`<tr class="activity-row"><td>${x.platform}</td><td>${x.starts} / ${x.completed}</td><td>${x.guided} / ${x.tracked} / ${x.fallback}</td><td>${x.cameraErrors}</td></tr>`).join('')}</tbody></table></div>
+    <div style="margin-top:14px"><div class="small-label">Workout journey · unique users</div>${funnelHTML(s.funnel,true)}</div>`;
 }
 
 function renderTimeline(ds){
@@ -1517,52 +1714,38 @@ function renderTimeline(ds){
     <div class="tiles c2">
       <div class="tile"><div class="t-label">Timeline opens</div><div class="t-value">${fmt(t.opens)}</div></div>
       <div class="tile"><div class="t-label">Users who logged something</div><div class="t-value">${fmt(t.loggers)}</div></div>
-      <div class="tile"><div class="t-label">Timeline return rate</div><div class="t-value">${t.returnRate}%</div></div>
-      <div class="tile"><div class="t-label">Share of active users</div><div class="t-value">${t.pctActive}%</div></div>
+      <div class="tile"><div class="t-label">Repeat users · 2+ active days</div><div class="t-value">${ratio(t.repeatUsers,t.openerUsers)}</div></div>
+      <div class="tile"><div class="t-label">Share of active users</div><div class="t-value">${ratio(t.openerUsers,t.active)}</div></div>
     </div>
     <div class="card-note" style="color:var(--ink-3)">${ICONS.lock} Counts only — cycle dates, symptoms and personal entries are never shown in analytics.</div>`;
 }
 
 function renderDiet(ds){
   const d=ds.diet;
-  const maxIntent = Math.max(...d.intents.map(i=>i.pct),1);
   $('#dietBody').innerHTML = `
     <div class="metric-rows">
-      <div class="metric-row"><span class="m-label">Diet opens</span><span class="m-value">${fmt(d.opens)}</span></div>
+      <div class="metric-row"><span class="m-label">Diet open events</span><span class="m-value">${fmt(d.opens)}</span></div>
+      <div class="metric-row"><span class="m-label">Unique Diet users</span><span class="m-value">${fmt(d.openers)}</span></div>
       <div class="metric-row"><span class="m-label">Food suggestions viewed</span><span class="m-value">${fmt(d.viewed)}</span></div>
       <div class="metric-row"><span class="m-label">Food items opened</span><span class="m-value">${fmt(d.items)}</span></div>
       <div class="metric-row"><span class="m-label">Meals logged</span><span class="m-value">${fmt(d.meals)}</span></div>
-      <div class="metric-row"><span class="m-label">Returning Diet users</span><span class="m-value">${fmt(d.returning)} <small>· ${d.opens?ai(d.returning/d.opens*100):0}% of openers</small></span></div>
+      <div class="metric-row"><span class="m-label">Repeat users (2+ active days)</span><span class="m-value">${ratio(d.returning,d.openers)}</span></div>
     </div>
-    <div style="margin-top:16px">
-      <div style="font-size:11.5px;font-weight:600;color:var(--ink-3);margin-bottom:9px">Most-used food intent</div>
-      <div class="feature-rows" style="gap:9px">
-        ${d.intents.map((it,i)=>`
-          <div style="display:grid;grid-template-columns:150px 1fr 40px;gap:10px;align-items:center">
-            <span style="font-size:12.5px;color:${i===0?'var(--ink)':'var(--ink-2)'};font-weight:${i===0?600:400}">${it.name}</span>
-            <div class="f-track" style="height:7px"><div class="f-fill" style="width:${it.pct/maxIntent*100}%;opacity:${i===0?.9:.4}"></div></div>
-            <b style="font-size:12px;text-align:right;font-variant-numeric:tabular-nums">${it.pct}%</b>
-          </div>`).join('')}
-      </div>
-    </div>`;
+    <div class="card-note">Counts use non-sensitive action categories, not food choices or free text.</div><div class="legend-rows">${d.actions.map(a=>`<div class="lr"><span>${a.action.replaceAll('_',' ')}</span><span class="lr-count">${fmt(a.count)} events</span></div>`).join('')}</div>`;
 }
 
 function renderWater(ds){
   const w=ds.water;
-  const hotH = w.freq.reduce((a,b)=>b.pct>a.pct?b:a).h;
+  const hotH = w.freqTotal?w.freq.reduce((a,b)=>b.pct>a.pct?b:a).h:null;
   $('#waterBody').innerHTML = `
     <div class="metric-rows">
-      <div class="metric-row"><span class="m-label">Water reminders enabled</span><span class="m-value">${w.enabledPct}% of active <small>· ${fmt(w.enabledCount)} users</small></span></div>
-      <div class="metric-row"><span class="m-label">Notification permission accepted</span><span class="m-value">${w.permPct}% <small>of people prompted</small></span></div>
+      <div class="metric-row"><span class="m-label">Water reminders enabled</span><span class="m-value">${ratio(w.enabledCount,w.active)} active users</span></div>
+      <div class="metric-row"><span class="m-label">Notification permission accepted</span><span class="m-value">${ratio(w.permGranted,w.enabledCount)} of people opted into reminders</span></div>
     </div>
     <div style="margin-top:16px">
       <div style="font-size:11.5px;font-weight:600;color:var(--ink-3);margin-bottom:4px">Selected reminder frequency</div>
-      <div class="freq-bar">
-        ${w.freq.map(f=>`<div class="freq-seg${f.h===hotH?' hot':''}" style="width:${Math.max(f.pct,8)}%">${f.h}h</div>`).join('')}
-      </div>
-      <div class="freq-labels">
-        ${w.freq.map(f=>`<span style="width:${Math.max(f.pct,8)}%">${f.pct}%${f.h===hotH?' · most common':''}</span>`).join('')}
-      </div>
+      ${w.freqTotal?`<div class="freq-bar">${w.freq.map(f=>`<div class="freq-seg${f.h===hotH?' hot':''}" style="width:${Math.max(f.pct,8)}%">${f.h}h</div>`).join('')}</div>
+      <div class="freq-labels">${w.freq.map(f=>`<span style="width:${Math.max(f.pct,8)}%">${f.pct}% · ${fmt(f.count)}/${fmt(w.freqTotal)}${f.h===hotH?' · most common':''}</span>`).join('')}</div>`:'<div class="chart-empty">No users opted into reminders in this cohort.</div>'}
     </div>
     <div class="card-note" style="color:var(--ink-3)">${ICONS.lock} Opt-in state and frequency choice only — notification delivery or dismissal detail is never tracked.</div>`;
 }
@@ -1573,17 +1756,17 @@ function renderEngagement(ds){
   const habit = e.dist[3];
   $('#engagementBody').innerHTML = `
     <div class="tiles c4">
-      <div class="tile"><div class="t-label">Avg sessions per user</div><div class="t-value">${e.sessions}</div></div>
-      <div class="tile"><div class="t-label">Avg session duration</div><div class="t-value">${fmtClock(e.sessionSec)}</div></div>
-      <div class="tile"><div class="t-label">Actions per active user</div><div class="t-value">${fmt(e.actions)}</div></div>
-      <div class="tile"><div class="t-label">Active 7+ days</div><div class="t-value">${habit.pct}%</div></div>
+      <div class="tile"><div class="t-label">Avg active days / active user</div><div class="t-value">${e.activeDays} <small>· n=${fmt(e.activeUsers)}${e.activeUsers<20?' · small n':''}</small></div></div>
+      <div class="tile"><div class="t-label">Session duration</div><div class="t-value">Not modeled</div></div>
+      <div class="tile"><div class="t-label">Meaningful actions / active user</div><div class="t-value">${fmt(e.actions)} <small>· ${fmt(e.activeActions)}/${fmt(e.activeUsers)}</small></div></div>
+      <div class="tile"><div class="t-label">Active on 7+ distinct days</div><div class="t-value">${ratio(habit.count,e.activeUsers)}</div></div>
     </div>
     <div class="stack-bar">${e.dist.map((d,i)=>`<i style="width:${d.pct}%;background:${colors[i]}"></i>`).join('')}</div>
     <div class="legend-rows">
       ${e.dist.map((d,i)=>`
         <div class="lr"><i style="background:${colors[i]}"></i><span>Active on ${d.label}</span><span class="lr-count">${fmt(d.count)} users</span><span class="lr-pct">${d.pct}%</span></div>`).join('')}
     </div>
-    <p class="eng-line">${habit.pct}% of active users opened Bloom on 7+ days — ${habit.pct>=27?'the habit loop is forming.':'most users are still in trial mode.'}</p>`;
+    <p class="eng-line">Activity-day bins partition ${fmt(e.activeUsers)} distinct active users; no session duration or causal habit claim is inferred.</p>`;
 }
 
 function renderInsights(ds){
@@ -1602,7 +1785,7 @@ function renderInsights(ds){
 
 function renderActivity(ds){
   if(!ds.activity.length){
-    $('#activityBody').innerHTML='<div class="chart-empty">No events yet in this range.</div>';
+    $('#activityBody').innerHTML='<div class="chart-empty">No events in the latest 24-hour window.</div>';
     return;
   }
   $('#activityBody').innerHTML = `
@@ -1619,7 +1802,7 @@ function renderActivity(ds){
 }
 
 function renderSystem(ds){
-  $('#systemBody').innerHTML = ds.system.map(s=>`
+  $('#systemBody').innerHTML = `<div class="sys-row"><span class="s-label">Synthetic event envelopes · fixed 24h</span><span class="s-value">${fmt(ds.dataQuality.received)}</span></div><div class="sys-row"><span class="s-label">Rejected / unknown / duplicate fixtures</span><span class="s-value">${fmt(ds.dataQuality.rejected)} / ${fmt(ds.dataQuality.unknown)} / ${fmt(ds.dataQuality.duplicates)}</span></div><div class="sys-row"><span class="s-label">Last synthetic event</span><span class="s-value">${ds.dataQuality.last}</span></div>`+ds.system.map(s=>`
     <div class="sys-row">
       <span class="s-dot ${s.tone}"></span>
       <span class="s-label">${s.label}</span>
@@ -1652,7 +1835,7 @@ function paintGrowth(ds){
   const yL=v=>P.t+ih*(1-v/maxL), yR=v=>P.t+ih*(1-v/maxR);
   const yOf=s=>s.axis==='L'?yL:yR;
 
-  let svg=`<svg viewBox="0 0 ${GROWTH_W} ${GROWTH_H}" role="img" aria-label="User growth chart">`;
+  let svg=`<svg viewBox="0 0 ${GROWTH_W} ${GROWTH_H}" role="img" aria-label="User growth chart. Focus and use arrow keys to inspect data points." tabindex="0">`;
   for(let i=0;i<=4;i++){
     const v=maxL*i/4, yy=P.t+ih*i/4;
     svg+=`<line x1="${P.l}" x2="${GROWTH_W-P.r}" y1="${yy}" y2="${yy}" stroke="#EADFD0" stroke-width="1"/>`;
@@ -1680,19 +1863,21 @@ function paintGrowth(ds){
   svg+=`<g id="chx" style="display:none"><line id="chline" x1="0" x2="0" y1="${P.t}" y2="${P.t+ih}" stroke="#9A8C7C" stroke-width="1" stroke-dasharray="3 3" opacity=".7"/>`;
   series.forEach(s=>{ svg+=`<circle id="chd-${s.key}" r="3.6" fill="${s.color}" stroke="#FFFEFB" stroke-width="1.5"/>`; });
   svg+=`</g></svg>`;
-  wrap.innerHTML = svg + '<div class="tip" hidden></div>';
+  wrap.innerHTML = svg + '<div class="tip" role="status" aria-live="polite" hidden></div>';
 
   const svgEl=wrap.querySelector('svg');
   const tip=wrap.querySelector('.tip');
   const chx=wrap.querySelector('#chx');
   const chline=wrap.querySelector('#chline');
   const dots=series.map(s=>wrap.querySelector('#chd-'+s.key));
+  let currentIdx=0;
 
   function showTip(clientX){
     const rect=svgEl.getBoundingClientRect();
     if(rect.width<40) return;
     const px=(clientX-rect.left)/rect.width*GROWTH_W;
     const idx=clamp(Math.round((px-P.l)/(iw/(n-1))),0,n-1);
+    currentIdx=idx;
     chx.style.display='';
     const cx=x(idx);
     chline.setAttribute('x1',cx); chline.setAttribute('x2',cx);
@@ -1710,6 +1895,14 @@ function paintGrowth(ds){
   function hideTip(){ chx.style.display='none'; tip.hidden=true; }
   svgEl.addEventListener('mousemove',e=>showTip(e.clientX));
   svgEl.addEventListener('mouseleave',hideTip);
+  svgEl.addEventListener('keydown',e=>{
+    if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key)) return;
+    e.preventDefault();
+    currentIdx=e.key==='Home'?0:e.key==='End'?n-1:clamp(currentIdx+(e.key==='ArrowRight'?1:-1),0,n-1);
+    const rect=svgEl.getBoundingClientRect();
+    showTip(rect.left+(x(currentIdx)/GROWTH_W)*rect.width);
+  });
+  svgEl.addEventListener('blur',hideTip);
   svgEl.addEventListener('touchmove',e=>{ if(e.touches[0]) showTip(e.touches[0].clientX); },{passive:true});
   svgEl.addEventListener('touchend',hideTip);
 }
@@ -1722,8 +1915,7 @@ function setUpdated(){
   tickUpdated();
 }
 function tickUpdated(){
-  const mins=Math.floor((Date.now()-lastUpdated)/60000);
-  $('#updatedText').textContent = mins<1 ? 'Last updated just now' : `Last updated ${mins} min ago`;
+  $('#updatedText').textContent = 'Synthetic demo data · deterministic';
 }
 setInterval(tickUpdated, 20000);
 
@@ -1736,6 +1928,8 @@ function renderAll(ds){
   renderFeatures(ds);
   renderCheckin(ds);
   renderMeg(ds);
+  renderReview(ds);
+  renderFeedback(ds);
   renderStrength(ds);
   renderTimeline(ds);
   renderDiet(ds);
@@ -1749,27 +1943,30 @@ function renderAll(ds){
 function refresh(opts={}){
   setUpdated();
   clearTimeout(skeletonTimer);
-  if(state.showEmpty){ renderEmpty(); return; }
-  clearEmpty();
+  if(state.showEmpty){ clearFailure(); renderEmpty(); return; }
+  clearEmpty(); clearFailure();
   renderSkeletons();
   const dur = opts.dur ?? 550;
   skeletonTimer=setTimeout(()=>{
-    lastDs=fetchAnalytics();
-    renderAll(lastDs);
+    try { lastDs=fetchAnalytics(); renderAll(lastDs); }
+    catch(err){ console.error('Bloom Analytics render failed',err); renderFailure(); }
   }, dur);
 }
 
 /* ---- events: date range ---- */
 const pop=$('#customPop');
 function syncRangeUI(){
-  $$('.date-selector button').forEach(b=>b.classList.toggle('active', b.dataset.range===state.range));
+  $$('.date-selector button').forEach(b=>{const active=b.dataset.range===state.range;b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));});
 }
 function openPop(){
   const s=$('#cpStart'), e=$('#cpEnd');
   const min=iso(daysAgo(DATA_START_DAYS));
   s.min=e.min=min; s.max=e.max=iso(TODAY);
-  if(!s.value) s.value=iso(daysAgo(29));
-  if(!e.value) e.value=iso(TODAY);
+  if(state.range==='custom'&&state.customStartDay!=null){
+    s.value=iso(dayDate(state.customStartDay));e.value=iso(dayDate(state.customEndDay));
+  } else {
+    s.value=iso(daysAgo(29));e.value=iso(TODAY);
+  }
   $('#cpNote').textContent=`Data from ${daysAgo(DATA_START_DAYS).toLocaleDateString('en-GB',{day:'numeric',month:'short'})} · min ${MIN_CUSTOM_DAYS} days`;
   pop.hidden=false;
 }
@@ -1777,9 +1974,8 @@ function closePop(){ pop.hidden=true; }
 $$('.date-selector button').forEach(b=>{
   b.addEventListener('click',()=>{
     if(b.dataset.range==='custom'){
-      if(state.range==='custom' && pop.hidden){ openPop(); }
-      else if(state.range!=='custom'){ state.range='custom'; syncRangeUI(); openPop(); }
-      else closePop();
+      // Opening/canceling is only a draft; the selected range changes on Apply.
+      if(pop.hidden) openPop(); else closePop();
       return;
     }
     state.range=b.dataset.range;
@@ -1788,16 +1984,12 @@ $$('.date-selector button').forEach(b=>{
   });
 });
 $('#cpApply').addEventListener('click',()=>{
-  const s=$('#cpStart').value, e=$('#cpEnd').value;
-  if(!s||!e) return;
-  const sd=parseIso(s), ed=parseIso(e);
-  if(ed<sd || ed>TODAY){ closePop(); return; }
-  const days=Math.round((ed-sd)/86400000)+1;
-  state.range='custom'; state.customDays=days; syncRangeUI(); closePop();
-  if(sd < daysAgo(DATA_START_DAYS)){ state.emptyReason='start'; state.showEmpty=true; refresh(); return; }
-  if(days < MIN_CUSTOM_DAYS){ state.emptyReason='short'; state.showEmpty=true; refresh(); return; }
-  state.emptyReason=null; state.showEmpty=false; refresh();
+  const result=customRangeUpdate(state,$('#cpStart').value,$('#cpEnd').value);
+  if(!result.ok){ $('#cpNote').textContent=result.error; return; }
+  Object.assign(state,result.next);
+  syncRangeUI();closePop();refresh();
 });
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!pop.hidden)closePop();});
 document.addEventListener('click',e=>{
   if(!pop.hidden && !pop.contains(e.target) && !e.target.closest('[data-range="custom"]')) closePop();
 });
@@ -1806,8 +1998,8 @@ document.addEventListener('click',e=>{
 $$('.pillset').forEach(set=>{
   set.addEventListener('click',e=>{
     const p=e.target.closest('.pill'); if(!p) return;
-    $$('.pill',set).forEach(x=>x.classList.remove('active'));
-    p.classList.add('active');
+    $$('.pill',set).forEach(x=>{x.classList.remove('active');x.setAttribute('aria-pressed','false');});
+    p.classList.add('active'); p.setAttribute('aria-pressed','true');
     state[set.dataset.filter]=p.dataset.value;
     state.emptyReason=null; state.showEmpty=false;
     refresh();
@@ -1829,11 +2021,12 @@ $('#grid').addEventListener('click',e=>{
     state.showEmpty=false; state.emptyReason=null; state.range='d30';
     syncRangeUI(); refresh();
   }
+  if(a==='retry'){ refresh(); }
 });
 
 /* ---- init ---- */
 syncRangeUI();
 refresh();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3a6905f0e7198fe',t:'MTc4OTI5NjM0Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
