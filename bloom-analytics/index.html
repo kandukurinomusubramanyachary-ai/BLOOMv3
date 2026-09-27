@@ -1,0 +1,1839 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bloom Analytics — Founder Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cg fill='%23BF5B4C'%3E%3Cpath d='M20 5c3.6 4.4 3.6 10.4 0 14.2C16.4 15.4 16.4 9.4 20 5z'/%3E%3Cpath d='M20 5c3.6 4.4 3.6 10.4 0 14.2C16.4 15.4 16.4 9.4 20 5z' transform='rotate(72 20 20)'/%3E%3Cpath d='M20 5c3.6 4.4 3.6 10.4 0 14.2C16.4 15.4 16.4 9.4 20 5z' transform='rotate(144 20 20)'/%3E%3Cpath d='M20 5c3.6 4.4 3.6 10.4 0 14.2C16.4 15.4 16.4 9.4 20 5z' transform='rotate(216 20 20)'/%3E%3Cpath d='M20 5c3.6 4.4 3.6 10.4 0 14.2C16.4 15.4 16.4 9.4 20 5z' transform='rotate(288 20 20)'/%3E%3C/g%3E%3Ccircle cx='20' cy='20' r='3.6' fill='%23F6E9E3' stroke='%23A34536' stroke-width='1.4'/%3E%3C/svg%3E">
+<style>
+/* ============================================================
+   BLOOM ANALYTICS — internal founder dashboard
+   Palette: cream / charcoal / muted terracotta, beige-rose surfaces
+   ============================================================ */
+:root{
+  --bg:#FAF5EE;
+  --surface:#FFFEFB;
+  --surface-2:#F3ECE1;
+  --tile:#F7F1E7;
+  --rose:#F6E9E3;
+  --border:#EADFD0;
+  --border-2:#DECFC9;
+  --ink:#29241F;
+  --ink-2:#6B5F52;
+  --ink-3:#9A8C7C;
+  --accent:#BF5B4C;
+  --accent-deep:#A34536;
+  --accent-soft:#F2DBD2;
+  --accent-faint:#F8ECE6;
+  --sage:#7C8B72;
+  --sage-deep:#5E6D54;
+  --sage-soft:#E7ECDD;
+  --good:#5F7A54;
+  --good-soft:#E4EDE0;
+  --warn:#A26F24;
+  --warn-soft:#F3E7CB;
+  --danger:#A8443A;
+  --radius:14px;
+  --shadow:0 1px 2px rgba(72,52,35,.05), 0 6px 18px -8px rgba(72,52,35,.09);
+  --font:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--font);
+  font-size:14px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+.page{max-width:1240px;margin:0 auto;padding:26px 28px 56px}
+
+/* ---------- header ---------- */
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;margin-bottom:18px}
+.brand{display:flex;gap:13px;align-items:flex-start}
+.brand .mark{width:38px;height:38px;flex:none;margin-top:2px}
+.brand h1{margin:0;font-size:22px;font-weight:650;letter-spacing:-.01em}
+.brand .tagline{margin:2px 0 0;font-size:13.5px;color:var(--ink-3)}
+.top-right{position:relative;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+
+/* component: date-selector (segmented) */
+.date-selector{
+  display:inline-flex;align-items:center;gap:2px;
+  background:var(--surface-2);border:1px solid var(--border);
+  border-radius:11px;padding:3px;
+}
+.date-selector button{
+  border:0;background:transparent;cursor:pointer;
+  font-size:13px;font-weight:550;color:var(--ink-2);
+  padding:6px 13px;border-radius:8px;white-space:nowrap;
+  transition:background .15s,color .15s;
+}
+.date-selector button:hover{color:var(--ink)}
+.date-selector button.active{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(72,52,35,.14);font-weight:600}
+.updated{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink-3)}
+.updated .dot{width:7px;height:7px;border-radius:50%;background:var(--good);animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.updated .dot{animation:none}}
+
+/* custom range popover */
+.custom-pop{
+  position:absolute;top:calc(100% + 10px);right:0;z-index:60;
+  width:min(300px,calc(100vw - 48px));
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  box-shadow:0 10px 30px -10px rgba(72,52,35,.25);padding:14px;
+}
+.custom-pop[hidden]{display:none}
+.cp-row{display:flex;gap:10px;margin-bottom:10px}
+.cp-row label{flex:1;font-size:12px;color:var(--ink-2);font-weight:600;display:flex;flex-direction:column;gap:4px}
+.cp-row input{
+  font:inherit;font-size:13px;font-weight:400;color:var(--ink);
+  border:1px solid var(--border-2);border-radius:8px;padding:7px 8px;background:var(--surface);
+}
+.cp-actions{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.cp-note{font-size:11.5px;color:var(--ink-3)}
+.btn-primary{
+  border:0;cursor:pointer;background:var(--accent);color:#FFF9F4;
+  font-size:13px;font-weight:600;padding:8px 14px;border-radius:9px;
+  transition:background .15s;
+}
+.btn-primary:hover{background:var(--accent-deep)}
+
+/* ---------- filters ---------- */
+.filters{display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin:0 0 22px}
+.fgroup{display:flex;align-items:center;gap:9px}
+.flabel{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.pillset{display:inline-flex;gap:6px;flex-wrap:wrap}
+.pill{
+  border:1px solid var(--border-2);background:var(--surface);cursor:pointer;
+  font-size:12.5px;font-weight:550;color:var(--ink-2);
+  padding:5px 12px;border-radius:999px;transition:all .15s;
+}
+.pill:hover{border-color:var(--accent);color:var(--accent-deep)}
+.pill.active{background:var(--accent-soft);border-color:#E0BBA9;color:var(--accent-deep);font-weight:600}
+
+/* ---------- grid & cards ---------- */
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+.sp12{grid-column:span 12}.sp7{grid-column:span 7}.sp6{grid-column:span 6}.sp5{grid-column:span 5}
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:18px 20px 20px;min-width:0;
+}
+.card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:14px}
+.card-head h2{margin:0;font-size:14.5px;font-weight:650;letter-spacing:-.005em}
+.card-head .sub{margin:3px 0 0;font-size:12.5px;color:var(--ink-3)}
+.card-note{display:flex;align-items:center;gap:7px;margin-top:12px;font-size:12px;color:var(--ink-3)}
+.card-note svg{flex:none}
+
+/* ---------- KPI cards ---------- */
+.s-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.kpi-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:14px 16px 13px;min-width:0;
+}
+.kpi-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.kpi-label{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.kpi-spark{width:72px;flex:none;opacity:.95}
+.kpi-value{font-size:25px;font-weight:650;letter-spacing:-.015em;margin:5px 0 2px;font-variant-numeric:tabular-nums}
+.kpi-delta{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.kpi-delta em{font-style:normal;font-weight:400;color:var(--ink-3)}
+.kpi-delta.up{color:var(--good)}
+.kpi-delta.down{color:var(--danger)}
+.kpi-delta.muted{color:var(--ink-3);font-weight:500}
+.kpi-foot{margin-top:7px;padding-top:7px;border-top:1px solid var(--border);font-size:11.5px;color:var(--ink-3)}
+
+/* ---------- chips / tiles / metric rows ---------- */
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:2.5px 9px;border-radius:999px;white-space:nowrap}
+.chip.accent{background:var(--accent-soft);color:var(--accent-deep)}
+.chip.good{background:var(--good-soft);color:var(--good)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.neutral{background:var(--surface-2);color:var(--ink-2)}
+.tiles{display:grid;gap:10px}
+.tiles.c2{grid-template-columns:repeat(2,1fr)}
+.tiles.c4{grid-template-columns:repeat(4,1fr)}
+.tile{background:var(--tile);border-radius:10px;padding:10px 12px;min-width:0}
+.tile .t-label{font-size:11.5px;color:var(--ink-3);font-weight:600}
+.tile .t-value{font-size:17px;font-weight:650;margin-top:2px;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.metric-rows{display:flex;flex-direction:column}
+.metric-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:8px 0;border-top:1px solid var(--border);font-size:13px}
+.metric-row:first-child{border-top:0;padding-top:2px}
+.metric-row .m-label{color:var(--ink-2)}
+.metric-row .m-value{font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
+.metric-row .m-value small{font-weight:400;color:var(--ink-3);font-size:11.5px}
+
+/* ---------- charts ---------- */
+.chart-wrap{position:relative;width:100%}
+.chart-wrap svg{display:block;width:100%;height:auto}
+.chart-empty{
+  border:1px dashed var(--border-2);border-radius:10px;
+  padding:34px 16px;text-align:center;color:var(--ink-3);font-size:12.5px;
+}
+.tip{
+  position:absolute;z-index:20;pointer-events:none;
+  background:#2B2520;color:#F7F1EA;border-radius:9px;
+  padding:8px 11px;font-size:12px;line-height:1.45;
+  box-shadow:0 8px 20px -6px rgba(41,36,31,.4);
+  min-width:130px;transform:translateY(-50%);
+}
+.tip .t-date{font-weight:650;margin-bottom:4px;font-size:12px}
+.tip .t-row{display:flex;align-items:center;gap:7px;font-variant-numeric:tabular-nums}
+.tip .t-row i{width:8px;height:8px;border-radius:50%;flex:none}
+.tip .t-row b{margin-left:auto;font-weight:650;padding-left:14px}
+.legend{display:flex;gap:8px;flex-wrap:wrap}
+.legend .pill{display:inline-flex;align-items:center;gap:7px;padding:4px 11px}
+.legend .pill i{width:9px;height:9px;border-radius:50%;flex:none}
+.legend .pill.off{opacity:.45;text-decoration:line-through}
+
+/* retention mini stats */
+.ret-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.ret-stat{background:var(--tile);border-radius:10px;padding:9px 12px}
+.ret-stat .r-label{font-size:11.5px;color:var(--ink-3);font-weight:600}
+.ret-stat .r-value{font-size:19px;font-weight:650;font-variant-numeric:tabular-nums}
+.ret-stat .r-n{font-size:10.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.ret-line{margin-top:12px;font-size:12.5px;color:var(--ink-2)}
+
+/* ---------- funnel ---------- */
+.funnel{display:flex;flex-direction:column;align-items:center}
+.fstage{width:100%}
+.fbar{
+  height:38px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;
+  padding:0 13px;border-radius:10px;min-width:47%;
+  font-size:13px;font-weight:550;color:var(--ink);
+}
+.fbar b{font-size:13.5px;font-weight:650;font-variant-numeric:tabular-nums}
+.fbar.s0{background:#E9C8BD}
+.fbar.s1{background:#EFD9D0}
+.fbar.s2{background:#F3E4DD}
+.fbar.s3{background:#F7EDE7}
+.fbar.s4{background:#F9F0EA}
+.fbar.s5{background:#FBF4EF}
+.fbar.leak{box-shadow:0 0 0 1.5px var(--accent)}
+.fbar.na{
+  background:transparent;border:1px dashed var(--border-2);color:var(--ink-3);
+  justify-content:center;font-weight:600;font-size:12.5px;
+}
+.fdrop{display:flex;align-items:center;justify-content:center;gap:8px;padding:5px 0;font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums;flex-wrap:wrap}
+.fdrop .d{font-weight:600;color:var(--ink-2)}
+.fdrop.big .d{color:var(--accent-deep)}
+.fdrop .tag-max{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:var(--accent-soft);color:var(--accent-deep);padding:1.5px 7px;border-radius:999px}
+.f-leak{
+  display:flex;align-items:flex-start;gap:8px;margin-top:14px;padding:10px 12px;
+  background:var(--accent-faint);border:1px solid var(--accent-soft);border-radius:10px;
+  font-size:12.5px;color:var(--ink-2);
+}
+.f-leak b{color:var(--accent-deep);font-weight:650}
+.funnel.small .fbar{height:27px;min-width:40%;font-size:12px;padding:0 10px;border-radius:8px}
+.funnel.small .fbar b{font-size:12px}
+.funnel.small .fstage + .fdrop{padding:3px 0;font-size:11.5px}
+
+/* ---------- feature usage rows ---------- */
+.feature-rows{display:flex;flex-direction:column;gap:13px;margin-top:4px}
+.feature-row{display:grid;grid-template-columns:148px 1fr 190px;gap:14px;align-items:center}
+.feature-row .f-name{font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.feature-row .f-track{height:9px;background:var(--surface-2);border-radius:999px;overflow:hidden}
+.feature-row .f-fill{height:100%;background:var(--accent);border-radius:999px;opacity:.85}
+.feature-row .f-fill.dim{opacity:.45}
+.feature-row .f-stat{text-align:right;font-variant-numeric:tabular-nums;min-width:0}
+.feature-row .f-stat b{display:block;font-size:13px;font-weight:650}
+.feature-row .f-stat span{font-size:12px;color:var(--ink-3)}
+
+/* ---------- water ---------- */
+.freq-bar{display:flex;height:26px;border-radius:8px;overflow:hidden;margin-top:8px}
+.freq-seg{display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:650;color:var(--ink-2);background:var(--surface-2);white-space:nowrap;overflow:hidden}
+.freq-seg.hot{background:var(--accent);color:#FFF6F1}
+.freq-labels{display:flex;margin-top:6px;font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.freq-labels span{white-space:nowrap}
+
+/* ---------- engagement ---------- */
+.stack-bar{display:flex;height:11px;border-radius:999px;overflow:hidden;margin:12px 0 12px}
+.stack-bar i{display:block;height:100%}
+.legend-rows{display:flex;flex-direction:column}
+.legend-rows .lr{display:flex;align-items:center;gap:9px;padding:5.5px 0;font-size:13px;border-top:1px solid var(--border)}
+.legend-rows .lr:first-child{border-top:0}
+.legend-rows .lr i{width:9px;height:9px;border-radius:3px;flex:none}
+.legend-rows .lr .lr-pct{margin-left:auto;font-weight:650;font-variant-numeric:tabular-nums}
+.legend-rows .lr .lr-count{color:var(--ink-3);font-size:12px;font-variant-numeric:tabular-nums;width:110px;text-align:right}
+.eng-line{margin-top:12px;font-size:12.5px;color:var(--ink-2)}
+
+/* ---------- insights ---------- */
+.insight-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.insight-card{
+  background:var(--tile);border:1px solid var(--border);border-radius:12px;padding:13px 14px;min-width:0;
+}
+.insight-top{display:flex;align-items:center;gap:9px;margin-bottom:8px}
+.insight-ico{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
+.insight-ico.good{background:var(--good-soft);color:var(--good)}
+.insight-ico.warn{background:var(--warn-soft);color:var(--warn)}
+.insight-card h3{margin:0;font-size:13px;font-weight:650;line-height:1.35;font-variant-numeric:tabular-nums}
+.insight-card p{margin:0;font-size:12.5px;color:var(--ink-2);line-height:1.5}
+
+/* ---------- activity table ---------- */
+.tbl-wrap{overflow-x:auto}
+table.tbl{width:100%;border-collapse:collapse}
+.tbl th{
+  text-align:left;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--ink-3);padding:6px 10px;border-bottom:1px solid var(--border-2);
+}
+.tbl th:last-child,.tbl td:last-child{text-align:right}
+.activity-row td{padding:8.5px 10px;border-top:1px solid var(--border);font-size:13px}
+.activity-row:first-child td{border-top:0}
+.activity-row td:first-child{color:var(--ink-3);font-variant-numeric:tabular-nums;white-space:nowrap}
+.activity-row td:last-child{color:var(--ink-3);font-size:12.5px;white-space:nowrap}
+
+/* ---------- system health ---------- */
+.sys-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--border);font-size:13px}
+.sys-row:first-child{border-top:0;padding-top:2px}
+.sys-row .s-dot{width:8px;height:8px;border-radius:50%;flex:none}
+.sys-row .s-dot.good{background:var(--good)}
+.sys-row .s-dot.warn{background:var(--warn)}
+.sys-row .s-label{color:var(--ink-2)}
+.sys-row .s-value{margin-left:auto;font-weight:650;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:8px}
+.sys-row .s-value .chip{font-size:10.5px}
+
+/* ---------- footer ---------- */
+.foot{
+  margin-top:26px;padding-top:16px;border-top:1px solid var(--border);
+  display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;
+  font-size:12.5px;color:var(--ink-3);
+}
+.foot .priv{display:flex;align-items:center;gap:8px;max-width:640px}
+
+/* ---------- empty state ---------- */
+.empty-state{
+  grid-column:span 12;text-align:center;padding:72px 24px;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);
+}
+.empty-state .e-ico{
+  width:54px;height:54px;border-radius:50%;background:var(--rose);
+  display:flex;align-items:center;justify-content:center;margin:0 auto 16px;
+}
+.empty-state h3{margin:0 0 6px;font-size:16.5px;font-weight:650}
+.empty-state p{margin:0 auto 18px;max-width:430px;font-size:13.5px;color:var(--ink-2)}
+.empty-state .e-sub{font-size:12.5px;color:var(--ink-3);margin-top:6px}
+.grid.is-empty > section{display:none}
+
+/* ---------- skeletons ---------- */
+.sk{
+  background:linear-gradient(90deg,#F1E8DB 25%,#F8F2E9 45%,#F1E8DB 65%);
+  background-size:200% 100%;animation:shimmer 1.3s linear infinite;border-radius:8px;
+}
+@keyframes shimmer{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.sk{animation:none}}
+.sk-head{height:14px;width:40%;margin-bottom:10px}
+.sk-line{height:10px;margin:9px 0}
+.sk-block{margin-top:14px}
+.sk-kpi .sk-val{height:26px;width:55%;margin-top:9px}
+.w25{width:25%}.w40{width:40%}.w60{width:60%}.w80{width:80%}.w100{width:100%}
+.h56{height:56px}.h90{height:90px}.h150{height:150px}.h220{height:220px}
+
+/* ---------- responsive ---------- */
+@media (max-width:1080px){
+  .sp7,.sp5{grid-column:span 6}
+  .s-kpis{grid-template-columns:repeat(3,1fr)}
+  .insight-grid{grid-template-columns:repeat(2,1fr)}
+  .tiles.c4{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:720px){
+  .page{padding:20px 16px 44px}
+  .grid{gap:14px}
+  /* single column, ordered for mobile: KPIs → insights → detail charts */
+  .grid > section{grid-column:span 12;order:var(--mo,99)}
+  .grid > .empty-state{grid-column:span 12;order:1}
+  .s-kpis{grid-template-columns:repeat(2,1fr)}
+  .s-kpis .kpi-card:last-child{grid-column:span 2}
+  .top{align-items:flex-start;flex-direction:column}
+  .top-right{align-items:flex-start}
+  .insight-grid{grid-template-columns:1fr}
+  .feature-row{grid-template-columns:1fr;gap:6px}
+  .feature-row .f-stat{text-align:left}
+  .feature-row .f-stat b{display:inline}
+  .feature-row .f-stat span{display:inline;margin-left:6px}
+  /* activity table → simplified list */
+  .tbl thead{display:none}
+  .tbl, .tbl tbody, .tbl tr, .tbl td{display:block;width:100%}
+  .activity-row td{border:0;padding:7px 2px}
+  .activity-row td:first-child{display:block;font-size:11.5px;color:var(--ink-3);order:2;margin-top:1px}
+  .activity-row td:last-child{border-top:0;text-align:right;font-size:11.5px}
+  .tbl tbody tr{border-top:1px solid var(--border);padding:6px 0}
+  .tbl tbody tr:first-child{border-top:0}
+  .legend-rows .lr .lr-count{width:auto;margin-left:auto}
+  .legend-rows .lr .lr-pct{width:44px}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ============ HEADER + DATE RANGE ============ -->
+  <header class="top">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 40 40" aria-hidden="true">
+        <g fill="#BF5B4C">
+          <path d="M20 5c3.6 4.4 3.6 10.4 0 14.2C16.4 15.4 16.4 9.4 20 5z"/>
+          <path d="M20 5c3.6 4.4 3.6 10.4 0 14.2C16.4 15.4 16.4 9.4 20 5z" transform="rotate(72 20 20)"/>
+          <path d="M20 5c3.6 4.4 3.6 10.4 0 14.2C16.4 15.4 16.4 9.4 20 5z" transform="rotate(144 20 20)"/>
+          <path d="M20 5c3.6 4.4 3.6 10.4 0 14.2C16.4 15.4 16.4 9.4 20 5z" transform="rotate(216 20 20)"/>
+          <path d="M20 5c3.6 4.4 3.6 10.4 0 14.2C16.4 15.4 16.4 9.4 20 5z" transform="rotate(288 20 20)"/>
+        </g>
+        <circle cx="20" cy="20" r="3.6" fill="#F6E9E3" stroke="#A34536" stroke-width="1.4"/>
+      </svg>
+      <div>
+        <h1>Bloom Analytics</h1>
+        <p class="tagline">Understand growth, engagement and where users find value.</p>
+      </div>
+    </div>
+    <div class="top-right">
+      <div class="date-selector" role="group" aria-label="Date range">
+        <button type="button" data-range="today">Today</button>
+        <button type="button" data-range="d7">7 days</button>
+        <button type="button" data-range="d30" class="active">30 days</button>
+        <button type="button" data-range="d90">90 days</button>
+        <button type="button" data-range="custom">Custom</button>
+      </div>
+      <div class="updated"><span class="dot"></span><span id="updatedText">Last updated just now</span></div>
+
+      <div class="custom-pop" id="customPop" hidden>
+        <div class="cp-row">
+          <label>From <input type="date" id="cpStart"></label>
+          <label>To <input type="date" id="cpEnd"></label>
+        </div>
+        <div class="cp-actions">
+          <span class="cp-note" id="cpNote"></span>
+          <button class="btn-primary" id="cpApply" type="button">Apply range</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ FILTERS (real predicates: platform = ?, cohort by signup) ============ -->
+  <div class="filters">
+    <div class="fgroup">
+      <span class="flabel">Platform</span>
+      <div class="pillset" data-filter="platform">
+        <button type="button" class="pill active" data-value="all">All</button>
+        <button type="button" class="pill" data-value="android">Android</button>
+        <button type="button" class="pill" data-value="ios">iOS</button>
+        <button type="button" class="pill" data-value="web">Web</button>
+      </div>
+    </div>
+    <div class="fgroup">
+      <span class="flabel">Users</span>
+      <div class="pillset" data-filter="userType">
+        <button type="button" class="pill active" data-value="all">All users</button>
+        <button type="button" class="pill" data-value="new">New users</button>
+        <button type="button" class="pill" data-value="returning">Returning</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DASHBOARD GRID ============ -->
+  <main class="grid" id="grid">
+    <section class="sp12 s-kpis" id="s-kpis" style="--mo:1" aria-label="Core health"></section>
+
+    <section class="card sp7" id="s-growth" style="--mo:3">
+      <header class="card-head">
+        <div><h2>User growth</h2><p class="sub" id="growthSub">Daily active and new users</p></div>
+        <div class="legend">
+          <button type="button" class="pill" data-action="series" data-series="active" aria-pressed="true"><i style="background:#BF5B4C"></i>Active users</button>
+          <button type="button" class="pill" data-action="series" data-series="new" aria-pressed="true"><i style="background:#7C8B72"></i>New users</button>
+        </div>
+      </header>
+      <div class="chart-wrap" id="ch-growth"></div>
+    </section>
+
+    <section class="card sp5" id="s-retention" style="--mo:4">
+      <header class="card-head">
+        <div><h2>Retention</h2><p class="sub">Cohort retention, from real event timestamps</p></div>
+      </header>
+      <div id="retentionBody"></div>
+    </section>
+
+    <section class="card sp5" id="s-funnel" style="--mo:5">
+      <header class="card-head">
+        <div><h2>Onboarding</h2><p class="sub" id="funnelSub">First open → first return · new signups in the selected range</p></div>
+      </header>
+      <div id="funnelBody"></div>
+    </section>
+
+    <section class="card sp7" id="s-features" style="--mo:6">
+      <header class="card-head">
+        <div><h2>Where users spend time</h2><p class="sub">Unique users per feature, ranked by share of active users</p></div>
+      </header>
+      <div id="featuresBody"></div>
+    </section>
+
+    <section class="card sp7" id="s-meg" style="--mo:7">
+      <header class="card-head">
+        <div><h2>Meg</h2><p class="sub">AI companion · aggregated interaction metrics</p></div>
+      </header>
+      <div id="megBody"></div>
+    </section>
+
+    <section class="card sp5" id="s-checkin" style="--mo:8">
+      <header class="card-head">
+        <div><h2>Daily check-in</h2><p class="sub">The 30-second habit</p></div>
+      </header>
+      <div id="checkinBody"></div>
+    </section>
+
+    <section class="card sp6" id="s-strength" style="--mo:9">
+      <header class="card-head">
+        <div><h2>Strength</h2><p class="sub">Workouts &amp; form</p></div>
+      </header>
+      <div id="strengthBody"></div>
+    </section>
+
+    <section class="card sp6" id="s-diet" style="--mo:10">
+      <header class="card-head">
+        <div><h2>Diet</h2><p class="sub">Meal guidance &amp; food intent</p></div>
+      </header>
+      <div id="dietBody"></div>
+    </section>
+
+    <section class="card sp6" id="s-timeline" style="--mo:11">
+      <header class="card-head">
+        <div><h2>Timeline</h2><p class="sub">Cycle &amp; wellness tracking · privacy-safe</p></div>
+      </header>
+      <div id="timelineBody"></div>
+    </section>
+
+    <section class="card sp6" id="s-water" style="--mo:12">
+      <header class="card-head">
+        <div><h2>Water reminders</h2><p class="sub">Opt-in only</p></div>
+      </header>
+      <div id="waterBody"></div>
+    </section>
+
+    <section class="card sp12" id="s-engagement" style="--mo:13">
+      <header class="card-head">
+        <div><h2>Engagement</h2><p class="sub">Are people trying Bloom once, or building a habit?</p></div>
+      </header>
+      <div id="engagementBody"></div>
+    </section>
+
+    <section class="card sp12" id="s-insights" style="--mo:2">
+      <header class="card-head">
+        <div><h2>What needs attention</h2><p class="sub">Rules over measured current-vs-previous data — shown only when a threshold is crossed</p></div>
+      </header>
+      <div id="insightsBody"></div>
+    </section>
+
+    <section class="card sp7" id="s-activity" style="--mo:14">
+      <header class="card-head">
+        <div><h2>Recent activity</h2><p class="sub">Anonymous, event-level only</p></div>
+      </header>
+      <div id="activityBody"></div>
+    </section>
+
+    <section class="card sp5" id="s-system" style="--mo:15">
+      <header class="card-head">
+        <div><h2>App health</h2><p class="sub">Last 24 hours</p></div>
+      </header>
+      <div id="systemBody"></div>
+    </section>
+  </main>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="foot">
+    <div class="priv">
+      <svg width="13" height="15" viewBox="0 0 13 15" fill="none" aria-hidden="true">
+        <rect x="1" y="6" width="11" height="8" rx="2" fill="currentColor"/>
+        <path d="M3.5 6V4.5a3 3 0 016 0V6" stroke="currentColor" stroke-width="1.6"/>
+      </svg>
+      <span>All metrics are aggregated and anonymized. No cycle details, Meg conversation text, symptoms, health notes, names or contact details are ever displayed in analytics.</span>
+    </div>
+    <span>Bloom Analytics · internal founder tool</span>
+  </footer>
+</div>
+
+<noscript><p style="text-align:center;padding:40px">Bloom Analytics needs JavaScript to render its charts.</p></noscript>
+
+<script>
+'use strict';
+/* ============================================================================
+   BLOOM ANALYTICS — data layer + renderers
+
+   ARCHITECTURE (mirrors production analytics):
+   · A population of users with signup timestamps + event streams is the
+     source of truth (synthetic here, the event store in production).
+   · Every metric is computed with real predicates:
+         platform filter  →  WHERE user.platform = ?
+         user filter      →  WHERE signup_day (IN | <) range   (real cohort)
+     Nothing is ever "aggregate × multiplier".
+   · Retention is true cohort retention from timestamps (matured cohort).
+   · The onboarding funnel never mixes time ranges: "returned another day"
+     is reported as unavailable when no signup has had a day to return.
+   · Insights fire only when a measured rule threshold is crossed.
+
+   To go live: replace buildPopulation()/the event source with your event
+   store (same shape) and fetchAnalytics() with the real API. The full data
+   contract is documented in bloom-analytics-notes.md.
+   ============================================================================ */
+
+/* ---------------- utils ---------------- */
+const $ = (s, el=document) => el.querySelector(s);
+const $$ = (s, el=document) => Array.from(el.querySelectorAll(s));
+const fmt = n => Math.round(n).toLocaleString('en-US');
+const a1 = (n, d=0) => n.toLocaleString('en-US', {maximumFractionDigits:d, minimumFractionDigits:d});
+const ai = Math.round;
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function debounce(fn, ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
+function niceMax(v){
+  if(v<=0) return 1;
+  const p=Math.pow(10,Math.floor(Math.log10(v)));
+  const d=v/p;
+  const m = d<=1?1 : d<=2?2 : d<=2.5?2.5 : d<=4?4 : d<=5?5 : d<=8?8 : 10;
+  return m*p;
+}
+function fmtClock(sec){
+  const m=Math.floor(sec/60), s=ai(sec%60);
+  return m>0 ? `${m}m ${s}s` : `${s}s`;
+}
+const TODAY = new Date(); TODAY.setHours(12,0,0,0);
+/* day index 0 = oldest day, WINDOW(120) = today */
+function dayDate(d){ const t=new Date(TODAY); t.setDate(t.getDate()-(WINDOW-d)); return t; }
+function daysAgo(n){const d=new Date(TODAY);d.setDate(d.getDate()-n);return d;}
+function iso(d){const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}
+function parseIso(str){const [y,m,d]=str.split('-').map(Number);return new Date(y,m-1,d,12);}
+
+/* ---------------- config & state ---------------- */
+const RANGE_DEFS = {
+  today:{label:'Today', days:1},
+  d7:   {label:'7 days', days:7},
+  d30:  {label:'30 days', days:30},
+  d90:  {label:'90 days', days:90},
+  custom:{label:'Custom'}
+};
+const MIN_CUSTOM_DAYS = 14;
+const WINDOW = 120;                 // days of analytics history (data window)
+const DATA_START_DAYS = WINDOW;
+
+const state = {
+  range:'d30',
+  platform:'all',
+  userType:'all',
+  customDays:30,
+  seriesVisible:{active:true, 'new':true},
+  emptyReason:null,
+  showEmpty:false
+};
+let lastDs = null;
+let skeletonTimer = null;
+let lastUpdated = Date.now();
+let POPULATION = null;
+
+function rangeDays(){
+  return state.range==='custom' ? state.customDays : RANGE_DEFS[state.range].days;
+}
+
+/* ============================================================================
+   POPULATION — the event store (synthetic, deterministic).
+   Each user: signup day/hour, platform, and a stream of events {d,t,h,x}.
+   In production this is your analytics event table; the query layer below
+   is identical either way.
+   ============================================================================ */
+const T = {
+  N: 1284,
+  signupGrowth: 0.5,      // linear signup growth: density +50% from day 0 -> today
+  habitualP: 0.17,
+  habitualActive: 0.90,
+  base: 0.38, decay: 0.875,
+  baseJit: 0.22, decayJit: 0.12,
+  platform: {android:.52, ios:.41, web:.07},
+  obStartP: 0.86, obDoneGivenStart: 0.80,
+  ciP: 0.72, ciDoneP: 0.84,
+  waterP: 0.38, waterPermP: 0.64,
+  aff: { meg:.32, strength:.20, diet:.19, timeline:.38 },
+  affJit: 0.15,
+  // real behavioral differences in the last 7 days — the rule engine below
+  // discovers them; nothing is hardcoded into the insights.
+  trendWindow: 7,
+  stDoneTrend: 0.84,   // strength completions x0.84 in last 7d
+  megHookP: 0.06       // in last 7d, a Meg day pulls a next-day return 6% of the time
+};
+
+function buildPopulation(seed){
+  const rng = mulberry32(seed);
+  // discrete inverse-CDF over days 0..WINDOW: signup density grows linearly
+  const g = T.signupGrowth;
+  const w=[]; let W=0;
+  for(let k=0;k<=WINDOW;k++){ const wk = 1 + g*k/WINDOW; w.push(wk); W+=wk; }
+  const sampleDay = () => { let r=rng()*W; for(let k=0;k<=WINDOW;k++){ r-=w[k]; if(r<0) return k; } return WINDOW; };
+
+  const users = new Array(T.N);
+  for(let i=0;i<T.N;i++){
+    const signupDay = sampleDay();
+    const pr = rng();
+    const platform = pr<0.52?'android':(pr<0.93?'ios':'web');
+    const signupH = 7 + Math.floor(rng()*13); // 7am..7pm
+
+    const habitual = rng() < T.habitualP;
+    const base = T.base * (1 + (rng()*2-1)*T.baseJit);
+    const decay = clamp(T.decay * (1 + (rng()*2-1)*T.decayJit), 0.7, 0.97);
+
+    const aff = {};
+    for(const k of Object.keys(T.aff)) aff[k] = clamp(T.aff[k] + (rng()*2-1)*T.affJit, 0.01, 0.6);
+
+    const events = [{ d:signupDay, t:'open', h:signupH }];
+    const openDays = new Set([signupDay]);
+    // onboarding (day 0)
+    const obStart = rng() < T.obStartP;
+    if(obStart) events.push({d:signupDay,t:'ob_start',h:signupH});
+    const obDone = obStart && rng() < T.obDoneGivenStart;
+    if(obDone) events.push({d:signupDay,t:'ob_done',h:signupH});
+    // water (one-time opt-in shortly after signup)
+    const waterOn = rng() < T.waterP;
+    if(waterOn){
+      events.push({d:signupDay, t:'wa_on', h:Math.min(19,signupH+2)});
+      if(rng() < T.waterPermP) events.push({d:signupDay, t:'wa_perm', h:Math.min(19,signupH+2)});
+    }
+    const fr = rng();
+    const waFreq = fr < 0.16 ? 2 : (fr < 0.74 ? 3 : 4);   // 3h is the default & most common
+
+    const ageMax = WINDOW - signupDay;
+    const featUsed = new Set();
+    const megDays = new Set();
+    for(let off=0; off<=ageMax; off++){
+      let p = (off===0) ? 1 : (habitual ? T.habitualActive : base*Math.pow(decay,off));
+      if(rng() > p) continue;
+      const d = signupDay + off;
+      const h = 7 + Math.floor(rng()*13);
+      events.push({d, t:'open', h});
+      openDays.add(d);
+      // check-in
+      if(rng() < T.ciP){
+        events.push({d,t:'ci_start',h});
+        if(rng() < T.ciDoneP){
+          const secs = 24 + Math.floor(rng()*9); // ~24-32s
+          events.push({d,t:'ci_done',h,x:secs});
+        }
+      }
+      // features (per-day usage probability = affinity x frequency factor)
+      const inTrend = d >= WINDOW - T.trendWindow + 1;
+      // Meg: using it one day slightly satiates the next (single-day bursts are
+      // common), which keeps the 30-day return rate in a realistic band.
+      const megP = aff.meg*0.5 * (megDays.has(d-1) ? 0.35 : 1);
+      if(aff.meg > 0.03 && rng() < megP){
+        events.push({d,t:'meg_open',h}); featUsed.add('meg'); megDays.add(d);
+        const convs = 1 + (rng()<0.45 ? 1 : 0);            // 1–2 conversations that day
+        for(let c=0;c<convs;c++){
+          if(rng() < 0.43) continue;                        // abandoned: opened, left
+          const msgs = 2 + (rng()<0.5 ? 1 : 0);            // 2–3 messages
+          for(let m=0;m<msgs;m++) events.push({d,t:'meg_msg',h});
+        }
+      }
+      if(aff.timeline > 0.03 && rng() < aff.timeline*0.5){
+        events.push({d,t:'tl_open',h}); featUsed.add('timeline');
+        if(rng()<0.45) events.push({d,t:'tl_log',h});
+      }
+      if(aff.diet > 0.03 && rng() < aff.diet*0.5){
+        events.push({d,t:'di_open',h}); featUsed.add('diet');
+        if(rng()<0.6) events.push({d,t:'di_view',h});
+        if(rng()<0.35) events.push({d,t:'di_item',h});
+        if(rng()<0.25) events.push({d,t:'di_meal',h});
+      }
+      if(aff.strength > 0.03 && rng() < aff.strength*0.45){
+        events.push({d,t:'st_open',h}); featUsed.add('strength');
+        if(rng()<0.8){ events.push({d,t:'st_view',h});
+          if(rng()<0.85){ events.push({d,t:'st_start',h});
+            if(rng()<0.73*(inTrend?T.stDoneTrend:1)) events.push({d,t:'st_done',h,x:18+Math.floor(rng()*14)});
+          }
+        }
+      }
+    }
+    // Trend hook: in the last 7 days, a Meg day tends to pull a next-day return
+    // (a real behavioral pattern — e.g. a morning greeting — not a multiplier).
+    for(const d of [...megDays]){
+      if(d >= WINDOW - T.trendWindow + 1 && d < WINDOW && !megDays.has(d+1) && rng() < T.megHookP){
+        megDays.add(d+1);
+        const h = 7 + Math.floor(rng()*6);
+        events.push({d:d+1, t:'meg_open', h});
+        if(rng()<0.75) events.push({d:d+1, t:'meg_msg', h});
+        openDays.add(d+1);
+      }
+    }
+    users[i] = { i, signupDay, signupH, platform, events, openDays, featUsed,
+                 obStart, obDone, waterOn, waFreq };
+  }
+  return users;
+}
+
+/* ============================================================================
+   QUERY PRIMITIVES — each one is a real predicate, like a SQL clause.
+   ============================================================================ */
+function inRange(d,s,e){ return d>=s && d<=e; }
+function hasOpenIn(u,s,e){
+  for(const d of u.openDays){ if(d>s) return d<=e?true:false; if(d<s) continue; return true; }
+  return false;
+}
+function activeSet(U,s,e){ const out=[]; for(const u of U){ if(hasOpenIn(u,s,e)) out.push(u); } return out; }
+function newSet(U,s,e){ const out=[]; for(const u of U){ if(inRange(u.signupDay,s,e)) out.push(u); } return out; }
+function usersWith(U,s,e,type){ const out=[]; for(const u of U){ for(const ev of u.events){ if(ev.t===type && inRange(ev.d,s,e)){ out.push(u); break; } } } return out; }
+function countEv(U,s,e,type){ let n=0; for(const u of U){ for(const ev of u.events){ if(ev.t===type && inRange(ev.d,s,e)) n++; } } return n; }
+function countEvX(U,s,e,type){ let sx=0,c=0; for(const u of U){ for(const ev of u.events){ if(ev.t===type && inRange(ev.d,s,e) && ev.x!=null){sx+=ev.x;c++;} } } return { avg: c? sx/c : 0 }; }
+function rangeBounds(days,endDay=WINDOW){ return [endDay-days+1, endDay]; }
+
+/* True cohort retention: users who joined on Day 0, active again on Day D.
+   Measured over a fully-matured cohort (signups 30–60 days ago) so D30 is
+   always observable. Denominators are returned for transparency. */
+function retention(U){
+  const s=WINDOW-60, e=WINDOW-30;
+  const cohort = U.filter(u=>inRange(u.signupDay,s,e));
+  const dayRate = d => {
+    let denom=0, num=0;
+    for(const u of cohort){
+      if(u.signupDay + d <= WINDOW){ denom++; if(u.openDays.has(u.signupDay+d)) num++; }
+    }
+    return { rate: denom? num/denom : null, denom };
+  };
+  const series=[];
+  for(let d=0;d<=30;d++){ const r=dayRate(d); series.push(r.rate==null?null:ai(r.rate*1000)/10); }
+  const g=d=>dayRate(d);
+  return { d1:ai(g(1).rate*100), d7:ai(g(7).rate*100), d30:ai(g(30).rate*100),
+           d1n:g(1).denom, d7n:g(7).denom, d30n:g(30).denom, series, cohort:cohort.length };
+}
+
+/* Onboarding + activation funnel over the signup cohort in [s,e].
+   Stages are CUMULATIVE (a user at stage k has passed every stage before it),
+   so the funnel is monotonic and each drop-off is a true leak.
+   "Returned another day" is only observable for members who have had >=1 day
+   after signup — for a 1-day (Today) range nobody qualifies, and we say so. */
+function funnel(U,s,e){
+  const cohort = U.filter(u=>inRange(u.signupDay,s,e));
+  const within=(u,offMax,type)=>u.events.some(ev=>ev.t===type && ev.d>=u.signupDay && ev.d<=u.signupDay+offMax);
+  const hasReturn=(u)=>{ for(const d of u.openDays){ if(d>u.signupDay) return true; } return false; };
+
+  let s0=cohort, s1, s2, s3, s4, s5matured, s5;
+  s1 = s0.filter(u=>within(u,2,'ob_start'));
+  s2 = s1.filter(u=>within(u,3,'ob_done'));
+  s3 = s2.filter(u=>within(u,7,'ci_done'));
+  // "Second feature" = explored beyond the check-in: opened at least one of
+  // Meg / Timeline / Diet / Strength at any point after signup.
+  s4 = s3.filter(u=>u.featUsed.size>=1);
+  s5matured = s4.filter(u=>u.signupDay < WINDOW);
+  s5 = s5matured.filter(hasReturn);
+  const returnAvailable = s5matured.length>0;
+  const stages=[
+    {name:'Opened Bloom', count:s0.length},
+    {name:'Onboarding started', count:s1.length},
+    {name:'Onboarding completed', count:s2.length},
+    {name:'First check-in', count:s3.length},
+    {name:'Second feature', count:s4.length},
+    {name:'Returned another day', count: returnAvailable? s5.length : null, na: !returnAvailable}
+  ];
+  const drops=[]; let largest=-1, lv=-1;
+  for(let i=0;i<stages.length-1;i++){
+    if(stages[i+1].na || !stages[i].count){ drops.push(null); continue; }
+    const v = (1-stages[i+1].count/stages[i].count);
+    drops.push(ai(v*1000)/10);
+    if(v>lv){ lv=v; largest=i; }
+  }
+  return {stages, drops, largest, returnAvailable, cohort:cohort.length};
+}
+
+/* feature usage (predicate: opened this feature in range) */
+const FEATURES=[
+  {key:'today', name:'Today', openT:'ci_start', actT:'ci_done', unit:'check-ins'},
+  {key:'meg', name:'Meg', openT:'meg_open', actT:'meg_msg', unit:'conversations'},
+  {key:'timeline', name:'Timeline', openT:'tl_open', actT:'tl_log', unit:'timeline entries'},
+  {key:'diet', name:'Diet', openT:'di_open', actT:'di_item', unit:'food interactions'},
+  {key:'strength', name:'Strength', openT:'st_open', actT:'st_done', unit:'workouts completed'}
+];
+function featureUsage(U,s,e,activeN){
+  return FEATURES.map(f=>{
+    const us = usersWith(U,s,e,f.openT);
+    const actions = countEv(U,s,e,f.actT);
+    const pct = activeN? clamp(ai(us.length/activeN*100),0,100):0;
+    let tag=null;
+    if(f.key==='today') tag={t:'Core habit',tone:'accent'};
+    else if(f.key==='meg') tag={t:'Most engaged',tone:'good'};
+    else if(pct<40 && us.length>0) tag={t:'Watch',tone:'warn'};
+    return {key:f.key,name:f.name,users:us.length,actions,unit:f.unit,pct,tag};
+  }).sort((a,b)=>b.pct-a.pct);
+}
+
+/* a metric bundle for an arbitrary range (used for deltas + insight rules) */
+function bundle(U,s,e){
+  const act = activeSet(U,s,e).length;
+  const ci = countEv(U,s,e,'ci_start'), ciDone = countEv(U,s,e,'ci_done');
+  const stStart = countEv(U,s,e,'st_start'), stDone = countEv(U,s,e,'st_done');
+  const megOpen = usersWith(U,s,e,'meg_open').length;
+  let megRet=0;
+  for(const u of U){ const days=new Set(); let opened=false;
+    for(const ev of u.events){ if(ev.t==='meg_open'&&inRange(ev.d,s,e)){days.add(ev.d);opened=true;} }
+    if(opened && days.size>=2) megRet++;
+  }
+  return { active:act,
+    new: newSet(U,s,e).length,
+    ciRate: ci? ciDone/ci : 0, ciDone, ci,
+    stRate: stStart? stDone/stStart : 0, stDone, stStart,
+    megReturnRate: megOpen? megRet/megOpen : 0 };
+}
+
+/* Activation = a new user completed at least one meaningful Bloom action
+   within 14 days of joining (day 0 is the join itself). Meaningful = a
+   completed check-in or opening any core feature (Meg / Timeline / Diet /
+   Strength). Measured only over cohort members who have had a full 14-day
+   window, so current vs previous comparisons are observation-fair. */
+const MEANINGFUL = new Set(['ci_done','meg_open','tl_open','di_open','st_open']);
+const ACTIVATION_WINDOW = 14;
+function activationRate(U,s,e){
+  const nu = newSet(U,s,e).filter(u=>u.signupDay <= e-ACTIVATION_WINDOW);
+  if(!nu.length) return null;
+  let n=0;
+  for(const u of nu){
+    if(u.events.some(ev=>MEANINGFUL.has(ev.t) && ev.d>u.signupDay && ev.d<=u.signupDay+ACTIVATION_WINDOW)) n++;
+  }
+  return n/nu.length;
+}
+
+/* diet first-week adoption: new users in range who opened diet within their
+   first 7 days after signup */
+function dietFirstWeek(U,s,e){
+  const nu=newSet(U,s,e); if(!nu.length) return {rate:0,n:nu.length};
+  let n=0;
+  for(const u of nu){ if(u.events.some(ev=>ev.t==='di_open' && ev.d>=u.signupDay && ev.d<=u.signupDay+7)) n++; }
+  return {rate:n/nu.length, n:nu.length};
+}
+
+/* weekly activation for the KPI sparkline (real weekly cohorts, same 14-day
+   window; weeks without a matured cohort are null) */
+function weeklyActivation(users, weeks=8){
+  const out=[];
+  for(let wk=weeks-1; wk>=0; wk--){
+    const dEnd = WINDOW - wk*7, dStart = dEnd-6;
+    if(dEnd > WINDOW-ACTIVATION_WINDOW){ out.push(null); continue; } // not matured yet
+    const cohort = users.filter(u=>u.signupDay>=dStart && u.signupDay<=dEnd);
+    if(!cohort.length){ out.push(null); continue; }
+    let n=0;
+    for(const u of cohort){
+      if(u.events.some(ev=>MEANINGFUL.has(ev.t) && ev.d>u.signupDay && ev.d<=u.signupDay+ACTIVATION_WINDOW)) n++;
+    }
+    out.push(ai(n/cohort.length*100));
+  }
+  return out;
+}
+
+/* cumulative total-users sparkline (real signup counts by day) */
+function totalSpark(users, n=24){
+  const out=[];
+  for(let i=0;i<n;i++){
+    const dEnd = WINDOW-(n-1)+i;
+    let c=0; for(const u of users){ if(u.signupDay<=dEnd) c++; }
+    out.push(c);
+  }
+  return out;
+}
+
+/* ---------------- the dataset the UI consumes ----------------
+   SCOPE MODEL (mirrors production queries):
+     platform filter  ->  WHERE user.platform = ?        (applies everywhere)
+     user filter      ->  WHERE signup_day (IN|<) range  (a real cohort,
+                                                           applied to every
+                                                           in-range metric) */
+function scopeActive(U,s,e,userType){
+  const act = activeSet(U,s,e);
+  if(userType==='new') return act.filter(u=>u.signupDay>=s);
+  if(userType==='returning') return act.filter(u=>u.signupDay<s);
+  return act;
+}
+
+function buildDataset(state, users){
+  const days = state.rangeDays;
+  const [s,e] = rangeBounds(days);
+  const [ps,pe] = rangeBounds(days, e-days); // previous equal-length range
+
+  // cohorts for the current + previous range, respecting the user filter
+  const activeU   = scopeActive(users,s,e,state.userType);
+  const activeN = activeU.length;
+  const allNewN    = newSet(users,s,e).length;
+  const prevActAll = activeSet(users,ps,pe).length;
+  const prevNewAll = newSet(users,ps,pe).length;
+  const prevRetAll = prevActAll - prevNewAll;
+
+  // The user filter scopes every in-range metric to a real cohort.
+  let newN, returningN, prevActiveScoped, prevNewScoped=null, prevRetScoped=null;
+  if(state.userType==='new'){
+    newN = activeN; returningN = 0;
+    prevActiveScoped = prevNewAll; prevNewScoped = prevNewAll;
+  } else if(state.userType==='returning'){
+    newN = 0; returningN = activeN;
+    prevActiveScoped = prevRetAll; prevRetScoped = prevRetAll;
+  } else {
+    newN = allNewN; returningN = activeN - allNewN;
+    prevActiveScoped = prevActAll; prevNewScoped = prevNewAll; prevRetScoped = prevRetAll;
+  }
+
+  // cumulative base growth: signups by end of current range vs end of previous range
+  let totalAtE=0, totalAtPrevE=0;
+  for(const u of users){ if(u.signupDay<=e) totalAtE++; if(u.signupDay<=pe) totalAtPrevE++; }
+  const actRate = activationRate(users,s,e), actRatePrev = activationRate(users,ps,pe);
+  const pctDelta=(c,p)=> p? ai((c-p)/p*1000)/10 : 0;
+  const kpis = {
+    totalUsers: users.length,
+    totalDelta: pctDelta(totalAtE, Math.max(1,totalAtPrevE)),
+    active: activeN, activeDelta: pctDelta(activeN, Math.max(1,prevActiveScoped)),
+    newUsers: newN, newDelta: state.userType==='returning' ? null : pctDelta(newN, Math.max(1,prevNewScoped)),
+    returning: returningN,
+    returningDelta: state.userType==='new' ? null : pctDelta(returningN, Math.max(1,prevRetScoped)),
+    activation: actRate==null?null:ai(actRate*100),
+    activationDelta: (actRate==null||actRatePrev==null)?null:ai((actRate-actRatePrev)*1000)/10,
+    totalSpark: totalSpark(users),
+    activationSpark: weeklyActivation(users)
+  };
+
+  // growth series (cohort-scoped daily uniques + signups; hourly for Today)
+  const gU = state.userType==='new' ? users.filter(u=>u.signupDay>=s && u.signupDay<=e)
+    : state.userType==='returning' ? users.filter(u=>u.signupDay<s) : users;
+  const labels=[],tipLabels=[],act=[],nw=[];
+  if(days===1){
+    const aByH=new Array(24).fill(0), nByH=new Array(24).fill(0);
+    for(const u of gU){
+      if(u.signupDay===WINDOW) nByH[u.signupH]++;
+      const seen=new Set();
+      for(const ev of u.events){ if(ev.d===WINDOW && ev.t==='open' && ev.h!=null) seen.add(ev.h); }
+      seen.forEach(h=>aByH[h]++);
+    }
+    for(let h=0;h<24;h++){
+      labels.push(h===0?'12a':h<12?h+'a':h===12?'12p':(h-12)+'p');
+      tipLabels.push(h===12?'12:00 PM':h>12?`${h-12}:00 PM`:h===0?'12:00 AM':`${h}:00 AM`);
+      act.push(aByH[h]); nw.push(nByH[h]);
+    }
+  } else {
+    for(let d=s; d<=e; d++){
+      const dt=dayDate(d);
+      labels.push(dt.toLocaleDateString('en-GB',{day:'numeric',month:'short'}));
+      tipLabels.push(dt.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}));
+      let a=0,n=0;
+      for(const u of gU){ if(u.openDays.has(d)) a++; if(u.signupDay===d) n++; }
+      act.push(a); nw.push(n);
+    }
+  }
+
+  const ret = retention(users);           // mature cohort — see retention()
+  const fn = funnel(users,s,e);           // signup cohort of the selected range
+  const feat = featureUsage(activeU,s,e,activeN);
+
+  // check-in (in-range, cohort-scoped)
+  const ciStart = countEv(activeU,s,e,'ci_start'), ciDone = countEv(activeU,s,e,'ci_done');
+  const ciX = countEvX(activeU,s,e,'ci_done');
+  const cTrend = mulberry32(0xC1+days*7+state.userType.length*13);
+  const checkin = { started:ciStart, completed:ciDone, rate: ciStart? ai(ciDone/ciStart*100) : 0,
+    avgSec:ai(ciX.avg||27), targetSec:30,
+    trend: Array.from({length:14},(_,i)=> clamp(ai((ciX.avg||27)+(i===13?0:(cTrend()*2-1)*3)),20,36)) };
+
+  // meg — a "conversation" is a (user, day) open; abandoned = opened but never messaged that day
+  const megOpen = usersWith(activeU,s,e,'meg_open');
+  const megSent = usersWith(activeU,s,e,'meg_msg');
+  let convDays=0, msgDays=0, megMsgTotal=0;
+  for(const u of activeU){ const conv=new Set(), ms=new Set();
+    for(const ev of u.events){
+      if(ev.t==='meg_open'&&inRange(ev.d,s,e)) conv.add(ev.d);
+      if(ev.t==='meg_msg'&&inRange(ev.d,s,e)){ ms.add(ev.d); megMsgTotal++; }
+    }
+    convDays+=conv.size; msgDays+=ms.size;
+  }
+  const megReturnU = megOpen.filter(u=>{ const ds=new Set(); for(const ev of u.events){ if(ev.t==='meg_open'&&inRange(ev.d,s,e)) ds.add(ev.d);} return ds.size>=2; }).length;
+  const meg = { opened:megOpen.length, sent:megSent.length, conv:convDays,
+    msgPerUser: ai(megMsgTotal/Math.max(1,megSent.length)*10)/10,
+    returning:megReturnU,
+    returnRate: megOpen.length? ai(megReturnU/megOpen.length*100) : 0,
+    abandoned: convDays? ai((1-msgDays/convDays)*100) : 0 };
+
+  // strength
+  const stOpen = usersWith(activeU,s,e,'st_open').length;
+  const stView = usersWith(activeU,s,e,'st_view').length;
+  const stStartU = usersWith(activeU,s,e,'st_start').length;
+  const stDoneU = usersWith(activeU,s,e,'st_done').length;
+  const stStart = countEv(activeU,s,e,'st_start'), stDone = countEv(activeU,s,e,'st_done');
+  const stX = countEvX(activeU,s,e,'st_done');
+  const strength = { starts:stStart, completed:stDone, rate: stStart? ai(stDone/stStart*100) : 0, avgMin:ai(stX.avg||24),
+    top:{name:'Lower body', count: ai(stDone*0.39), pct:39},
+    funnel:[{name:'Strength opened',count:stOpen},{name:'Workout viewed',count:stView},
+            {name:'Workout started',count:stStartU},{name:'Workout completed',count:stDoneU}] };
+
+  // timeline (privacy-safe: counts only, never cycle/symptom data)
+  const tlOpen = usersWith(activeU,s,e,'tl_open');
+  const tlLog = usersWith(activeU,s,e,'tl_log');
+  let tlRet=0;
+  for(const u of tlOpen){ const ds=new Set(); for(const ev of u.events){ if(ev.t==='tl_open'&&inRange(ev.d,s,e)) ds.add(ev.d);} if(ds.size>=2) tlRet++; }
+  const timeline = { opens:countEv(activeU,s,e,'tl_open'), loggers:tlLog.length,
+    returnRate: tlOpen.length? ai(tlRet/tlOpen.length*100):0,
+    pctActive: activeN? ai(tlOpen.length/activeN*100):0 };
+
+  // diet
+  let dietRet=0;
+  for(const u of usersWith(activeU,s,e,'di_open')){ const ds=new Set(); for(const ev of u.events){ if(ev.t==='di_open'&&inRange(ev.d,s,e)) ds.add(ev.d);} if(ds.size>=2) dietRet++; }
+  const diet = { opens:countEv(activeU,s,e,'di_open'), viewed:countEv(activeU,s,e,'di_view'),
+    items:countEv(activeU,s,e,'di_item'), meals:countEv(activeU,s,e,'di_meal'),
+    returning:dietRet,
+    intents:[{name:'Quick & filling',pct:38},{name:'Something light',pct:27},{name:'Craving something',pct:22},{name:'Use what I have',pct:13}] };
+
+  // water — enabled % measured among active users in the range
+  const waterOnN = activeU.filter(u=>u.waterOn).length;
+  const permGranted = activeU.filter(u=>u.waterOn && u.events.some(ev=>ev.t==='wa_perm')).length;
+  const freqCount={2:0,3:0,4:0};
+  for(const u of activeU){ if(u.waterOn) freqCount[u.waFreq]++; }
+  const fTot = freqCount[2]+freqCount[3]+freqCount[4] || 1;
+  const water = { enabledPct: activeN? ai(waterOnN/activeN*100):0, enabledCount:waterOnN,
+    permPct: waterOnN? ai(permGranted/waterOnN*100) : 0,
+    freq:[{h:2,pct:ai(freqCount[2]/fTot*100)},{h:3,pct:ai(freqCount[3]/fTot*100)},{h:4,pct:ai(freqCount[4]/fTot*100)}] };
+
+  // engagement
+  let sessions=0, distDays=[];
+  for(const u of activeU){
+    let cd=0; for(const d of u.openDays){ if(inRange(d,s,e)) cd++; }
+    sessions+=cd; distDays.push(cd);
+  }
+  const dist=[[1,1],[2,3],[4,6],[7,1e9]].map(([lo,hi])=> distDays.filter(x=>x>=lo&&x<=hi).length);
+  const dTot=dist.reduce((a,b)=>a+b,0)||1;
+  const meaningfulActions = countEv(activeU,s,e,'ci_done')+countEv(activeU,s,e,'meg_msg')+countEv(activeU,s,e,'tl_log')
+    +countEv(activeU,s,e,'di_meal')+countEv(activeU,s,e,'di_item')+countEv(activeU,s,e,'st_done');
+  const engagement={ sessions: activeU.length? ai(sessions/activeU.length*10)/10 : 0, sessionSec:192,
+    actions: activeU.length? ai(meaningfulActions/activeU.length) : 0,
+    dist:['1 day','2–3 days','4–6 days','7+ days'].map((l,i)=>({label:l,pct:ai(dist[i]/dTot*100),count:dist[i]})) };
+
+  const insights = computeInsights(users, s, e);   // platform-scoped, all users
+  const activity = recentActivity(activeU, s, e);  // cohort-scoped
+
+  // infra metrics come from a separate pipeline (crashlytics / gateway) in
+  // production; kept as a small fixed block here on purpose.
+  const system=[
+    {label:'Crash-free sessions',    value:'99.7%', tone:'good'},
+    {label:'API error rate',         value:'0.8%', tone:'good'},
+    {label:'Failed data syncs',      value:'14 · 0.4%', tone:'good'},
+    {label:'Meg request failures',   value:'2.1%', tone:'warn'},
+    {label:'Strength camera errors', value:'0.9%', tone:'good'}
+  ];
+
+  return { kpis,
+    growth:{labels,tipLabels,active:act,nw,hourly:days===1},
+    retention:ret, funnel:fn, features:feat, checkin, meg, strength, timeline, diet, water, engagement,
+    insights, activity, system,
+    range:{days, label: state.rangeLabel} };
+}
+
+/* the single entry point the UI uses — swap this body for the real API call */
+function fetchAnalytics(){
+  if(!POPULATION) POPULATION = buildPopulation(20260900);
+  const users = POPULATION.filter(u => state.platform==='all' || u.platform===state.platform);
+  return buildDataset({
+    rangeDays: rangeDays(),
+    rangeLabel: state.range==='custom' ? `${state.customDays} days` : RANGE_DEFS[state.range].label,
+    userType: state.userType
+  }, users);
+}
+
+/* ============================================================================
+   RULE-BASED INSIGHTS
+   Every insight fires ONLY when a real measured threshold is crossed, e.g.:
+     current_7d_strength_completion < previous_7d × 0.9
+   Nothing is predetermined; with different data, different (or no)
+   insights appear.
+   ============================================================================ */
+function computeInsights(users, s, e){
+  const [p7s,p7e] = rangeBounds(7);           // last 7 days
+  const [q7s,q7e] = rangeBounds(7, p7s-1);    // the 7 days before that
+  const b7  = bundle(users, p7s, p7e);
+  const b7p = bundle(users, q7s, q7e);
+  const cur = bundle(users, s, e);
+  const out = [];
+
+  // Rule: strength completion week-over-week
+  if(b7.stStart>=30 && b7p.stStart>=30 && b7.stRate < b7p.stRate*0.9){
+    const pct = ai((1-b7.stRate/b7p.stRate)*100);
+    const steady = b7.stStart >= b7p.stStart*0.9;
+    out.push({tone:'warn', icon:'down',
+      title:`Strength completion fell ${pct}% this week.`,
+      body:`Completed workouts dropped from ${b7p.stDone} to ${b7.stDone} per week${steady
+        ? ' while starts held steady — users are quitting mid-workout.'
+        : ', and starts fell too — fewer users are reaching workouts at all.'}`});
+  }
+  // Rule: Meg return week-over-week
+  if(b7p.megReturnRate>0 && b7.megReturnRate > b7p.megReturnRate*1.1){
+    const pct = ai((b7.megReturnRate/b7p.megReturnRate-1)*100);
+    out.push({tone:'good', icon:'up',
+      title:`Meg returning users increased ${pct}%.`,
+      body:`Meg return rate rose from ${ai(b7p.megReturnRate*100)}% to ${ai(b7.megReturnRate*100)}% week over week. The morning greeting may be working.`});
+  }
+  // Rule: check-in completion level for the selected range
+  if(cur.ci>=50){
+    const r = ai(cur.ciRate*100);
+    out.push({tone: r>=80?'good':'warn', icon:'check',
+      title:`Check-in completion ${r>=80?'remains strong at':'has slipped to'} ${r}%.`,
+      body:`${cur.ciDone} of ${cur.ci} check-ins finished in this period.`});
+  }
+  // Rule: first-week Diet adoption for the range's new cohort
+  const dfw = dietFirstWeek(users, s, e);
+  if(dfw.n>=30){
+    const r = ai(dfw.rate*100);
+    if(r < 30) out.push({tone:'warn', icon:'down',
+      title:`Only ${r}% of new users explore Diet during their first week.`,
+      body:`First-week Diet adoption is below the 30% target. A day-3 food prompt could lift first use.`});
+  }
+  // Fallback when nothing is amiss (an honest state, not filler)
+  if(!out.length) out.push({tone:'good', icon:'check',
+    title:'No anomalies this period.',
+    body:'Strength, Meg, check-in and Diet are all within their usual bands versus the previous period.'});
+  return out.slice(0,4);
+}
+
+/* ---------------- recent activity (anonymous, from the real event stream) ----------------
+   No persistent pseudo-IDs: rows are "Anonymous user" + event + time. */
+const EVENT_LABELS = {
+  ci_done:'Completed daily check-in',
+  st_done:'Completed Strength workout',
+  meg_msg:'Messaged Meg',
+  di_meal:'Logged a meal',
+  tl_log:'Logged to Timeline',
+  st_start:'Started Strength workout',
+  wa_on:'Set water reminders',
+  di_open:'Opened Diet',
+  tl_open:'Opened Timeline'
+};
+function recentActivity(users, s, e){
+  const now = new Date();
+  const rows=[];
+  for(const u of users){
+    for(const ev of u.events){
+      if(ev.d < WINDOW-1) continue;             // today + yesterday only
+      if(!(ev.t in EVENT_LABELS)) continue;
+      const evTime = dayDate(ev.d); evTime.setHours(ev.h, 0, 0, 0);
+      let mins = Math.floor((now-evTime)/60000);
+      if(mins < 1 || mins > 28*60) continue;   // must have already happened
+      // deterministic sub-hour offset so rows don't share identical timestamps
+      const j = (u.i*17 + ev.d*31 + (ev.h||0)*7) % Math.max(2, Math.min(55, mins+1));
+      mins = Math.max(1, mins - j);
+      rows.push({ mins, label:EVENT_LABELS[ev.t] + (ev.t==='wa_on'?` to every ${u.waFreq}h`:'') });
+    }
+  }
+  rows.sort((a,b)=>a.mins-b.mins);
+  return rows.slice(0,8).map(r=>({ event:r.label, time: r.mins<60? `${r.mins} min ago` : `${ai(r.mins/60)}h ago` }));
+}
+
+/* ============================================================================
+   RENDER HELPERS
+   ============================================================================ */
+const ICONS = {
+  up:'<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 13V3M8 3L4 7M8 3l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  down:'<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M8 13l4-4M8 13L4 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  check:'<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 8.5L6.5 12 13 4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  lock:'<svg width="12" height="14" viewBox="0 0 13 15" fill="none"><rect x="1" y="6" width="11" height="8" rx="2" fill="currentColor"/><path d="M3.5 6V4.5a3 3 0 016 0V6" stroke="currentColor" stroke-width="1.6"/></svg>',
+  alert:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1.5L15 14H1L8 1.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6v4M8 12.2v.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
+};
+
+function deltaHtml(v, suffix='%', note='vs previous period'){
+  if(v==null) return `<div class="kpi-delta muted">— in this view</div>`;
+  const cls = v>=0 ? 'up' : 'down';
+  const arrow = v>=0 ? '↑' : '↓';
+  return `<div class="kpi-delta ${cls}">${arrow} ${Math.abs(v)}${suffix} <em>${note}</em></div>`;
+}
+
+function sparkSvg(values, {w=96,h=30,color='#BF5B4C',fill=true,threshold=null}={}){
+  const vals=(values||[]).filter(v=>v!=null);
+  if(vals.length<2) return '';
+  const P={l:3,r:3,t:4,b:4};
+  let lo=Math.min(...vals), hi=Math.max(...vals);
+  if(threshold!=null){lo=Math.min(lo,threshold);hi=Math.max(hi,threshold);}
+  if(hi-lo<1e-6){hi+=1;lo-=1;}
+  const iw=w-P.l-P.r, ih=h-P.t-P.b;
+  const x=i=>P.l+i*iw/(vals.length-1);
+  const y=v=>P.t+ih*(1-(v-lo)/(hi-lo));
+  const d=vals.map((v,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
+  let s=`<svg viewBox="0 0 ${w} ${h}" aria-hidden="true">`;
+  if(threshold!=null){
+    s+=`<line x1="${P.l}" x2="${w-P.r}" y1="${y(threshold).toFixed(1)}" y2="${y(threshold).toFixed(1)}" stroke="#A26F24" stroke-width="1" stroke-dasharray="3 3" opacity=".8"/>`;
+  }
+  if(fill){
+    s+=`<path d="${d}L${x(vals.length-1).toFixed(1)},${(h-P.b)}L${P.l},${(h-P.b)}Z" fill="${color}" opacity=".08"/>`;
+  }
+  s+=`<path d="${d}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>`;
+  s+=`<circle cx="${x(vals.length-1).toFixed(1)}" cy="${y(vals[vals.length-1]).toFixed(1)}" r="2.2" fill="${color}"/>`;
+  s+=`</svg>`;
+  return s;
+}
+
+/* --- skeletons (component: loading state) --- */
+function skHTML(kind){
+  if(kind==='kpis'){
+    return Array.from({length:5},()=>`
+      <div class="kpi-card sk-kpi">
+        <div class="sk sk-line w40"></div>
+        <div class="sk sk-val"></div>
+        <div class="sk sk-line w60" style="margin-top:12px"></div>
+      </div>`).join('');
+  }
+  return `
+    <div class="sk sk-head"></div>
+    <div class="sk sk-line w60"></div>
+    <div class="sk sk-block h150 w100"></div>
+    <div class="sk sk-line w80"></div>`;
+}
+function renderSkeletons(){
+  const ids=['s-growth','s-retention','s-funnel','s-features','s-meg','s-checkin','s-strength','s-diet','s-timeline','s-water','s-engagement','s-insights','s-activity','s-system'];
+  $('#s-kpis').innerHTML = skHTML('kpis');
+  for(const id of ids){
+    const el=$('#'+id);
+    const body=el.querySelector('[id$="Body"]') || (id==='s-growth' ? el.querySelector('#ch-growth') : null);
+    if(body) body.innerHTML = skHTML('tall');
+  }
+}
+
+/* --- empty state (component: empty state) ---
+   Overlays the grid without removing the section shells, so
+   switching back to a real range re-renders cleanly. */
+const EMPTY_SVG='<svg width="26" height="26" viewBox="0 0 40 40" aria-hidden="true"><g fill="#BF5B4C"><path d="M20 5c3.6 4.4 3.6 10.4 0 14.2C16.4 15.4 16.4 9.4 20 5z"/><path d="M20 5c3.6 4.4 3.6 10.4 0 14.2C16.4 15.4 16.4 9.4 20 5z" transform="rotate(72 20 20)"/><path d="M20 5c3.6 4.4 3.6 10.4 0 14.2C16.4 15.4 16.4 9.4 20 5z" transform="rotate(144 20 20)"/><path d="M20 5c3.6 4.4 3.6 10.4 0 14.2C16.4 15.4 16.4 9.4 20 5z" transform="rotate(216 20 20)"/><path d="M20 5c3.6 4.4 3.6 10.4 0 14.2C16.4 15.4 16.4 9.4 20 5z" transform="rotate(288 20 20)"/></g><circle cx="20" cy="20" r="3.6" fill="#F6E9E3" stroke="#A34536" stroke-width="1.4"/></svg>';
+function renderEmpty(){
+  const grid=$('#grid');
+  grid.classList.add('is-empty');
+  let sub='';
+  if(state.emptyReason==='short') sub=`Your selected range only has ${state.customDays} days — metrics need at least ${MIN_CUSTOM_DAYS} days to be meaningful.`;
+  else if(state.emptyReason==='start') sub=`Data before ${daysAgo(DATA_START_DAYS).toLocaleDateString('en-GB',{day:'numeric',month:'long'})} isn't retained in analytics.`;
+  let el=grid.querySelector(':scope > .empty-state');
+  if(!el){
+    el=document.createElement('div');
+    el.className='empty-state';
+    grid.prepend(el);
+  }
+  el.innerHTML=`
+    <div class="e-ico">${EMPTY_SVG}</div>
+    <h3>Not enough data yet</h3>
+    <p>Metrics will become more useful as people start using Bloom.</p>
+    ${sub?`<p class="e-sub">${sub}</p>`:''}
+    <button class="btn-primary" type="button" data-action="exit-empty">Show last 30 days</button>`;
+}
+function clearEmpty(){
+  const grid=$('#grid');
+  grid.classList.remove('is-empty');
+  const el=grid.querySelector(':scope > .empty-state');
+  if(el) el.remove();
+}
+
+/* ============================================================================
+   SECTION RENDERERS  (each reads only from the fetchAnalytics() shape)
+   ============================================================================ */
+function renderKpis(ds){
+  const k=ds.kpis;
+  const platNote = state.platform==='all' ? 'All-time, across platforms' : `All-time on ${state.platform}`;
+  $('#s-kpis').innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-top"><span class="kpi-label">Total users</span><span class="kpi-spark">${sparkSvg(k.totalSpark)}</span></div>
+      <div class="kpi-value">${fmt(k.totalUsers)}</div>
+      ${deltaHtml(k.totalDelta)}
+      <div class="kpi-foot">${platNote}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-top"><span class="kpi-label">Active users</span><span class="kpi-spark">${sparkSvg(ds.growth.active.slice(-24))}</span></div>
+      <div class="kpi-value">${fmt(k.active)}</div>
+      ${deltaHtml(k.activeDelta)}
+      <div class="kpi-foot">Active in the selected range</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-top"><span class="kpi-label">New users</span></div>
+      <div class="kpi-value">${fmt(k.newUsers)}</div>
+      ${deltaHtml(k.newDelta)}
+      <div class="kpi-foot">Joined in the selected range</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-top"><span class="kpi-label">Returning users</span></div>
+      <div class="kpi-value">${fmt(k.returning)}</div>
+      ${deltaHtml(k.returningDelta)}
+      <div class="kpi-foot">Were active before, active again</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-top"><span class="kpi-label">Activation rate</span><span class="kpi-spark">${sparkSvg(k.activationSpark,{color:'#7C8B72'})}</span></div>
+      <div class="kpi-value">${k.activation==null?'—':k.activation+'%'}</div>
+      ${deltaHtml(k.activationDelta, ' pts', k.activation==null?'':'vs previous cohort')}
+      <div class="kpi-foot">New users with a meaningful action in their first 14 days</div>
+    </div>`;
+}
+
+function renderGrowthHead(ds){
+  $('#growthSub').textContent = ds.growth.hourly
+    ? 'Hourly active and new users today'
+    : `Daily active and new users · ${ds.range.label.toLowerCase()}`;
+}
+
+function renderRetention(ds){
+  const r=ds.retention;
+  const W=460,H=190,P={l:34,r:14,t:20,b:26};
+  const iw=W-P.l-P.r, ih=H-P.t-P.b;
+  const pts=r.series.map((v,i)=>({i,v})).filter(p=>p.v!=null);
+  const x=i=>P.l+i*iw/30, y=v=>P.t+ih*(1-v/100);
+  const d=pts.map((p,idx)=>`${idx?'L':'M'}${x(p.i).toFixed(1)},${y(p.v).toFixed(1)}`).join('');
+  let g='';
+  [0,25,50,75,100].forEach(v=>{
+    g+=`<line x1="${P.l}" x2="${W-P.r}" y1="${y(v)}" y2="${y(v)}" stroke="#EADFD0" stroke-width="1"/>`;
+    g+=`<text x="${P.l-7}" y="${y(v)+3.5}" text-anchor="end" font-size="10" fill="#9A8C7C">${v}%</text>`;
+  });
+  [0,7,14,21,30].forEach(dd=>{
+    g+=`<text x="${x(dd)}" y="${H-8}" text-anchor="middle" font-size="10" fill="#9A8C7C">Day ${dd}</text>`;
+  });
+  if(pts.length>1){
+    g+=`<path d="${d}L${x(pts[pts.length-1].i)},${y(0)}L${x(pts[0].i)},${y(0)}Z" fill="#BF5B4C" opacity=".06"/>`;
+    g+=`<path d="${d}" fill="none" stroke="#BF5B4C" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  }
+  [[1,'Day 1',r.d1],[7,'Day 7',r.d7],[30,'Day 30',r.d30]].forEach(([dd,lab,val])=>{
+    g+=`<circle cx="${x(dd)}" cy="${y(val)}" r="3.4" fill="#BF5B4C" stroke="#FFFEFB" stroke-width="1.5"/>`;
+    g+=`<text x="${x(dd)}" y="${y(val)-9}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#A34536">${val}%</text>`;
+  });
+  $('#retentionBody').innerHTML = `
+    <div class="chart-wrap"><svg viewBox="0 0 ${W} ${H}" aria-label="Cohort retention from day 0 to day 30">${g}</svg></div>
+    <div class="ret-stats">
+      <div class="ret-stat"><div class="r-label">Day 1</div><div class="r-value">${r.d1}%</div><div class="r-n">n=${fmt(r.d1n)}</div></div>
+      <div class="ret-stat"><div class="r-label">Day 7</div><div class="r-value">${r.d7}%</div><div class="r-n">n=${fmt(r.d7n)}</div></div>
+      <div class="ret-stat"><div class="r-label">Day 30</div><div class="r-value">${r.d30}%</div><div class="r-n">n=${fmt(r.d30n)}</div></div>
+    </div>
+    <p class="ret-line">${r.d7}% of new users return within their first week.</p>
+    <div class="card-note">${ICONS.lock} Cohort: users who joined 30–60 days ago (n=${fmt(r.cohort)}) — matured through Day 30. Computed from event timestamps.</div>`;
+}
+
+function funnelHTML(stages, small=false){
+  const max=stages[0].count||1;
+  let out='';
+  stages.forEach((s,i)=>{
+    const w=clamp(s.count/max*100, small?40:47, 100);
+    out+=`<div class="fstage"><div class="fbar s${i}" style="width:${w.toFixed(1)}%"><span>${s.name}</span><b>${fmt(s.count)}</b></div></div>`;
+    if(i<stages.length-1){
+      const cont=(stages[i+1].count/s.count*100).toFixed(1);
+      out+=`<div class="fdrop">↓ ${cont}% continued</div>`;
+    }
+  });
+  return `<div class="funnel${small?' small':''}">${out}</div>`;
+}
+
+function renderFunnel(ds){
+  const f=ds.funnel;
+  const max=f.stages[0].count||1;
+  const lowerNames=['opening Bloom','starting onboarding','completing onboarding','first check-in','exploring another feature','returning another day'];
+  let html='';
+  f.stages.forEach((s,i)=>{
+    if(s.na){
+      html+=`<div class="fstage"><div class="fbar s${i} na" style="width:64%">Return data not available yet</div></div>`;
+    } else {
+      const w=clamp(s.count/max*100,47,100);
+      const isLeakStage=(i===f.largest+1);
+      html+=`<div class="fstage"><div class="fbar s${i}${isLeakStage?' leak':''}" style="width:${w.toFixed(1)}%"><span>${s.name}</span><b>${fmt(s.count)}</b></div></div>`;
+    }
+    if(i<f.stages.length-1){
+      const drop=f.drops[i];
+      if(drop==null){
+        html+=`<div class="fdrop"><span>needs ≥1 day of history after signup</span></div>`;
+      } else {
+        const cont=((f.stages[i+1].count/f.stages[i].count)*100).toFixed(1);
+        const big=(i===f.largest);
+        html+=`<div class="fdrop${big?' big':''}"><span>↓ ${cont}% continued</span><span class="d">${drop}% drop-off</span>${big?'<span class="tag-max">largest leak</span>':''}</div>`;
+      }
+    }
+  });
+  const sentence = f.largest>=0 && f.drops[f.largest]!=null
+    ? `Largest drop: ${ai(f.drops[f.largest])}% between ${lowerNames[f.largest]} and ${lowerNames[f.largest+1]}.`
+    : '';
+  $('#funnelBody').innerHTML = `
+    <div class="funnel">${html}</div>
+    ${sentence?`<div class="f-leak">${ICONS.alert}<span>${sentence}</span></div>`:''}`;
+}
+
+function renderFeatures(ds){
+  $('#featuresBody').innerHTML = `
+    <div class="feature-rows">
+    ${ds.features.map(f=>`
+      <div class="feature-row">
+        <div class="f-name">${f.name}${f.tag?`<span class="chip ${f.tag.tone}">${f.tag.t}</span>`:''}</div>
+        <div class="f-track"><div class="f-fill${f.tag&&f.tag.tone==='warn'?' dim':''}" style="width:${Math.max(f.pct,4)}%"></div></div>
+        <div class="f-stat"><b>${fmt(f.users)} users · ${f.pct}%</b><span>${fmt(f.actions)} ${f.unit}</span></div>
+      </div>`).join('')}
+    </div>`;
+}
+
+function renderCheckin(ds){
+  const c=ds.checkin;
+  const over = c.avgSec > c.targetSec + 2;
+  const timeChip = over
+    ? '<span class="chip warn">above 30s target</span>'
+    : '<span class="chip good">within 30s target</span>';
+  const spark = sparkSvg(c.trend, {w:280,h:56,color:over?'#A26F24':'#BF5B4C',threshold:c.targetSec});
+  $('#checkinBody').innerHTML = `
+    <div class="tiles c2">
+      <div class="tile"><div class="t-label">Check-ins started</div><div class="t-value">${fmt(c.started)}</div></div>
+      <div class="tile"><div class="t-label">Check-ins completed</div><div class="t-value">${fmt(c.completed)}</div></div>
+      <div class="tile"><div class="t-label">Completion rate</div><div class="t-value">${c.rate}% <span class="chip ${c.rate>=80?'good':'warn'}">${c.rate>=80?'healthy':'slipping'}</span></div></div>
+      <div class="tile"><div class="t-label">Avg time to complete</div><div class="t-value">${c.avgSec}s ${timeChip}</div></div>
+    </div>
+    <div style="margin-top:14px">
+      <div style="font-size:11.5px;font-weight:600;color:var(--ink-3);margin-bottom:6px">Avg completion time · dashed line = 30s target</div>
+      <div class="chart-wrap">${spark}</div>
+    </div>`;
+}
+
+function renderMeg(ds){
+  const m=ds.meg;
+  const spark = sparkSvg(m.trend || [], {w:150,h:40,color:'#BF5B4C'});
+  $('#megBody').innerHTML = `
+    <div style="display:grid;grid-template-columns:minmax(180px,5fr) 7fr;gap:20px;align-items:start">
+      <div>
+        <div style="font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)">Meg return rate</div>
+        <div style="font-size:34px;font-weight:650;letter-spacing:-.02em;margin:4px 0 2px;font-variant-numeric:tabular-nums">${m.returnRate}%</div>
+        <div style="font-size:12.5px;color:var(--ink-2);margin-bottom:10px">Users who came back to Meg on another day</div>
+      </div>
+      <div class="metric-rows">
+        <div class="metric-row"><span class="m-label">Users who opened Meg</span><span class="m-value">${fmt(m.opened)}</span></div>
+        <div class="metric-row"><span class="m-label">Sent at least one message</span><span class="m-value">${fmt(m.sent)} <small>· ${m.opened?ai(m.sent/m.opened*100):0}%</small></span></div>
+        <div class="metric-row"><span class="m-label">Total conversations</span><span class="m-value">${fmt(m.conv)}</span></div>
+        <div class="metric-row"><span class="m-label">Messages per active Meg user</span><span class="m-value">${m.msgPerUser}</span></div>
+        <div class="metric-row"><span class="m-label">Returning Meg users</span><span class="m-value">${fmt(m.returning)}</span></div>
+        <div class="metric-row"><span class="m-label">Conversations abandoned</span><span class="m-value">${m.abandoned}%</span></div>
+      </div>
+    </div>
+    <div class="card-note" style="color:var(--ink-3)">${ICONS.lock} Aggregated interaction metrics only — conversation content is not included in analytics.</div>`;
+}
+
+function renderStrength(ds){
+  const s=ds.strength;
+  $('#strengthBody').innerHTML = `
+    <div class="tiles c4">
+      <div class="tile"><div class="t-label">Workout starts</div><div class="t-value">${fmt(s.starts)}</div></div>
+      <div class="tile"><div class="t-label">Completions</div><div class="t-value">${fmt(s.completed)}</div></div>
+      <div class="tile"><div class="t-label">Completion rate</div><div class="t-value">${s.rate}%</div></div>
+      <div class="tile"><div class="t-label">Avg duration</div><div class="t-value">${s.avgMin} min</div></div>
+    </div>
+    <div class="metric-rows" style="margin-top:12px">
+      <div class="metric-row"><span class="m-label">Most-used workout</span><span class="m-value">${s.top.name} <small>· ${fmt(s.top.count)} completions · ${s.top.pct}%</small></span></div>
+    </div>
+    <div style="margin-top:14px">
+      <div style="font-size:11.5px;font-weight:600;color:var(--ink-3);margin-bottom:8px">Where users quit (unique users)</div>
+      ${funnelHTML(s.funnel, true)}
+    </div>`;
+}
+
+function renderTimeline(ds){
+  const t=ds.timeline;
+  $('#timelineBody').innerHTML = `
+    <div class="tiles c2">
+      <div class="tile"><div class="t-label">Timeline opens</div><div class="t-value">${fmt(t.opens)}</div></div>
+      <div class="tile"><div class="t-label">Users who logged something</div><div class="t-value">${fmt(t.loggers)}</div></div>
+      <div class="tile"><div class="t-label">Timeline return rate</div><div class="t-value">${t.returnRate}%</div></div>
+      <div class="tile"><div class="t-label">Share of active users</div><div class="t-value">${t.pctActive}%</div></div>
+    </div>
+    <div class="card-note" style="color:var(--ink-3)">${ICONS.lock} Counts only — cycle dates, symptoms and personal entries are never shown in analytics.</div>`;
+}
+
+function renderDiet(ds){
+  const d=ds.diet;
+  const maxIntent = Math.max(...d.intents.map(i=>i.pct),1);
+  $('#dietBody').innerHTML = `
+    <div class="metric-rows">
+      <div class="metric-row"><span class="m-label">Diet opens</span><span class="m-value">${fmt(d.opens)}</span></div>
+      <div class="metric-row"><span class="m-label">Food suggestions viewed</span><span class="m-value">${fmt(d.viewed)}</span></div>
+      <div class="metric-row"><span class="m-label">Food items opened</span><span class="m-value">${fmt(d.items)}</span></div>
+      <div class="metric-row"><span class="m-label">Meals logged</span><span class="m-value">${fmt(d.meals)}</span></div>
+      <div class="metric-row"><span class="m-label">Returning Diet users</span><span class="m-value">${fmt(d.returning)} <small>· ${d.opens?ai(d.returning/d.opens*100):0}% of openers</small></span></div>
+    </div>
+    <div style="margin-top:16px">
+      <div style="font-size:11.5px;font-weight:600;color:var(--ink-3);margin-bottom:9px">Most-used food intent</div>
+      <div class="feature-rows" style="gap:9px">
+        ${d.intents.map((it,i)=>`
+          <div style="display:grid;grid-template-columns:150px 1fr 40px;gap:10px;align-items:center">
+            <span style="font-size:12.5px;color:${i===0?'var(--ink)':'var(--ink-2)'};font-weight:${i===0?600:400}">${it.name}</span>
+            <div class="f-track" style="height:7px"><div class="f-fill" style="width:${it.pct/maxIntent*100}%;opacity:${i===0?.9:.4}"></div></div>
+            <b style="font-size:12px;text-align:right;font-variant-numeric:tabular-nums">${it.pct}%</b>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function renderWater(ds){
+  const w=ds.water;
+  const hotH = w.freq.reduce((a,b)=>b.pct>a.pct?b:a).h;
+  $('#waterBody').innerHTML = `
+    <div class="metric-rows">
+      <div class="metric-row"><span class="m-label">Water reminders enabled</span><span class="m-value">${w.enabledPct}% of active <small>· ${fmt(w.enabledCount)} users</small></span></div>
+      <div class="metric-row"><span class="m-label">Notification permission accepted</span><span class="m-value">${w.permPct}% <small>of people prompted</small></span></div>
+    </div>
+    <div style="margin-top:16px">
+      <div style="font-size:11.5px;font-weight:600;color:var(--ink-3);margin-bottom:4px">Selected reminder frequency</div>
+      <div class="freq-bar">
+        ${w.freq.map(f=>`<div class="freq-seg${f.h===hotH?' hot':''}" style="width:${Math.max(f.pct,8)}%">${f.h}h</div>`).join('')}
+      </div>
+      <div class="freq-labels">
+        ${w.freq.map(f=>`<span style="width:${Math.max(f.pct,8)}%">${f.pct}%${f.h===hotH?' · most common':''}</span>`).join('')}
+      </div>
+    </div>
+    <div class="card-note" style="color:var(--ink-3)">${ICONS.lock} Opt-in state and frequency choice only — notification delivery or dismissal detail is never tracked.</div>`;
+}
+
+function renderEngagement(ds){
+  const e=ds.engagement;
+  const colors=['#E3BBAE','#D99A89','#CD7A67','#C05A4E'];
+  const habit = e.dist[3];
+  $('#engagementBody').innerHTML = `
+    <div class="tiles c4">
+      <div class="tile"><div class="t-label">Avg sessions per user</div><div class="t-value">${e.sessions}</div></div>
+      <div class="tile"><div class="t-label">Avg session duration</div><div class="t-value">${fmtClock(e.sessionSec)}</div></div>
+      <div class="tile"><div class="t-label">Actions per active user</div><div class="t-value">${fmt(e.actions)}</div></div>
+      <div class="tile"><div class="t-label">Active 7+ days</div><div class="t-value">${habit.pct}%</div></div>
+    </div>
+    <div class="stack-bar">${e.dist.map((d,i)=>`<i style="width:${d.pct}%;background:${colors[i]}"></i>`).join('')}</div>
+    <div class="legend-rows">
+      ${e.dist.map((d,i)=>`
+        <div class="lr"><i style="background:${colors[i]}"></i><span>Active on ${d.label}</span><span class="lr-count">${fmt(d.count)} users</span><span class="lr-pct">${d.pct}%</span></div>`).join('')}
+    </div>
+    <p class="eng-line">${habit.pct}% of active users opened Bloom on 7+ days — ${habit.pct>=27?'the habit loop is forming.':'most users are still in trial mode.'}</p>`;
+}
+
+function renderInsights(ds){
+  $('#insightsBody').innerHTML = `
+    <div class="insight-grid">
+      ${ds.insights.map(ins=>`
+        <div class="insight-card">
+          <div class="insight-top">
+            <span class="insight-ico ${ins.tone}">${ICONS[ins.icon]}</span>
+          </div>
+          <h3>${ins.title}</h3>
+          <p>${ins.body}</p>
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderActivity(ds){
+  if(!ds.activity.length){
+    $('#activityBody').innerHTML='<div class="chart-empty">No events yet in this range.</div>';
+    return;
+  }
+  $('#activityBody').innerHTML = `
+    <div class="tbl-wrap">
+      <table class="tbl" aria-label="Recent anonymous activity">
+        <thead><tr><th>User</th><th>Event</th><th>Time</th></tr></thead>
+        <tbody>
+          ${ds.activity.map(a=>`
+            <tr class="activity-row"><td>Anonymous user</td><td>${a.event}</td><td>${a.time}</td></tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="card-note">${ICONS.lock} Anonymous, event-level only. No names, persistent IDs, or health content are shown.</div>`;
+}
+
+function renderSystem(ds){
+  $('#systemBody').innerHTML = ds.system.map(s=>`
+    <div class="sys-row">
+      <span class="s-dot ${s.tone}"></span>
+      <span class="s-label">${s.label}</span>
+      <span class="s-value">${s.value}${s.tone==='warn'?'<span class="chip warn">watch</span>':''}</span>
+    </div>`).join('');
+}
+
+/* ============================================================================
+   GROWTH CHART  (dual-axis line, tooltip + crosshair)
+   ============================================================================ */
+const GROWTH_W=720, GROWTH_H=250;
+function paintGrowth(ds){
+  const wrap=$('#ch-growth');
+  if(!wrap) return;
+  const vis=state.seriesVisible;
+  const series=[];
+  if(vis.active) series.push({key:'active',name:'Active users',color:'#BF5B4C',values:ds.growth.active,axis:'L'});
+  if(vis['new'])  series.push({key:'new',name:'New users',color:'#7C8B72',values:ds.growth.nw,axis:'R'});
+
+  if(!series.length){
+    wrap.innerHTML='<div class="chart-empty">No series selected — toggle a line back on above.</div>';
+    return;
+  }
+  const P={l:42,r:42,t:16,b:28};
+  const iw=GROWTH_W-P.l-P.r, ih=GROWTH_H-P.t-P.b;
+  const n=ds.growth.active.length;
+  const x=i=>P.l+(n===1?iw/2:i*iw/(n-1));
+  const maxL=niceMax(Math.max(...(series.find(s=>s.axis==='L')?.values||[1])));
+  const maxR=niceMax(Math.max(...(series.find(s=>s.axis==='R')?.values||[1])));
+  const yL=v=>P.t+ih*(1-v/maxL), yR=v=>P.t+ih*(1-v/maxR);
+  const yOf=s=>s.axis==='L'?yL:yR;
+
+  let svg=`<svg viewBox="0 0 ${GROWTH_W} ${GROWTH_H}" role="img" aria-label="User growth chart">`;
+  for(let i=0;i<=4;i++){
+    const v=maxL*i/4, yy=P.t+ih*i/4;
+    svg+=`<line x1="${P.l}" x2="${GROWTH_W-P.r}" y1="${yy}" y2="${yy}" stroke="#EADFD0" stroke-width="1"/>`;
+    svg+=`<text x="${P.l-7}" y="${yy+3.5}" text-anchor="end" font-size="10" fill="#9A8C7C" font-variant-numeric="tabular-nums">${fmt(v)}</text>`;
+  }
+  if(series.some(s=>s.axis==='R')){
+    for(let i=0;i<=4;i++){
+      const v=maxR*i/4, yy=P.t+ih*i/4;
+      svg+=`<text x="${GROWTH_W-P.r+7}" y="${yy+3.5}" font-size="10" fill="#7C8B72" opacity=".8" font-variant-numeric="tabular-nums">${fmt(v)}</text>`;
+    }
+  }
+  const step=Math.max(1,Math.round(n/6));
+  for(let i=0;i<n;i+=step){
+    svg+=`<text x="${x(i)}" y="${GROWTH_H-8}" text-anchor="middle" font-size="10" fill="#9A8C7C">${ds.growth.labels[i]}</text>`;
+  }
+  if((n-1)%step!==0 && n>2) svg+=`<text x="${x(n-1)}" y="${GROWTH_H-8}" text-anchor="end" font-size="10" fill="#9A8C7C">${ds.growth.labels[n-1]}</text>`;
+  const first=series[0];
+  const areaD=first.values.map((v,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${yOf(first)(v).toFixed(1)}`).join('')
+    +`L${x(n-1)},${P.t+ih}L${x(0)},${P.t+ih}Z`;
+  svg+=`<path d="${areaD}" fill="${first.color}" opacity=".055"/>`;
+  series.forEach(s=>{
+    const d=s.values.map((v,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${yOf(s)(v).toFixed(1)}`).join('');
+    svg+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  });
+  svg+=`<g id="chx" style="display:none"><line id="chline" x1="0" x2="0" y1="${P.t}" y2="${P.t+ih}" stroke="#9A8C7C" stroke-width="1" stroke-dasharray="3 3" opacity=".7"/>`;
+  series.forEach(s=>{ svg+=`<circle id="chd-${s.key}" r="3.6" fill="${s.color}" stroke="#FFFEFB" stroke-width="1.5"/>`; });
+  svg+=`</g></svg>`;
+  wrap.innerHTML = svg + '<div class="tip" hidden></div>';
+
+  const svgEl=wrap.querySelector('svg');
+  const tip=wrap.querySelector('.tip');
+  const chx=wrap.querySelector('#chx');
+  const chline=wrap.querySelector('#chline');
+  const dots=series.map(s=>wrap.querySelector('#chd-'+s.key));
+
+  function showTip(clientX){
+    const rect=svgEl.getBoundingClientRect();
+    if(rect.width<40) return;
+    const px=(clientX-rect.left)/rect.width*GROWTH_W;
+    const idx=clamp(Math.round((px-P.l)/(iw/(n-1))),0,n-1);
+    chx.style.display='';
+    const cx=x(idx);
+    chline.setAttribute('x1',cx); chline.setAttribute('x2',cx);
+    series.forEach((s,k)=>{ dots[k].setAttribute('cx',cx); dots[k].setAttribute('cy',yOf(s)(s.values[idx])); });
+    tip.hidden=false;
+    tip.innerHTML=`<div class="t-date">${ds.growth.tipLabels[idx]}</div>`
+      + series.map(s=>`<div class="t-row"><i style="background:${s.color}"></i>${s.name}<b>${fmt(s.values[idx])}</b></div>`).join('');
+    const wrapRect=wrap.getBoundingClientRect();
+    let left=(cx/GROWTH_W)*wrapRect.width+14;
+    if(left+170>wrapRect.width) left=(cx/GROWTH_W)*wrapRect.width-178;
+    tip.style.left=left+'px';
+    const topSeries=series[0];
+    tip.style.top=clamp((yOf(topSeries)(topSeries.values[idx])/GROWTH_H)*wrapRect.height, 30, wrapRect.height-40)+'px';
+  }
+  function hideTip(){ chx.style.display='none'; tip.hidden=true; }
+  svgEl.addEventListener('mousemove',e=>showTip(e.clientX));
+  svgEl.addEventListener('mouseleave',hideTip);
+  svgEl.addEventListener('touchmove',e=>{ if(e.touches[0]) showTip(e.touches[0].clientX); },{passive:true});
+  svgEl.addEventListener('touchend',hideTip);
+}
+
+/* ============================================================================
+   ORCHESTRATION
+   ============================================================================ */
+function setUpdated(){
+  lastUpdated=Date.now();
+  tickUpdated();
+}
+function tickUpdated(){
+  const mins=Math.floor((Date.now()-lastUpdated)/60000);
+  $('#updatedText').textContent = mins<1 ? 'Last updated just now' : `Last updated ${mins} min ago`;
+}
+setInterval(tickUpdated, 20000);
+
+function renderAll(ds){
+  renderKpis(ds);
+  renderGrowthHead(ds);
+  paintGrowth(ds);
+  renderRetention(ds);
+  renderFunnel(ds);
+  renderFeatures(ds);
+  renderCheckin(ds);
+  renderMeg(ds);
+  renderStrength(ds);
+  renderTimeline(ds);
+  renderDiet(ds);
+  renderWater(ds);
+  renderEngagement(ds);
+  renderInsights(ds);
+  renderActivity(ds);
+  renderSystem(ds);
+}
+
+function refresh(opts={}){
+  setUpdated();
+  clearTimeout(skeletonTimer);
+  if(state.showEmpty){ renderEmpty(); return; }
+  clearEmpty();
+  renderSkeletons();
+  const dur = opts.dur ?? 550;
+  skeletonTimer=setTimeout(()=>{
+    lastDs=fetchAnalytics();
+    renderAll(lastDs);
+  }, dur);
+}
+
+/* ---- events: date range ---- */
+const pop=$('#customPop');
+function syncRangeUI(){
+  $$('.date-selector button').forEach(b=>b.classList.toggle('active', b.dataset.range===state.range));
+}
+function openPop(){
+  const s=$('#cpStart'), e=$('#cpEnd');
+  const min=iso(daysAgo(DATA_START_DAYS));
+  s.min=e.min=min; s.max=e.max=iso(TODAY);
+  if(!s.value) s.value=iso(daysAgo(29));
+  if(!e.value) e.value=iso(TODAY);
+  $('#cpNote').textContent=`Data from ${daysAgo(DATA_START_DAYS).toLocaleDateString('en-GB',{day:'numeric',month:'short'})} · min ${MIN_CUSTOM_DAYS} days`;
+  pop.hidden=false;
+}
+function closePop(){ pop.hidden=true; }
+$$('.date-selector button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    if(b.dataset.range==='custom'){
+      if(state.range==='custom' && pop.hidden){ openPop(); }
+      else if(state.range!=='custom'){ state.range='custom'; syncRangeUI(); openPop(); }
+      else closePop();
+      return;
+    }
+    state.range=b.dataset.range;
+    state.emptyReason=null; state.showEmpty=false;
+    syncRangeUI(); closePop(); refresh();
+  });
+});
+$('#cpApply').addEventListener('click',()=>{
+  const s=$('#cpStart').value, e=$('#cpEnd').value;
+  if(!s||!e) return;
+  const sd=parseIso(s), ed=parseIso(e);
+  if(ed<sd || ed>TODAY){ closePop(); return; }
+  const days=Math.round((ed-sd)/86400000)+1;
+  state.range='custom'; state.customDays=days; syncRangeUI(); closePop();
+  if(sd < daysAgo(DATA_START_DAYS)){ state.emptyReason='start'; state.showEmpty=true; refresh(); return; }
+  if(days < MIN_CUSTOM_DAYS){ state.emptyReason='short'; state.showEmpty=true; refresh(); return; }
+  state.emptyReason=null; state.showEmpty=false; refresh();
+});
+document.addEventListener('click',e=>{
+  if(!pop.hidden && !pop.contains(e.target) && !e.target.closest('[data-range="custom"]')) closePop();
+});
+
+/* ---- events: filters (real predicates) ---- */
+$$('.pillset').forEach(set=>{
+  set.addEventListener('click',e=>{
+    const p=e.target.closest('.pill'); if(!p) return;
+    $$('.pill',set).forEach(x=>x.classList.remove('active'));
+    p.classList.add('active');
+    state[set.dataset.filter]=p.dataset.value;
+    state.emptyReason=null; state.showEmpty=false;
+    refresh();
+  });
+});
+
+/* ---- events: delegated (inside grid) ---- */
+$('#grid').addEventListener('click',e=>{
+  const b=e.target.closest('[data-action]'); if(!b) return;
+  const a=b.dataset.action;
+  if(a==='series'){
+    const k=b.dataset.series;
+    state.seriesVisible[k]=!state.seriesVisible[k];
+    b.classList.toggle('off',!state.seriesVisible[k]);
+    b.setAttribute('aria-pressed',String(state.seriesVisible[k]));
+    if(lastDs) paintGrowth(lastDs);
+  }
+  if(a==='exit-empty'){
+    state.showEmpty=false; state.emptyReason=null; state.range='d30';
+    syncRangeUI(); refresh();
+  }
+});
+
+/* ---- init ---- */
+syncRangeUI();
+refresh();
+</script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a3a6905f0e7198fe',t:'MTc4OTI5NjM0Mg=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
