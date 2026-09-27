@@ -160,7 +160,7 @@ function createChatHandler(deps) {
         connectionFactory: (options) => openSse(res, options),
       });
     } catch (error) {
-      if (error instanceof ChatRequestError) {
+      if (error instanceof ChatRequestError && !res.headersSent) {
         return res.status(error.status).json({
           error: error.code,
           ...(error.details ? { details: error.details } : {}),
@@ -392,30 +392,27 @@ async function runChat({
       }
       const guarded = guardResponse(connection.text, { maxChars: config.maxResponseChars });
       if (!guarded.ok && !connection.closed) {
-        fullText = outageFallback();
-        connection.replace(fullText);
+        throw new ChatRequestError('meg_unavailable', { status: 503 });
       } else {
         fullText = guarded.text;
       }
     }
   } catch (error) {
-    if (connection.closed && error.code === 'CLIENT_ABORT') throw error;
+    if (connection.closed) throw error;
     providerError = error;
-    if (error.partial && connection.text) {
-      connection.emit(' I lost the connection before I could finish. Please send that again and I will continue.');
-      fullText = connection.text;
-    } else if (!connection.closed) {
-      const fallback = safety.triggered ? safetyFallback(safety.category) : outageFallback();
-      connection.replace(fallback);
-      fullText = connection.text;
-    } else {
-      fullText = connection.text;
+    if (!safety.triggered) {
+      throw error instanceof ChatRequestError
+        ? error
+        : new ChatRequestError('meg_unavailable', { status: 503 });
     }
+    const fallback = safetyFallback(safety.category);
+    connection.replace(fallback);
+    fullText = connection.text;
   }
 
   if (!fullText) {
-    fullText = connection.text
-      || (safety.triggered ? safetyFallback(safety.category) : outageFallback());
+    if (!safety.triggered) throw new ChatRequestError('meg_unavailable', { status: 503 });
+    fullText = connection.text || safetyFallback(safety.category);
   }
   const finalGuard = guardResponse(fullText, {
     maxChars: config.maxResponseChars,
@@ -423,7 +420,8 @@ async function runChat({
     safetyCategory: safety.category,
   });
   if (!finalGuard.ok) {
-    fullText = safety.triggered ? safetyFallback(safety.category) : outageFallback();
+    if (!safety.triggered) throw new ChatRequestError('meg_unavailable', { status: 503 });
+    fullText = safetyFallback(safety.category);
     if (!connection.closed) connection.replace(fullText);
   } else {
     fullText = finalGuard.text;
@@ -690,10 +688,6 @@ function* chunkText(text, size = 80) {
     yield value.slice(index, index + size);
   }
 }
-function outageFallback() {
-  return "I'm having trouble reaching my conversation service right now. I’m still here with you—please try again in a moment. If this is about severe or rapidly worsening symptoms, seek urgent medical care rather than waiting for Meg.";
-}
-
 module.exports = {
   createChatHandler,
   createBufferedChatRunner,

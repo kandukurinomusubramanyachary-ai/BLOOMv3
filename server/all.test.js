@@ -5,6 +5,7 @@ require('./exportData.test');
 require('./firebaseConfiguration.test');
 require('./megDataLifecycle.test');
 require('./megClient.test');
+require('./megReliability.test');
 require('./megUrlPolicy.test');
 require('./megLocalQueue.test');
 require('./megReveal.test');

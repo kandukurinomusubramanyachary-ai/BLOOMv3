@@ -724,7 +724,7 @@ export default function MegScreen({ route, navigation }) {
       const providerStartedAt = Date.now();
       const result = await megService.send({
         accountUid: user?.uid,
-        getIdToken: user ? () => user.getIdToken() : undefined,
+        getIdToken: user ? (forceRefresh = false) => user.getIdToken(forceRefresh) : undefined,
         message: request.message,
         conversationId: request.conversationId,
         messageId: request.messageId,
@@ -749,7 +749,7 @@ export default function MegScreen({ route, navigation }) {
         text: result.text,
         createdAt: new Date().toISOString(),
         safety: result.safety || null,
-        source: result.source || 'local',
+        source: result.source || 'meg-v2',
         revealComplete: true,
       };
       const sentMessages = setMegMessageDelivery(
@@ -1418,7 +1418,6 @@ export default function MegScreen({ route, navigation }) {
                   {[
                     { label: 'Chats', icon: 'chatbubble-outline', active: true, onPress: closeDrawer },
                     { label: 'Doctor report', icon: 'document-text-outline', onPress: () => navigateFromDrawer('DoctorReport') },
-                    { label: 'Health logs', icon: 'shield-checkmark-outline', onPress: () => navigateFromDrawer('Timeline', true) },
                   ].map((item) => (
                     <Pressable
                       key={item.label}

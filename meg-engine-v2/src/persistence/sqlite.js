@@ -119,6 +119,13 @@ class SQLiteStore {
 
   appendMessage({ userId, conversationId, role, content, clientMessageId }) {
     this.ensureConversation(userId, conversationId);
+    if (role === 'user' && clientMessageId) {
+      const existing = this.db.prepare(`SELECT id, user_id AS userId, conversation_id AS conversationId,
+        role, content, client_message_id AS clientMessageId, created_at AS createdAt FROM messages
+        WHERE user_id = ? AND conversation_id = ? AND role = 'user' AND client_message_id = ? LIMIT 1`)
+        .get(userId, conversationId, clientMessageId);
+      if (existing) return existing;
+    }
     const item = { id: randomUUID(), createdAt: new Date().toISOString() };
     this.db.prepare(`INSERT INTO messages
       (id, conversation_id, user_id, role, content, client_message_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)

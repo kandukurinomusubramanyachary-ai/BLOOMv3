@@ -184,3 +184,133 @@ test('Meg uses the active screen session without serializing authentication call
     global.fetch = originalFetch;
   }
 });
+
+test('Meg refreshes an expired Firebase token once and preserves the idempotency key', async () => {
+  const meg = loadMegModule(null);
+  const originalFetch = global.fetch;
+  const calls = [];
+  const tokenCalls = [];
+  global.fetch = async (_url, options) => {
+    calls.push({
+      authorization: options.headers.Authorization,
+      body: JSON.parse(options.body),
+    });
+    if (calls.length === 1) return { ok: false, status: 401, json: async () => ({}) };
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ message: 'Authenticated reply', messageId: 'assistant-1' }),
+    };
+  };
+
+  try {
+    const provider = meg.createLocalMegApiProvider({ baseUrl: 'http://127.0.0.1:3001', timeoutMs: 1000 });
+    const result = await provider.reply({
+      accountUid: 'auth-refresh-user',
+      message: 'Hello',
+      conversationId: 'conversation-1',
+      messageId: 'message-1',
+      getIdToken: async (forceRefresh) => {
+        tokenCalls.push(forceRefresh);
+        return forceRefresh ? 'fresh-token' : 'expired-token';
+      },
+    });
+
+    assert.equal(result.text, 'Authenticated reply');
+    assert.deepEqual(tokenCalls, [undefined, true]);
+    assert.deepEqual(calls.map((call) => call.authorization), [
+      'Bearer expired-token',
+      'Bearer fresh-token',
+    ]);
+    assert.equal(calls[0].body.messageId, 'message-1');
+    assert.deepEqual(calls[1].body, calls[0].body);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('Meg rejects empty input before calling the provider', async () => {
+  const meg = loadMegModule(null);
+  let calls = 0;
+  const service = meg.createMegService({ provider: async () => {
+    calls += 1;
+    return { text: 'Unexpected' };
+  } });
+
+  await assert.rejects(service.send({ message: '   ' }), /Write a message/);
+  assert.equal(calls, 0);
+});
+
+test('Meg maps malformed, auth, server, and network failures to safe retryable errors', async () => {
+  const meg = loadMegModule(null);
+  const scenarios = [
+    [{ text: '' }, /couldn't respond right now/i],
+    [Object.assign(new Error('private auth detail'), { status: 401 }), /sign in again/i],
+    [Object.assign(new Error('private server detail'), { status: 503 }), /couldn't respond right now/i],
+    [Object.assign(new Error('Failed to fetch private upstream'), { name: 'NetworkError' }), /could not connect/i],
+  ];
+
+  for (const [outcome, expected] of scenarios) {
+    const service = meg.createMegService({ provider: async () => {
+      if (outcome instanceof Error) throw outcome;
+      return outcome;
+    } });
+    await assert.rejects(
+      service.send({ message: 'Keep this private' }),
+      (error) => expected.test(error.message) && !/private upstream|private server detail|private auth detail/i.test(error.message)
+    );
+  }
+});
+
+test('Meg rejects a successful HTTP response with a malformed payload', async () => {
+  const meg = loadMegModule(null);
+  const originalFetch = global.fetch;
+  global.fetch = async () => ({ ok: true, status: 200, json: async () => ({ unexpected: true }) });
+
+  try {
+    const provider = meg.createLocalMegApiProvider({ baseUrl: 'http://127.0.0.1:3001', timeoutMs: 1000 });
+    await assert.rejects(provider.reply({
+      accountUid: 'malformed-user',
+      message: 'Hello',
+      getIdToken: async () => 'valid-token',
+    }), /empty response/i);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('Meg times out a slow request instead of leaving the UI pending forever', async () => {
+  const meg = loadMegModule(null);
+  const originalFetch = global.fetch;
+  global.fetch = async (_url, options) => new Promise((_resolve, reject) => {
+    options.signal.addEventListener('abort', () => {
+      reject(Object.assign(new Error('aborted'), { name: 'AbortError' }));
+    }, { once: true });
+  });
+
+  try {
+    const provider = meg.createLocalMegApiProvider({ baseUrl: 'http://127.0.0.1:3001', timeoutMs: 10 });
+    const startedAt = Date.now();
+    await assert.rejects(provider.reply({
+      accountUid: 'timeout-user',
+      message: 'Hello',
+      getIdToken: async () => 'valid-token',
+    }), (error) => error.name === 'AbortError');
+    assert.ok(Date.now() - startedAt < 500, 'request should fail within the client timeout bound');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('Meg also bounds Firebase token acquisition before the network request starts', async () => {
+  const meg = loadMegModule(null);
+  const provider = meg.createLocalMegApiProvider({ baseUrl: 'http://127.0.0.1:3001', timeoutMs: 10 });
+  const startedAt = Date.now();
+
+  await assert.rejects(provider.reply({
+    accountUid: 'token-timeout-user',
+    message: 'Hello',
+    getIdToken: () => new Promise(() => {}),
+  }), (error) => error.name === 'AbortError');
+  assert.ok(Date.now() - startedAt < 500, 'token acquisition should share the request timeout bound');
+});
