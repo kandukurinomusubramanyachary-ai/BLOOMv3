@@ -15,12 +15,19 @@ service cloud.firestore {
         'createdAt'
       ])
       && request.resource.data.firstName is string
+      && request.resource.data.firstName.size() > 0
+      && request.resource.data.firstName.size() <= 120
       && request.resource.data.email is string
+      && request.resource.data.email.size() <= 254
       && request.resource.data.email.matches('^.+@.+\\..+$')
       && request.resource.data.optionalContact is string
+      && request.resource.data.optionalContact.size() <= 160
       && request.resource.data.answers is map
+      && request.resource.data.answers.size() <= 50
       && request.resource.data.consent == true
       && request.resource.data.interestScore is int
+      && request.resource.data.interestScore >= 0
+      && request.resource.data.interestScore <= 100
       && request.resource.data.interestLevel in ['low', 'medium', 'high']
       && request.resource.data.source == 'landing_page'
       && request.resource.data.createdAt == request.time;
@@ -69,6 +76,75 @@ service cloud.firestore {
 
     function optionalTimestamp(data, field) {
       return !(field in data) || data[field] is timestamp;
+    }
+
+    function optionalTimestampOrString(data, field, limit) {
+      return !(field in data)
+        || data[field] == null
+        || data[field] is timestamp
+        || (data[field] is string && data[field].size() <= limit);
+    }
+
+    function validUserProfile(data) {
+      return data.keys().hasOnly([
+        'firstName', 'name', 'preferredName', 'email', 'consent',
+        'modelImprovementConsent', 'onboardingCompleted', 'age', 'language',
+        'trackingMode', 'goals', 'trackedSymptoms', 'pcosStatus', 'cycleInfo',
+        'settings', 'createdAt', 'updatedAt', 'lastActiveAt'
+      ])
+      && optionalString(data, 'firstName', 120)
+      && optionalString(data, 'name', 120)
+      && optionalString(data, 'preferredName', 120)
+      && optionalString(data, 'email', 254)
+      && (!('email' in data) || data.email == null || data.email == ''
+        || data.email.matches('^.+@.+\\..+$'))
+      && optionalBoolean(data, 'consent')
+      && optionalBoolean(data, 'modelImprovementConsent')
+      && optionalBoolean(data, 'onboardingCompleted')
+      && optionalNumber(data, 'age', 0, 150)
+      && optionalString(data, 'language', 20)
+      && optionalString(data, 'trackingMode', 20)
+      && (!('trackingMode' in data) || data.trackingMode == null
+        || data.trackingMode in ['cycle', 'pcos'])
+      && optionalList(data, 'goals', 20)
+      && optionalList(data, 'trackedSymptoms', 40)
+      && optionalString(data, 'pcosStatus', 40)
+      && optionalMap(data, 'cycleInfo', 20)
+      && optionalMap(data, 'settings', 50)
+      && optionalTimestamp(data, 'createdAt')
+      && optionalTimestamp(data, 'updatedAt')
+      && optionalTimestamp(data, 'lastActiveAt');
+    }
+
+    function validMegConversation(data) {
+      return data.keys().hasOnly([
+        'title', 'mode', 'supportMode', 'language', 'createdAt', 'updatedAt',
+        'messageCount'
+      ])
+      && optionalString(data, 'title', 500)
+      && optionalString(data, 'mode', 40)
+      && optionalString(data, 'supportMode', 40)
+      && optionalString(data, 'language', 20)
+      && optionalTimestampOrString(data, 'createdAt', 48)
+      && optionalTimestampOrString(data, 'updatedAt', 48)
+      && optionalNumber(data, 'messageCount', 0, 100000);
+    }
+
+    function validMegMessage(data) {
+      return data.keys().hasOnly([
+        'id', 'role', 'text', 'content', 'createdAt', 'feedback', 'safety', 'source'
+      ])
+      && data.keys().hasAll(['role'])
+      && data.role in ['user', 'assistant']
+      && optionalString(data, 'id', 256)
+      && optionalString(data, 'text', 20000)
+      && optionalString(data, 'content', 20000)
+      && (('text' in data && data.text is string)
+        || ('content' in data && data.content is string))
+      && optionalTimestampOrString(data, 'createdAt', 48)
+      && optionalString(data, 'feedback', 40)
+      && optionalString(data, 'safety', 80)
+      && optionalString(data, 'source', 80);
     }
 
     function validCycleLog(data) {
@@ -271,16 +347,25 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
-      allow read, write: if isOwner(uid);
+      allow read, delete: if isOwner(uid);
+      allow create: if isOwner(uid) && validUserProfile(request.resource.data);
+      allow update: if isOwner(uid)
+        && validUserProfile(request.resource.data)
+        && (!('createdAt' in resource.data)
+          || request.resource.data.createdAt == resource.data.createdAt);
 
       match /cycleLogs/{logId} {
         allow read, delete: if isOwner(uid);
-        allow create, update: if isOwner(uid) && validCycleLog(request.resource.data);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.startDate == logId
+          && validCycleLog(request.resource.data);
       }
 
       match /checkIns/{checkInId} {
         allow read, delete: if isOwner(uid);
-        allow create, update: if isOwner(uid) && validCheckIn(request.resource.data);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.date == checkInId
+          && validCheckIn(request.resource.data);
       }
 
       match /dietProfile/{profileId} {
@@ -319,10 +404,16 @@ service cloud.firestore {
       }
 
       match /megConversations/{conversationId} {
-        allow read, write: if isOwner(uid);
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && validMegConversation(request.resource.data);
 
         match /messages/{messageId} {
-          allow read, write: if isOwner(uid);
+          allow read, delete: if isOwner(uid);
+          allow create: if isOwner(uid) && validMegMessage(request.resource.data);
+          allow update: if isOwner(uid)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['feedback'])
+            && validMegMessage(request.resource.data);
         }
       }
     }

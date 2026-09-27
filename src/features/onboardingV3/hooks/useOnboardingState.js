@@ -1,65 +1,57 @@
-import { useState, useEffect, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ONBOARDING_STEPS } from '../data/options';
 import { buildOnboardingResult } from '../utils/personalization';
-import { restoreOnboardingHistory } from '../utils/onboardingDraft';
+import {
+  INITIAL_ONBOARDING_ANSWERS,
+  restoreOnboardingDraft,
+} from '../utils/onboardingDraft';
+import { storage } from '../../../services/storage';
 
-const STORAGE_KEY = '@bloom:v3:onboarding:draft';
-
-const INITIAL_ANSWERS = Object.freeze({
-  firstName: '',
-  reasonsForJoining: [],
-  cyclePattern: null,
-  cycleLengthEstimate: null,
-  symptoms: [],
-  emotionalState: null,
-  energyLevel: null,
-  priorities: [],
-});
-
-export function useOnboardingState({ initialStep = ONBOARDING_STEPS.WELCOME } = {}) {
+export function useOnboardingState({ uid, initialStep = ONBOARDING_STEPS.WELCOME } = {}) {
+  const accountStorage = useMemo(() => storage.forUser(uid), [uid]);
   const [currentStep, setCurrentStep] = useState(initialStep);
-  const [answers, setAnswers] = useState(INITIAL_ANSWERS);
+  const [answers, setAnswers] = useState(INITIAL_ONBOARDING_ANSWERS);
   const [isReady, setIsReady] = useState(false);
   const [history, setHistory] = useState([initialStep]);
+  const [hydratedUid, setHydratedUid] = useState(null);
+  const saveQueueRef = useRef(Promise.resolve());
 
-  // Load draft from local storage on mount
   useEffect(() => {
     let mounted = true;
-    AsyncStorage.getItem(STORAGE_KEY)
+    let hydrationSucceeded = false;
+    setIsReady(false);
+    setHydratedUid(null);
+    accountStorage.removeLegacyUnscopedOnboardingDraft()
+      .then(() => accountStorage.getOnboardingDraft())
       .then((saved) => {
         if (!mounted) return;
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved);
-            if (parsed && typeof parsed === 'object') {
-              if (parsed.answers) setAnswers(parsed.answers);
-              if (typeof parsed.step === 'number') {
-                setCurrentStep(parsed.step);
-                setHistory(restoreOnboardingHistory(parsed.history, parsed.step, initialStep));
-              }
-            }
-          } catch {
-            // Bad JSON; ignore and start fresh
-          }
-        }
+        const restored = restoreOnboardingDraft(saved, initialStep);
+        setAnswers(restored.answers);
+        setCurrentStep(restored.step);
+        setHistory(restored.history);
+        hydrationSucceeded = true;
       })
       .catch(() => {})
       .finally(() => {
-        if (mounted) setIsReady(true);
+        if (mounted) {
+          setHydratedUid(hydrationSucceeded ? uid : null);
+          setIsReady(true);
+        }
       });
 
     return () => {
       mounted = false;
     };
-  }, [initialStep]);
+  }, [accountStorage, initialStep, uid]);
 
-  // Save draft whenever state changes
   useEffect(() => {
-    if (!isReady) return;
-    const payload = JSON.stringify({ answers, step: currentStep, history });
-    AsyncStorage.setItem(STORAGE_KEY, payload).catch(() => {});
-  }, [answers, currentStep, history, isReady]);
+    if (!isReady || hydratedUid !== uid) return;
+    const payload = { answers, step: currentStep, history };
+    saveQueueRef.current = saveQueueRef.current
+      .catch(() => {})
+      .then(() => accountStorage.setOnboardingDraft(payload))
+      .catch(() => {});
+  }, [accountStorage, answers, currentStep, history, hydratedUid, isReady, uid]);
 
   const updateAnswers = useCallback((patch) => {
     setAnswers((prev) => ({
@@ -104,11 +96,14 @@ export function useOnboardingState({ initialStep = ONBOARDING_STEPS.WELCOME } = 
   }, []);
 
   const resetOnboarding = useCallback(async () => {
-    await AsyncStorage.removeItem(STORAGE_KEY).catch(() => {});
-    setAnswers(INITIAL_ANSWERS);
+    saveQueueRef.current = saveQueueRef.current
+      .catch(() => {})
+      .then(() => accountStorage.removeOnboardingDraft());
+    await saveQueueRef.current.catch(() => {});
+    setAnswers(INITIAL_ONBOARDING_ANSWERS);
     setCurrentStep(ONBOARDING_STEPS.WELCOME);
     setHistory([ONBOARDING_STEPS.WELCOME]);
-  }, []);
+  }, [accountStorage]);
 
   const result = buildOnboardingResult(answers);
 

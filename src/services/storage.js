@@ -13,6 +13,7 @@ const KEYS = {
   MOVEMENTS: '@bloom_movements',
   MEDICATIONS: '@bloom_medications',
   DAILY_PLANS: '@bloom_daily_plans',
+  ONBOARDING_DRAFT: '@bloom_onboarding_v3_draft',
   MEG_CONVERSATIONS: '@bloom_meg_conversations',
   STRENGTH_OUTBOX: '@bloom_strength_outbox_v1',
   STRENGTH_SESSIONS: '@bloom_strength_sessions_v1',
@@ -47,8 +48,11 @@ const EXPORTABLE_KEYS = [
 ];
 
 const INVALID_JSON = Symbol('invalid-json');
+const LEGACY_UNSCOPED_ONBOARDING_DRAFT_KEY = '@bloom:v3:onboarding:draft';
 const STRENGTH_HISTORY_LIMIT = 500;
 const strengthHistoryWrites = new Map();
+const deviceMutationWrites = new Map();
+const deviceWrites = new Map();
 
 export async function safeGetItem(key, storageBackend = AsyncStorage) {
   try {
@@ -142,7 +146,7 @@ class StorageService {
   }
 
   async readParsedItem(storageKey) {
-    const serialized = await safeGetItem(storageKey);
+    const serialized = await AsyncStorage.getItem(storageKey);
     if (serialized === null) return { found: false, value: null };
 
     const value = safeParseJson(serialized, INVALID_JSON);
@@ -154,35 +158,59 @@ class StorageService {
 
   async getItem(key, userScope = this.userScope) {
     try {
-      const storageKey = this.scopedKey(key, userScope);
-      const current = await this.readParsedItem(storageKey);
-      if (current.found) return current.value;
-
-      const legacyKey = this.legacyScopedKey(key, userScope);
-      const legacy = await this.readParsedItem(legacyKey);
-      if (!legacy.found) return null;
-
-      const serialized = safeStringifyJson(legacy.value);
-      if (serialized !== null && await safeSetItem(storageKey, serialized)) {
-        await safeRemoveItem(legacyKey);
-      }
-      return legacy.value;
-    } catch (error) {
+      return await this.readItem(key, userScope);
+    } catch {
       console.warn('Bloom device storage read failed.');
       return null;
     }
   }
 
-  async setItem(key, value, userScope = this.userScope) {
+  async readItem(key, userScope = this.userScope) {
+    const storageKey = this.scopedKey(key, userScope);
+    const current = await this.readParsedItem(storageKey);
+    if (current.found) return current.value;
+
+    const legacyKey = this.legacyScopedKey(key, userScope);
+    const legacy = await this.readParsedItem(legacyKey);
+    if (!legacy.found) return null;
+
+    const serialized = safeStringifyJson(legacy.value);
+    if (serialized !== null && await safeSetItem(storageKey, serialized)) {
+      await safeRemoveItem(legacyKey);
+    }
+    return legacy.value;
+  }
+
+  async getReliableItem(key, userScope = this.userScope) {
     try {
-      const serialized = safeStringifyJson(value);
-      if (serialized === null) throw new Error('Value could not be serialized.');
-      const saved = await safeSetItem(this.scopedKey(key, userScope), serialized);
-      if (!saved) throw new Error('AsyncStorage write failed.');
-      return true;
-    } catch (error) {
-      console.warn('Bloom device storage write failed.');
-      throw new Error('Bloom could not save on this device. Please try again.');
+      return await this.readItem(key, userScope);
+    } catch {
+      console.warn('Bloom device storage read failed.');
+      throw new Error('Bloom could not read saved device data. Please try again.');
+    }
+  }
+
+  async setItem(key, value, userScope = this.userScope) {
+    const pending = (async () => {
+      try {
+        const serialized = safeStringifyJson(value);
+        if (serialized === null) throw new Error('Value could not be serialized.');
+        const saved = await safeSetItem(this.scopedKey(key, userScope), serialized);
+        if (!saved) throw new Error('AsyncStorage write failed.');
+        return true;
+      } catch {
+        console.warn('Bloom device storage write failed.');
+        throw new Error('Bloom could not save on this device. Please try again.');
+      }
+    })();
+    const scopeWrites = deviceWrites.get(userScope) || new Set();
+    scopeWrites.add(pending);
+    deviceWrites.set(userScope, scopeWrites);
+    try {
+      return await pending;
+    } finally {
+      scopeWrites.delete(pending);
+      if (!scopeWrites.size) deviceWrites.delete(userScope);
     }
   }
 
@@ -199,36 +227,66 @@ class StorageService {
   }
 
   async upsertCollection(key, item, matcher) {
-    const userScope = this.userScope;
-    const storedItems = await this.getItem(key, userScope);
-    const items = Array.isArray(storedItems) ? storedItems : [];
-    const existingIndex = items.findIndex(matcher);
-    const nextItems = [...items];
-    if (existingIndex >= 0) nextItems[existingIndex] = { ...items[existingIndex], ...item };
-    else nextItems.push(item);
-    await this.setItem(key, nextItems, userScope);
-    return nextItems;
+    return this.mutateItem(key, (storedItems) => {
+      const items = Array.isArray(storedItems) ? storedItems : [];
+      const existingIndex = items.findIndex(matcher);
+      const nextItems = [...items];
+      if (existingIndex >= 0) nextItems[existingIndex] = { ...items[existingIndex], ...item };
+      else nextItems.push(item);
+      return nextItems;
+    });
   }
 
   async removeFromCollection(key, matcher) {
+    return this.mutateItem(key, (storedItems) => {
+      const items = Array.isArray(storedItems) ? storedItems : [];
+      return items.filter((item) => !matcher(item));
+    });
+  }
+
+  async mutateItem(key, mutate) {
     const userScope = this.userScope;
-    const storedItems = await this.getItem(key, userScope);
-    const items = Array.isArray(storedItems) ? storedItems : [];
-    const nextItems = items.filter((item) => !matcher(item));
-    await this.setItem(key, nextItems, userScope);
-    return nextItems;
+    this.scopedKey(key, userScope);
+    const queueKey = `${userScope}:${key}`;
+    const previous = deviceMutationWrites.get(queueKey) || Promise.resolve();
+    const pending = previous.catch(() => {}).then(async () => {
+      let stored;
+      try {
+        stored = await this.readItem(key, userScope);
+      } catch {
+        console.warn('Bloom device storage read failed.');
+        throw new Error('Bloom could not read saved device data. Please try again.');
+      }
+      const next = mutate(stored);
+      await this.setItem(key, next, userScope);
+      return next;
+    });
+    deviceMutationWrites.set(queueKey, pending);
+    try {
+      return await pending;
+    } finally {
+      if (deviceMutationWrites.get(queueKey) === pending) deviceMutationWrites.delete(queueKey);
+    }
   }
 
   // Schema
-  getSchemaVersion() { return this.getItem(KEYS.SCHEMA_VERSION); }
+  getSchemaVersion() { return this.getReliableItem(KEYS.SCHEMA_VERSION); }
   setSchemaVersion(version) { return this.setItem(KEYS.SCHEMA_VERSION, version); }
 
+  // In-progress onboarding answers contain private personalization data.
+  getOnboardingDraft() { return this.getReliableItem(KEYS.ONBOARDING_DRAFT); }
+  setOnboardingDraft(draft) { return this.mutateItem(KEYS.ONBOARDING_DRAFT, () => draft); }
+  removeOnboardingDraft() { return this.removeItem(KEYS.ONBOARDING_DRAFT); }
+  removeLegacyUnscopedOnboardingDraft() {
+    return safeRemoveItem(LEGACY_UNSCOPED_ONBOARDING_DRAFT_KEY);
+  }
+
   // Profile
-  getProfile() { return this.getItem(KEYS.USER_PROFILE); }
-  setProfile(profile) { return this.setItem(KEYS.USER_PROFILE, profile); }
+  getProfile() { return this.getReliableItem(KEYS.USER_PROFILE); }
+  setProfile(profile) { return this.mutateItem(KEYS.USER_PROFILE, () => profile); }
 
   // Check-ins
-  getCheckins() { return this.getItem(KEYS.CHECKINS); }
+  getCheckins() { return this.getReliableItem(KEYS.CHECKINS); }
   async addCheckin(checkin) {
     return this.upsertCollection(KEYS.CHECKINS, checkin, (item) => item.date === checkin.date);
   }
@@ -237,7 +295,7 @@ class StorageService {
   }
 
   // Periods
-  getPeriods() { return this.getItem(KEYS.PERIODS); }
+  getPeriods() { return this.getReliableItem(KEYS.PERIODS); }
   async addPeriod(period) {
     return this.upsertCollection(
       KEYS.PERIODS,
@@ -253,16 +311,17 @@ class StorageService {
   }
 
   // Meals
-  getMeals() { return this.getItem(KEYS.MEALS); }
+  getMeals() { return this.getReliableItem(KEYS.MEALS); }
   saveMeal(meal) {
     return this.upsertCollection(KEYS.MEALS, meal, (item) => item.id === meal.id);
   }
   deleteMeal(id) { return this.removeFromCollection(KEYS.MEALS, (item) => item.id === id); }
 
   // Meg local queue (the backend remains the account source of truth)
-  getMegConversations() { return this.getItem(KEYS.MEG_CONVERSATIONS); }
+  getMegConversations() { return this.getReliableItem(KEYS.MEG_CONVERSATIONS); }
   setMegConversations(conversations, uid) {
-    return this.setItem(KEYS.MEG_CONVERSATIONS, conversations, uid ? encodeURIComponent(uid) : this.userScope);
+    const scoped = uid ? this.forUser(uid) : this;
+    return scoped.mutateItem(KEYS.MEG_CONVERSATIONS, () => conversations);
   }
 
   getStrengthOutbox() { return this.getItem(KEYS.STRENGTH_OUTBOX); }
@@ -313,7 +372,7 @@ class StorageService {
   }
 
   // Movement
-  getMovements() { return this.getItem(KEYS.MOVEMENTS); }
+  getMovements() { return this.getReliableItem(KEYS.MOVEMENTS); }
   saveMovement(movement) {
     return this.upsertCollection(KEYS.MOVEMENTS, movement, (item) => item.id === movement.id);
   }
@@ -322,7 +381,7 @@ class StorageService {
   }
 
   // Medication and supplements
-  getMedications() { return this.getItem(KEYS.MEDICATIONS); }
+  getMedications() { return this.getReliableItem(KEYS.MEDICATIONS); }
   saveMedication(entry) {
     return this.upsertCollection(KEYS.MEDICATIONS, entry, (item) => item.id === entry.id);
   }
@@ -331,41 +390,42 @@ class StorageService {
   }
 
   // Daily plans
-  getDailyPlans() { return this.getItem(KEYS.DAILY_PLANS); }
+  getDailyPlans() { return this.getReliableItem(KEYS.DAILY_PLANS); }
   saveDailyPlan(plan) {
     return this.upsertCollection(KEYS.DAILY_PLANS, plan, (item) => item.date === plan.date);
   }
 
   // Doctor report preferences
-  getDoctorReportSettings() { return this.getItem(KEYS.DOCTOR_REPORT_SETTINGS); }
+  getDoctorReportSettings() { return this.getReliableItem(KEYS.DOCTOR_REPORT_SETTINGS); }
   setDoctorReportSettings(settings) {
-    return this.setItem(KEYS.DOCTOR_REPORT_SETTINGS, settings);
+    return this.mutateItem(KEYS.DOCTOR_REPORT_SETTINGS, () => settings);
   }
 
   // Settings
-  getSettings() { return this.getItem(KEYS.SETTINGS); }
-  setSettings(settings) { return this.setItem(KEYS.SETTINGS, settings); }
+  getSettings() { return this.getReliableItem(KEYS.SETTINGS); }
+  setSettings(settings) {
+    return this.mutateItem(KEYS.SETTINGS, (stored) => ({
+      ...(stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {}),
+      ...settings,
+    }));
+  }
 
   // Bookmarks
-  getBookmarks() { return this.getItem(KEYS.BOOKMARKS); }
+  getBookmarks() { return this.getReliableItem(KEYS.BOOKMARKS); }
   async toggleBookmark(articleId) {
-    const userScope = this.userScope;
-    const storedBookmarks = await this.getItem(KEYS.BOOKMARKS, userScope);
-    const bookmarks = Array.isArray(storedBookmarks) ? [...storedBookmarks] : [];
-    const index = bookmarks.indexOf(articleId);
-    if (index >= 0) {
-      bookmarks.splice(index, 1);
-    } else {
-      bookmarks.push(articleId);
-    }
-    await this.setItem(KEYS.BOOKMARKS, bookmarks, userScope);
-    return bookmarks;
+    return this.mutateItem(KEYS.BOOKMARKS, (storedBookmarks) => {
+      const bookmarks = Array.isArray(storedBookmarks) ? [...storedBookmarks] : [];
+      const index = bookmarks.indexOf(articleId);
+      if (index >= 0) bookmarks.splice(index, 1);
+      else bookmarks.push(articleId);
+      return bookmarks;
+    });
   }
 
   // App Lock
-  getAppLockEnabled() { return this.getItem(KEYS.APP_LOCK_ENABLED); }
+  getAppLockEnabled() { return this.getReliableItem(KEYS.APP_LOCK_ENABLED); }
   setAppLockEnabled(value) { return this.setItem(KEYS.APP_LOCK_ENABLED, value); }
-  getAppLockType() { return this.getItem(KEYS.APP_LOCK_TYPE); }
+  getAppLockType() { return this.getReliableItem(KEYS.APP_LOCK_TYPE); }
   setAppLockType(type) { return this.setItem(KEYS.APP_LOCK_TYPE, type); }
   async getAppLockPin() {
     if (Platform.OS === 'web') return this.getItem(KEYS.APP_LOCK_PIN);
@@ -411,24 +471,22 @@ class StorageService {
       throw new Error('Bloom could not protect your app-lock PIN on this device. Please try again.');
     }
   }
-  getAppLockTimeout() { return this.getItem(KEYS.APP_LOCK_TIMEOUT); }
+  getAppLockTimeout() { return this.getReliableItem(KEYS.APP_LOCK_TIMEOUT); }
   setAppLockTimeout(timeout) { return this.setItem(KEYS.APP_LOCK_TIMEOUT, timeout); }
 
   // Privacy
-  getHidePreview() { return this.getItem(KEYS.HIDE_PREVIEW); }
+  getHidePreview() { return this.getReliableItem(KEYS.HIDE_PREVIEW); }
   setHidePreview(value) { return this.setItem(KEYS.HIDE_PREVIEW, value); }
 
   // Stats
-  getStats() { return this.getItem(KEYS.STATS); }
+  getStats() { return this.getReliableItem(KEYS.STATS); }
   async updateStats(updates) {
-    const userScope = this.userScope;
-    const storedStats = await this.getItem(KEYS.STATS, userScope);
-    const stats = storedStats && typeof storedStats === 'object' && !Array.isArray(storedStats)
-      ? storedStats
-      : {};
-    const newStats = { ...stats, ...updates };
-    await this.setItem(KEYS.STATS, newStats, userScope);
-    return newStats;
+    return this.mutateItem(KEYS.STATS, (storedStats) => {
+      const stats = storedStats && typeof storedStats === 'object' && !Array.isArray(storedStats)
+        ? storedStats
+        : {};
+      return { ...stats, ...updates };
+    });
   }
 
   // Export all data
@@ -436,7 +494,7 @@ class StorageService {
     const userScope = this.userScope;
     const data = {};
     for (const name of EXPORTABLE_KEYS) {
-      data[name] = await this.getItem(KEYS[name], userScope);
+      data[name] = await this.getReliableItem(KEYS[name], userScope);
     }
     return data;
   }
@@ -447,6 +505,12 @@ class StorageService {
     // Account deletion has already paused new work. Finish any device write
     // already in progress before removing keys so it cannot recreate history.
     await strengthHistoryWrites.get(userScope)?.catch(() => {});
+    await Promise.all([...deviceMutationWrites.entries()]
+      .filter(([queueKey]) => queueKey.startsWith(`${userScope}:`))
+      .map(([, pending]) => pending.catch(() => {})));
+    while (deviceWrites.get(userScope)?.size) {
+      await Promise.all([...deviceWrites.get(userScope)].map((pending) => pending.catch(() => {})));
+    }
     const keys = Object.values(KEYS).flatMap((key) => [
       this.scopedKey(key, userScope),
       this.legacyScopedKey(key, userScope),
@@ -456,6 +520,7 @@ class StorageService {
         await SecureStore.deleteItemAsync(this.secureScopedKey(KEYS.APP_LOCK_PIN, userScope));
       }
       const results = await Promise.all(keys.map((key) => safeRemoveItem(key)));
+      results.push(await safeRemoveItem(LEGACY_UNSCOPED_ONBOARDING_DRAFT_KEY));
       if (results.some((removed) => !removed)) throw new Error('AsyncStorage remove failed.');
       return true;
     } catch (error) {
