@@ -45,3 +45,16 @@ test('same messageId with different content is rejected', async () => {
     assert.equal((await send(server.address().port, { ...base, message: 'Different' })).status, 409);
   } finally { await new Promise((resolve) => server.close(resolve)); }
 });
+
+test('conflicting stored message ID is rejected before response generation', async () => {
+  let calls = 0;
+  const store = new MemoryStore({ driver: 'memory' });
+  store.appendMessage({ userId: 'u3', conversationId: 'c3', role: 'user', content: 'Earlier text', clientMessageId: 'm-3' });
+  const app = testApp({ async *stream(_request, state) { calls += 1; state.provider = 'mock'; yield 'unexpected'; }, status: () => ({}) }, store);
+  const server = app.listen(0, '127.0.0.1'); await new Promise((resolve) => server.once('listening', resolve));
+  try {
+    const response = await send(server.address().port, { userId: 'u3', conversationId: 'c3', messageId: 'm-3', message: 'Different text' });
+    assert.equal(response.status, 409);
+    assert.equal(calls, 0);
+  } finally { await new Promise((resolve) => server.close(resolve)); }
+});

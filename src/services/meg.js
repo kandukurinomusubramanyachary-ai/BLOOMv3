@@ -294,6 +294,22 @@ function safeResponseString(value, maxLength = 256) {
   return normalized;
 }
 
+function waitForMegWork(value, signal) {
+  if (signal?.aborted) return Promise.reject(Object.assign(new Error('Meg request cancelled.'), { name: 'AbortError' }));
+  return new Promise((resolve, reject) => {
+    const abort = () => {
+      cleanup();
+      reject(Object.assign(new Error('Meg request cancelled.'), { name: 'AbortError' }));
+    };
+    const cleanup = () => signal?.removeEventListener?.('abort', abort);
+    signal?.addEventListener?.('abort', abort, { once: true });
+    Promise.resolve(value).then(
+      (result) => { cleanup(); resolve(result); },
+      (error) => { cleanup(); reject(error); }
+    );
+  });
+}
+
 export function createLocalMegApiProvider({
   baseUrl = megApiBaseUrl(),
   timeoutMs = MEG_REQUEST_TIMEOUT_MS,
@@ -307,7 +323,7 @@ export function createLocalMegApiProvider({
       const currentUser = auth?.currentUser;
       // Use the screen's active auth session (including explicit local dev auth).
       // This callback is never serialized into provider context or the body.
-      const getIdToken = request?.getIdToken || (currentUser ? () => currentUser.getIdToken() : null);
+      const getIdToken = request?.getIdToken || (currentUser ? (forceRefresh) => currentUser.getIdToken(forceRefresh) : null);
       if (typeof getIdToken !== 'function') {
         qaTiming?.setFailure(MEG_QA_FAILURE_CATEGORY.AUTH);
         throw new Error('Please sign in before messaging Meg.');
@@ -317,59 +333,91 @@ export function createLocalMegApiProvider({
       const work = accountWork.request(request?.accountUid || currentUser?.uid || 'preview');
       const timeout = setTimeout(work.abort, timeoutMs);
       try {
-      let idToken;
-      try {
-        idToken = await getIdToken();
-        qaTiming?.recordDuration('client_token_acquisition_ms', tokenStartedAt);
-      } catch (error) {
-        qaTiming?.recordDuration('client_token_acquisition_ms', tokenStartedAt);
-        qaTiming?.setFailure(MEG_QA_FAILURE_CATEGORY.AUTH);
-        throw error;
-      }
-
-      work.check();
-        const httpStartedAt = qaTiming?.mark();
-        let response;
+        let idToken;
         try {
-          response = await fetch(`${baseUrl}/api/meg/chat`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${idToken}`,
-              ...(qaTiming ? { 'x-meg-trace-id': qaTiming.traceId } : {}),
-            },
-            body: JSON.stringify({
-              message,
-              conversationId: request?.conversationId,
-              messageId: request?.messageId,
-              mode: request?.mode || null,
-              supportMode: request?.supportMode || request?.mode || null,
-              language: request?.language || 'en',
-              context: cleanMegContextForRequest(request?.context),
-              history: apiHistory([...(request?.memory || []), ...(request?.history || [])], message),
-            }),
-            signal: work.signal,
-          });
+          idToken = await waitForMegWork(getIdToken(), work.signal);
+          qaTiming?.recordDuration('client_token_acquisition_ms', tokenStartedAt);
         } catch (error) {
-          qaTiming?.recordDuration('client_http_total_ms', httpStartedAt);
+          qaTiming?.recordDuration('client_token_acquisition_ms', tokenStartedAt);
           qaTiming?.setFailure(error?.name === 'AbortError'
             ? MEG_QA_FAILURE_CATEGORY.PROVIDER_TIMEOUT
-            : MEG_QA_FAILURE_CATEGORY.NETWORK);
+            : MEG_QA_FAILURE_CATEGORY.AUTH);
+          throw error;
+        }
+
+        work.check();
+        const httpStartedAt = qaTiming?.mark();
+        const requestBody = JSON.stringify({
+          message,
+          conversationId: request?.conversationId,
+          messageId: request?.messageId,
+          mode: request?.mode || null,
+          supportMode: request?.supportMode || request?.mode || null,
+          language: request?.language || 'en',
+          context: cleanMegContextForRequest(request?.context),
+          history: apiHistory([...(request?.memory || []), ...(request?.history || [])], message),
+        });
+        const sendRequest = (token) => fetch(`${baseUrl}/api/meg/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            ...(qaTiming ? { 'x-meg-trace-id': qaTiming.traceId } : {}),
+          },
+          body: requestBody,
+          signal: work.signal,
+        });
+        let response;
+        try {
+          response = await sendRequest(idToken);
+          if (response.status === 401) {
+            try {
+              idToken = await waitForMegWork(getIdToken(true), work.signal);
+            } catch (error) {
+              qaTiming?.setFailure(error?.name === 'AbortError'
+                ? MEG_QA_FAILURE_CATEGORY.PROVIDER_TIMEOUT
+                : MEG_QA_FAILURE_CATEGORY.AUTH);
+              throw error;
+            }
+            work.check();
+            response = await sendRequest(idToken);
+          }
+        } catch (error) {
+          qaTiming?.recordDuration('client_http_total_ms', httpStartedAt);
+          if (error?.name === 'AbortError') {
+            qaTiming?.setFailure(MEG_QA_FAILURE_CATEGORY.PROVIDER_TIMEOUT);
+          } else if (response?.status !== 401) {
+            qaTiming?.setFailure(MEG_QA_FAILURE_CATEGORY.NETWORK);
+          }
           throw error;
         }
 
         qaTiming?.setStatus(response.status);
         if (response.status === 401) qaTiming?.setFailure(MEG_QA_FAILURE_CATEGORY.AUTH);
-        const payload = await response.json().catch(() => {
+        let payload;
+        try {
+          payload = await waitForMegWork(response.json(), work.signal);
+        } catch (error) {
+          if (error?.name === 'AbortError') {
+            qaTiming?.setFailure(MEG_QA_FAILURE_CATEGORY.PROVIDER_TIMEOUT);
+            qaTiming?.recordDuration('client_http_total_ms', httpStartedAt);
+            throw error;
+          }
           qaTiming?.setFailure(MEG_QA_FAILURE_CATEGORY.PARSE);
-          return {};
-        });
+          payload = {};
+        }
         qaTiming?.recordDuration('client_http_total_ms', httpStartedAt);
 
         if (!response.ok) {
-          qaTiming?.setFailure(response.status === 401
-            ? MEG_QA_FAILURE_CATEGORY.AUTH
-            : MEG_QA_FAILURE_CATEGORY.UNKNOWN);
+          qaTiming?.setFailure(
+            response.status === 401
+              ? MEG_QA_FAILURE_CATEGORY.AUTH
+              : response.status >= 500
+                ? MEG_QA_FAILURE_CATEGORY.PROVIDER_5XX
+                : response.status >= 400
+                  ? MEG_QA_FAILURE_CATEGORY.PROVIDER_4XX
+                  : MEG_QA_FAILURE_CATEGORY.UNKNOWN
+          );
           const error = new Error('Meg could not complete this request.');
           error.status = response.status;
           throw error;

@@ -31,6 +31,7 @@ import {
 } from '../services/dietRescue';
 import { COLORS, createThemedStyles, LAYOUT, TYPOGRAPHY, WEB_FOCUS } from '../utils/constants';
 import Button from '../components/Button';
+import DietDeliveryDiscovery from '../components/DietDeliveryDiscovery';
 import { useReducedMotion } from '../components/Motion';
 
 const SECTION_KEYS = ['sos', 'forecast', 'kit', 'water', 'learn'];
@@ -48,6 +49,13 @@ const SWAPS = [
   ['Want something sweet?', 'Try banana with peanut butter or fruit with curd.'],
   ['Want a strong crunch?', 'Try roasted chana, makhana or a quick murmura bhel.'],
   ['Need a proper mini-meal?', 'Try a small dal-rice bowl or paneer roti roll.'],
+];
+const FOOD_NEEDS = [
+  { id: 'quick_filling', label: 'Quick & filling', icon: 'flash-outline', categories: 'filling', retryCategory: 'filling' },
+  { id: 'light', label: 'Something light', icon: 'leaf-outline', categories: ['sweet', 'crunchy'], retryCategory: 'not_sure' },
+  { id: 'sweet', label: 'Something sweet', icon: 'ice-cream-outline', categories: 'sweet', retryCategory: 'sweet' },
+  { id: 'savoury', label: 'Something savoury', icon: 'restaurant-outline', categories: 'salty', retryCategory: 'salty' },
+  { id: 'not_sure', label: 'Not sure', icon: 'sparkles-outline', categories: 'not_sure', retryCategory: 'not_sure' },
 ];
 const MYTHS = [
   ['Cravings show weak willpower.', 'Cravings can reflect hunger, sleep, stress, habits or cycle changes. They are not a character test.'],
@@ -167,8 +175,10 @@ export default function DietScreen({ navigation, route }) {
   const pulse = useRef(new Animated.Value(0)).current;
   const [sheet, setSheet] = useState(null);
   const [sosStep, setSosStep] = useState('choose');
+  const [findStep, setFindStep] = useState('choose');
   const [selectedCraving, setSelectedCraving] = useState(null);
   const [rescueResults, setRescueResults] = useState([]);
+  const [findResults, setFindResults] = useState([]);
   const [showQuickChips, setShowQuickChips] = useState(false);
   const [notice, setNotice] = useState('');
   const [revealedMyth, setRevealedMyth] = useState(null);
@@ -187,7 +197,7 @@ export default function DietScreen({ navigation, route }) {
       setUi(next);
     }
   }, [state.isLoading, state.settings?.dietV31, today]);
-  useEffect(() => { const requested = route?.params?.sheet; if (['sos', 'kit', 'learn', 'stats'].includes(requested)) setSheet(requested); }, [route?.params?.sheet]);
+  useEffect(() => { const requested = route?.params?.sheet; if (['find', 'sos', 'kit', 'learn', 'stats'].includes(requested)) setSheet(requested); }, [route?.params?.sheet]);
 
   const persist = useCallback((update, success) => {
     const updater = typeof update === 'function' ? update : () => update;
@@ -222,6 +232,7 @@ export default function DietScreen({ navigation, route }) {
     if (lastTrigger.current.key === target && now - lastTrigger.current.time < 180) return;
     lastTrigger.current = { key: target, time: now };
     if (target === 'sos') { setSosStep('choose'); setSelectedCraving(null); setRescueResults([]); }
+    if (target === 'find') { setFindStep('choose'); setSelectedCraving(null); setFindResults([]); }
     setSheet(target);
   }, []);
 
@@ -240,9 +251,10 @@ export default function DietScreen({ navigation, route }) {
   }, [pulse, reduceMotion, scrollTo]);
 
   const chooseCraving = (id) => { setSelectedCraving(id); setRescueResults(getRescuesForCraving(id, { kitIds: ui.kitIds })); setSosStep('results'); };
-  const openCravingResults = (id) => {
-    chooseCraving(id);
-    setSheet('sos');
+  const chooseFoodNeed = (need) => {
+    setSelectedCraving(need.retryCategory);
+    setFindResults(getRescuesForCraving(need.categories, { kitIds: ui.kitIds }));
+    setFindStep('results');
   };
   const selectRescue = async (rescue) => {
     await persist((current) => ({ ...current, pendingRescue: { id: rescue.id, craving: selectedCraving || rescue.category, date: today, selectedAt: new Date().toISOString() } }));
@@ -304,12 +316,11 @@ export default function DietScreen({ navigation, route }) {
               {pendingItem ? <PendingCard item={pendingItem} onRate={rateRescue} /> : null}
 
               <View onLayout={(event) => { sectionY.current.sos = event.nativeEvent.layout.y; }} style={styles.homeSection}>
-                <Text accessibilityRole='header' style={styles.homeSectionTitle}>What sounds doable?</Text>
-                <View style={styles.actionGrid}>
-                  <HomeAction icon='flash-outline' label='Quick & filling' onPress={() => openCravingResults('filling')} />
-                  <HomeAction icon='leaf-outline' label='Something light' onPress={() => openSheet('sos')} />
-                  <HomeAction icon='restaurant-outline' label='I’m craving something' onPress={() => openSheet('sos')} />
-                  <HomeAction icon='file-tray-outline' label='Use what I have' onPress={() => openSheet('kit')} />
+                <Text accessibilityRole='header' style={styles.homeSectionTitle}>What do you need right now?</Text>
+                <View style={styles.actionList}>
+                  <HomeAction icon='restaurant-outline' label='Find me something' detail='Quick, light or satisfying ideas' onPress={() => openSheet('find')} emphasis='brand' />
+                  <HomeAction icon='heart-outline' label='Craving rescue' detail="Help me with what I'm craving" onPress={() => openSheet('sos')} />
+                  <HomeAction icon='bag-handle-outline' label='My rescue kit' detail="Foods you've saved for busy days" onPress={() => openSheet('kit')} tone='sage' last />
                 </View>
               </View>
 
@@ -344,6 +355,7 @@ export default function DietScreen({ navigation, route }) {
         </View>
       </KeyboardAvoidingView>
 
+      <FindFoodSheet visible={sheet === 'find'} step={findStep} results={findResults} ui={ui} pending={ui.pendingRescue} onClose={() => setSheet(null)} onChooseNeed={chooseFoodNeed} onSelect={selectRescue} onBack={() => setFindStep('choose')} />
       <SosSheet visible={sheet === 'sos'} step={sosStep} results={rescueResults} ui={ui} pending={ui.pendingRescue} onClose={() => setSheet(null)} onChooseCraving={chooseCraving} onSelect={selectRescue} onBack={() => setSosStep('choose')} />
       <KitSheet visible={sheet === 'kit'} ui={ui} items={kitItems} onClose={() => setSheet(null)} onUpdate={updateKit} />
       <LearnSheet visible={sheet === 'learn'} ui={ui} revealed={revealedMyth} onReveal={setRevealedMyth} onClose={() => setSheet(null)} />
@@ -356,8 +368,9 @@ function InlineAction({ label, onPress }) {
   return <Pressable onPress={onPress} accessibilityRole='button' style={interactive(styles.inlineButton)}><Text style={styles.inlineButtonText}>{label}</Text><Icon name='arrow-forward' size={17} color={COLORS.brand} /></Pressable>;
 }
 
-function HomeAction({ icon, label, onPress }) {
-  return <Pressable onPress={onPress} accessibilityRole='button' accessibilityLabel={label} style={interactive(styles.homeAction, icon === 'flash-outline' && styles.homeActionPrimary)}><View style={styles.homeActionIcon}><Icon name={icon} size={19} color={COLORS.brand} /></View><Text style={styles.homeActionLabel}>{label}</Text></Pressable>;
+function HomeAction({ icon, label, detail, onPress, emphasis, tone, last = false }) {
+  const iconStyle = tone === 'sage' ? styles.homeActionIconSage : emphasis === 'brand' ? styles.homeActionIconBrand : null;
+  return <Pressable onPress={onPress} accessibilityRole='button' accessibilityLabel={`${label}. ${detail}`} accessibilityHint='Opens options' style={interactive(styles.homeAction, !last && styles.homeActionDivider)}><View style={[styles.homeActionIcon, iconStyle]}><Icon name={icon} size={20} color={tone === 'sage' ? COLORS.sage : COLORS.brand} /></View><View style={styles.flex}><Text style={styles.homeActionLabel}>{label}</Text><Text style={styles.homeActionDetail}>{detail}</Text></View><Icon name='chevron-forward' size={19} color={COLORS.muted} /></Pressable>;
 }
 
 function SuggestedRescue({ item, onPress }) {
@@ -384,8 +397,16 @@ function QuizCard({ quiz, choice, onAnswer }) {
   return <View style={styles.quizCard}><View style={styles.quizIcon}><Icon name='bulb-outline' size={22} color={COLORS.brand} /></View><Text style={styles.cardTitle}>{quiz.question}</Text><View style={styles.quizOptions} accessibilityRole='radiogroup'>{quiz.options.map((option, index) => { const answered = choice !== undefined; const selected = choice === index; const correct = answered && index === quiz.answer; return <Pressable key={option} onPress={() => onAnswer(index)} disabled={answered} accessibilityRole='radio' accessibilityState={{ checked: selected, disabled: answered }} style={interactive(styles.quizOption, (selected || correct) && styles.quizOptionSelected)}><Text style={[styles.cardBody, (selected || correct) && styles.quizOptionTextSelected]}>{option}</Text>{correct ? <Icon name='checkmark' size={18} color={COLORS.sage} /> : null}</Pressable>; })}</View>{choice !== undefined ? <Text style={styles.quizExplanation} accessibilityLiveRegion='polite'>{choice === quiz.answer ? 'That’s it. ' : 'Worth knowing: '}{quiz.explanation}</Text> : null}</View>;
 }
 
+function FindFoodSheet({ visible, step, results, ui, pending, onClose, onChooseNeed, onSelect, onBack }) {
+  return <BottomSheet visible={visible} title={step === 'choose' ? 'What sounds good right now?' : 'Here are three food ideas'} subtitle={step === 'choose' ? 'Choose the kind of food that would feel good today.' : 'Pick the one that feels possible now.'} onClose={onClose}><ScrollView style={styles.sheetScroll} contentContainerStyle={styles.sheetContent} keyboardShouldPersistTaps='handled' showsVerticalScrollIndicator={Platform.OS === 'web'}>{step === 'choose' ? <View>{FOOD_NEEDS.map((item) => <Pressable key={item.id} onPress={() => onChooseNeed(item)} accessibilityRole='button' accessibilityLabel={item.label} style={interactive(styles.cravingChoice)}><IconCircle name={item.icon} /><Text style={styles.cravingLabel}>{item.label}</Text><Icon name='arrow-forward' size={18} color={COLORS.muted} /></Pressable>)}</View> : <RescueResults results={results} ui={ui} pending={pending} onSelect={onSelect} onBack={onBack} backLabel='Choose another food idea' />}</ScrollView></BottomSheet>;
+}
+
 function SosSheet({ visible, step, results, ui, pending, onClose, onChooseCraving, onSelect, onBack }) {
-  return <BottomSheet visible={visible} title={step === 'choose' ? 'What are you craving right now?' : 'Here are three gentle options'} subtitle={step === 'choose' ? 'No judgement. Pick the feeling, not the perfect food.' : 'Choose what feels satisfying and possible today.'} onClose={onClose}><ScrollView style={styles.sheetScroll} contentContainerStyle={styles.sheetContent} keyboardShouldPersistTaps='handled' showsVerticalScrollIndicator={Platform.OS === 'web'}>{step === 'choose' ? <View>{CRAVING_TYPES.map((item) => <Pressable key={item.id} onPress={() => onChooseCraving(item.id)} accessibilityRole='button' style={interactive(styles.cravingChoice)}><IconCircle name={item.icon} /><Text style={styles.cravingLabel}>{item.label}</Text><Icon name='arrow-forward' size={18} color={COLORS.muted} /></Pressable>)}</View> : <View>{pending ? <View style={styles.sheetPending}><Text style={styles.sheetPendingTitle}>A rescue is waiting for your rating</Text><Text style={styles.cardBody}>{RESCUE_BY_ID.get(pending.id)?.name}</Text></View> : null}<View style={styles.resultList}>{results.map((item, index) => <View key={item.id} style={[styles.resultRow, index < results.length - 1 && styles.rowDivider]}><IconCircle name={item.icon} tone={index ? 'sage' : 'brand'} /><View style={styles.flex}><Text style={styles.cardTitle}>{item.name}</Text><Text style={styles.cardBody}>{item.detail}</Text><Text style={styles.meta}>{item.time} · about ₹{item.price}{ui.kitIds.includes(item.id) ? ' · In your kit' : ''}</Text><View style={styles.resultActions}><Pressable onPress={() => onSelect(item)} accessibilityRole='button' style={interactive(styles.chooseResult)}><Text style={styles.chooseResultText}>Choose this</Text></Pressable><Pressable onPress={() => openSearch(item.searchTerm)} accessibilityRole='link' style={interactive(styles.orderLink)}><Text style={styles.orderLinkText}>Search the web</Text></Pressable></View></View></View>)}</View><Pressable onPress={onBack} accessibilityRole='button' style={interactive(styles.backChoice)}><Icon name='arrow-back' size={18} color={COLORS.ink} /><Text style={styles.backChoiceText}>Choose another craving</Text></Pressable></View>}</ScrollView></BottomSheet>;
+  return <BottomSheet visible={visible} title={step === 'choose' ? 'What are you craving right now?' : 'Here are three gentle options'} subtitle={step === 'choose' ? 'No judgement. Pick the feeling, not the perfect food.' : 'Choose what feels satisfying and possible today.'} onClose={onClose}><ScrollView style={styles.sheetScroll} contentContainerStyle={styles.sheetContent} keyboardShouldPersistTaps='handled' showsVerticalScrollIndicator={Platform.OS === 'web'}>{step === 'choose' ? <View>{CRAVING_TYPES.map((item) => <Pressable key={item.id} onPress={() => onChooseCraving(item.id)} accessibilityRole='button' accessibilityLabel={item.label} style={interactive(styles.cravingChoice)}><IconCircle name={item.icon} /><Text style={styles.cravingLabel}>{item.label}</Text><Icon name='arrow-forward' size={18} color={COLORS.muted} /></Pressable>)}</View> : <RescueResults results={results} ui={ui} pending={pending} onSelect={onSelect} onBack={onBack} backLabel='Choose another craving' />}</ScrollView></BottomSheet>;
+}
+
+function RescueResults({ results, ui, pending, onSelect, onBack, backLabel }) {
+  return <View>{pending ? <View style={styles.sheetPending}><Text style={styles.sheetPendingTitle}>A rescue is waiting for your rating</Text><Text style={styles.cardBody}>{RESCUE_BY_ID.get(pending.id)?.name}</Text></View> : null}<View style={styles.resultList}>{results.map((item, index) => <View key={item.id} style={[styles.resultRow, index < results.length - 1 && styles.rowDivider]}><IconCircle name={item.icon} tone={index ? 'sage' : 'brand'} /><View style={styles.flex}><Text style={styles.cardTitle}>{item.name}</Text><Text style={styles.cardBody}>{item.detail}</Text><Text style={styles.meta}>{item.time} · about ₹{item.price}{ui.kitIds.includes(item.id) ? ' · In your kit' : ''}</Text><View style={styles.resultActions}><Pressable onPress={() => onSelect(item)} accessibilityRole='button' accessibilityLabel={`Choose ${item.name}`} style={interactive(styles.chooseResult)}><Text style={styles.chooseResultText}>Choose this</Text></Pressable></View><DietDeliveryDiscovery item={item} /></View></View>)}</View><Pressable onPress={onBack} accessibilityRole='button' accessibilityLabel={backLabel} style={interactive(styles.backChoice)}><Icon name='arrow-back' size={18} color={COLORS.ink} /><Text style={styles.backChoiceText}>{backLabel}</Text></Pressable></View>;
 }
 
 function KitSheet({ visible, ui, items, onClose, onUpdate }) {
@@ -412,7 +433,7 @@ const styles = createThemedStyles({
   ratingButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 12, backgroundColor: COLORS.white, borderWidth: 1, borderColor: COLORS.hairline }, ratingButtonPrimary: { backgroundColor: COLORS.brand, borderColor: COLORS.brand }, ratingLabel: { ...TYPOGRAPHY.supporting, fontWeight: '600', color: COLORS.ink }, ratingLabelPrimary: { color: COLORS.onBrand },
   phaseBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 16, marginBottom: 16, borderRadius: 16, backgroundColor: COLORS.surfaceSoft }, phaseTitle: { ...TYPOGRAPHY.componentTitle, color: COLORS.ink }, phaseText: { ...TYPOGRAPHY.supporting, color: COLORS.body, marginTop: 2 },
   homeSection: { marginBottom: 24 }, homeSectionTitle: { fontSize: 17, lineHeight: 23, fontWeight: '700', color: COLORS.ink },
-  actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }, homeAction: { flexGrow: 1, flexBasis: '47%', minHeight: 104, justifyContent: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 16, borderWidth: 1, borderColor: COLORS.hairline, borderRadius: 12, backgroundColor: COLORS.surfaceSoft }, homeActionPrimary: { backgroundColor: COLORS.brandSoft, borderColor: COLORS.brandSoft }, homeActionIcon: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' }, homeActionLabel: { fontSize: 15, lineHeight: 22, fontWeight: '600', color: COLORS.ink },
+  actionList: { marginTop: 12, borderRadius: 16, overflow: 'hidden', backgroundColor: COLORS.surfaceSoft }, homeAction: { minHeight: 80, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 12 }, homeActionDivider: { borderBottomWidth: 1, borderBottomColor: COLORS.hairline }, homeActionIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: COLORS.white }, homeActionIconBrand: { backgroundColor: COLORS.brandSoft }, homeActionIconSage: { backgroundColor: COLORS.sageLight }, homeActionLabel: { ...TYPOGRAPHY.componentTitle, color: COLORS.ink }, homeActionDetail: { ...TYPOGRAPHY.caption, color: COLORS.body, marginTop: 2 },
   suggestionList: { gap: 8, marginTop: 10 }, suggestedCard: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10, borderWidth: 1, borderColor: COLORS.hairline, borderRadius: 12, backgroundColor: COLORS.canvas }, suggestedArtwork: { width: 68, height: 68, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: COLORS.surfaceWarm },
   todayCard: { marginBottom: 24, padding: 14, borderWidth: 1, borderColor: COLORS.hairline, borderRadius: 12, backgroundColor: COLORS.canvas }, todayHeader: { minHeight: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, viewLogButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8, borderRadius: 10 }, viewLogText: { fontSize: 12, lineHeight: 16, fontWeight: '700', color: COLORS.brand }, todayMealRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 }, todayMealDivider: { borderTopWidth: 1, borderTopColor: COLORS.hairline }, todayMealIcon: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: COLORS.brandSoft }, todayMealType: { fontSize: 11, lineHeight: 15, fontWeight: '700', letterSpacing: 0.3, textTransform: 'uppercase', color: COLORS.muted }, todayMealName: { marginTop: 1, fontSize: 14, lineHeight: 19, fontWeight: '600', color: COLORS.ink }, contextRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 6, paddingTop: 11, borderTopWidth: 1, borderTopColor: COLORS.hairline }, contextText: { flex: 1, fontSize: 12, lineHeight: 17, color: COLORS.body },
   moreSection: { marginBottom: 28 }, moreRow: { minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: 11, borderBottomWidth: 1, borderBottomColor: COLORS.hairline, paddingVertical: 8 }, moreRowLast: { borderBottomWidth: 0 }, moreIcon: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: COLORS.surfaceSoft }, moreLabel: { fontSize: 14, lineHeight: 19, fontWeight: '600', color: COLORS.ink }, moreDetail: { marginTop: 3, fontSize: 13, lineHeight: 19, color: COLORS.muted }, moreWaterRow: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: 7, borderBottomWidth: 1, borderBottomColor: COLORS.hairline, paddingVertical: 8 },

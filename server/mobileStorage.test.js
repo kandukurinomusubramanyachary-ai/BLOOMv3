@@ -101,6 +101,79 @@ test('storage uses versioned UID keys and migrates the prior UID-scoped key', as
   assert.equal(backend.values.has('@bloom_user:v1:user%2Fone:bloom_settings'), true);
 });
 
+test('onboarding drafts are UID-scoped and removed with account data', async () => {
+  const legacyKey = '@bloom:v3:onboarding:draft';
+  const backend = createMemoryStorage([[legacyKey, JSON.stringify({ answers: { firstName: 'Legacy' } })]]);
+  const { storage } = loadStorageModule(backend);
+  const alice = storage.forUser('alice');
+  const bob = storage.forUser('bob');
+
+  assert.throws(() => storage.forUser('   '), /signed-in account/);
+  await alice.setOnboardingDraft({ answers: { firstName: 'Alice' }, step: 2 });
+  assert.equal(await bob.getOnboardingDraft(), null);
+  await bob.setOnboardingDraft({ answers: { firstName: 'Bob' }, step: 1 });
+  await alice.removeLegacyUnscopedOnboardingDraft();
+  assert.equal(backend.values.has(legacyKey), false);
+
+  await storage.deleteAllData('alice');
+  assert.equal(await alice.getOnboardingDraft(), null);
+  assert.equal((await bob.getOnboardingDraft()).answers.firstName, 'Bob');
+});
+
+test('concurrent device collection saves serialize without dropping or duplicating records', async () => {
+  const backend = createMemoryStorage();
+  const { storage } = loadStorageModule(backend);
+  storage.setUserScope('queue-user');
+
+  await Promise.all([
+    storage.saveMeal({ id: 'meal-a', name: 'First' }),
+    storage.saveMeal({ id: 'meal-b', name: 'Second' }),
+    storage.saveMeal({ id: 'meal-a', name: 'Updated' }),
+  ]);
+
+  const meals = await storage.getMeals();
+  assert.deepEqual(meals.map(item => item.id).sort(), ['meal-a', 'meal-b']);
+  assert.equal(meals.find(item => item.id === 'meal-a').name, 'Updated');
+});
+
+test('a failed device read blocks a destructive collection overwrite and a retry remains safe', async () => {
+  const key = '@bloom_user:v1:retry-user:bloom_meals';
+  const backend = createMemoryStorage([[key, JSON.stringify([{ id: 'existing' }])]]);
+  const originalGetItem = backend.getItem.bind(backend);
+  const { storage } = loadStorageModule(backend);
+  storage.setUserScope('retry-user');
+  backend.getItem = async () => { throw new Error('synthetic read failure'); };
+
+  await assert.rejects(storage.saveMeal({ id: 'new' }), /could not read saved device data/i);
+  assert.deepEqual(JSON.parse(backend.values.get(key)), [{ id: 'existing' }]);
+
+  backend.getItem = originalGetItem;
+  await storage.saveMeal({ id: 'new' });
+  assert.deepEqual((await storage.getMeals()).map(item => item.id), ['existing', 'new']);
+});
+
+test('account deletion waits for a direct device write so late work cannot recreate data', async () => {
+  const backend = createMemoryStorage();
+  const originalSetItem = backend.setItem.bind(backend);
+  let releaseWrite;
+  backend.setItem = (key, value) => new Promise((resolve) => {
+    releaseWrite = async () => { await originalSetItem(key, value); resolve(); };
+  });
+  const { storage } = loadStorageModule(backend);
+  const alice = storage.forUser('alice');
+  const writing = alice.setSchemaVersion(2);
+  await new Promise(setImmediate);
+
+  let deletionFinished = false;
+  const deleting = storage.deleteAllData('alice').then(() => { deletionFinished = true; });
+  await new Promise(setImmediate);
+  assert.equal(deletionFinished, false);
+
+  await releaseWrite();
+  await Promise.all([writing, deleting]);
+  assert.equal(backend.values.has('@bloom_user:v1:alice:bloom_schema_version'), false);
+});
+
 test('app-lock PIN migrates from AsyncStorage into protected storage', async () => {
   const pinKey = '@bloom_user:v1:user-one:bloom_app_lock_pin';
   const backend = createMemoryStorage([[pinKey, JSON.stringify('2468')]]);

@@ -51,6 +51,48 @@ function validWaitlistEntry() {
   };
 }
 
+function validProfile(overrides = {}) {
+  return {
+    firstName: 'Asha',
+    email: 'asha@example.com',
+    consent: true,
+    modelImprovementConsent: false,
+    onboardingCompleted: false,
+    trackingMode: 'cycle',
+    goals: ['track_cycle'],
+    trackedSymptoms: ['cramps'],
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    lastActiveAt: serverTimestamp(),
+    ...overrides,
+  };
+}
+
+function validMegConversation(overrides = {}) {
+  return {
+    title: 'My conversation',
+    mode: 'explain',
+    supportMode: 'explain',
+    language: 'en',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    messageCount: 1,
+    ...overrides,
+  };
+}
+
+function validMegMessage(overrides = {}) {
+  return {
+    role: 'assistant',
+    text: 'Fixture',
+    createdAt: serverTimestamp(),
+    feedback: null,
+    safety: null,
+    source: 'meg-v2',
+    ...overrides,
+  };
+}
+
 function validCycleLog(overrides = {}) {
   return {
     id: 'period-2026-07-27',
@@ -195,7 +237,7 @@ after(async () => {
 test('an owner can read and write their profile, period, check-in and Diet documents', async () => {
   const ownerDb = testEnvironment.authenticatedContext('user-a').firestore();
   const references = [
-    [doc(ownerDb, 'users/user-a'), { firstName: 'Asha' }],
+    [doc(ownerDb, 'users/user-a'), validProfile()],
     [doc(ownerDb, 'users/user-a/cycleLogs/2026-07-27'), validCycleLog()],
     [doc(ownerDb, 'users/user-a/checkIns/2026-07-27'), validCheckIn()],
     [doc(ownerDb, 'users/user-a/dietProfile/main'), validDietProfile()],
@@ -320,6 +362,28 @@ test('strict period, check-in and Diet schemas reject extra, oversized and inval
   ));
 });
 
+test('dated tracking documents must match their deterministic document IDs', async () => {
+  const ownerDb = testEnvironment.authenticatedContext('user-a').firestore();
+  await assertFails(setDoc(
+    doc(ownerDb, 'users/user-a/cycleLogs/2026-07-28'),
+    validCycleLog()
+  ));
+  await assertFails(setDoc(
+    doc(ownerDb, 'users/user-a/checkIns/2026-07-28'),
+    validCheckIn()
+  ));
+});
+
+test('profile writes reject schema pollution, oversized values and createdAt changes', async () => {
+  const ownerDb = testEnvironment.authenticatedContext('user-a').firestore();
+  const reference = doc(ownerDb, 'users/user-a');
+  await assertSucceeds(setDoc(reference, validProfile()));
+  await assertFails(setDoc(reference, validProfile({ role: 'admin' })));
+  await assertFails(setDoc(reference, validProfile({ preferredName: 'x'.repeat(121) })));
+  await assertFails(updateDoc(reference, { createdAt: serverTimestamp() }));
+  await assertSucceeds(updateDoc(reference, { preferredName: 'Ash' }));
+});
+
 test('an owner can delete their own period and Diet documents', async () => {
   const ownerDb = testEnvironment.authenticatedContext('user-a').firestore();
   const references = [
@@ -356,6 +420,14 @@ test('invalid waitlist creates are denied', async () => {
   await assertFails(setDoc(doc(publicDb, 'bloom_waitlist/extra-field'), {
     ...validWaitlistEntry(),
     unexpected: true,
+  }));
+  await assertFails(setDoc(doc(publicDb, 'bloom_waitlist/oversized-name'), {
+    ...validWaitlistEntry(),
+    firstName: 'x'.repeat(121),
+  }));
+  await assertFails(setDoc(doc(publicDb, 'bloom_waitlist/invalid-score'), {
+    ...validWaitlistEntry(),
+    interestScore: 101,
   }));
 });
 
@@ -413,10 +485,19 @@ test('Meg conversation/message owner can restore history, update feedback and de
   const db = testEnvironment.authenticatedContext('meg-owner').firestore();
   const conversation = doc(db, 'users/meg-owner/megConversations/chat');
   const message = doc(db, 'users/meg-owner/megConversations/chat/messages/one');
-  await assertSucceeds(setDoc(conversation, { title: 'My conversation' }));
-  await assertSucceeds(setDoc(message, { role: 'assistant', text: 'Fixture', feedback: null }));
+  await assertSucceeds(setDoc(conversation, validMegConversation()));
+  await assertSucceeds(setDoc(message, validMegMessage()));
   await assertSucceeds(getDocs(collection(conversation, 'messages')));
   await assertSucceeds(updateDoc(message, { feedback: 'helpful' }));
+  await assertFails(updateDoc(message, { text: 'Rewritten by a client' }));
+  await assertFails(setDoc(
+    doc(db, 'users/meg-owner/megConversations/polluted'),
+    validMegConversation({ role: 'admin' })
+  ));
+  await assertFails(setDoc(
+    doc(db, 'users/meg-owner/megConversations/chat/messages/oversized'),
+    validMegMessage({ text: 'x'.repeat(20001) })
+  ));
   await assertSucceeds(deleteDoc(message));
   await assertSucceeds(deleteDoc(conversation));
 });

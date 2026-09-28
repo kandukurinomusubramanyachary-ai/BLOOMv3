@@ -15,6 +15,7 @@ import ProcessingStep from './screens/ProcessingStep';
 import ResultStep from './screens/ResultStep';
 import { COLORS, createThemedStyles } from '../../utils/constants';
 import { useProductTour } from '../../components/productTour';
+import { useAuth } from '../../context/AuthContext';
 
 /**
  * Self-contained Bloom V3 Onboarding Module Container.
@@ -27,6 +28,7 @@ export default function OnboardingV3Screen({
   initialStep = ONBOARDING_STEPS.WELCOME,
   onComplete,
 }) {
+  const { user } = useAuth();
   const { requestOverviewInvitation, setRecommendationHandler } = useProductTour();
   const navigateToRecommendation = useCallback((action) => {
     if (!navigation?.navigate) return;
@@ -44,7 +46,7 @@ export default function OnboardingV3Screen({
     goToNextStep,
     goToPrevStep,
     result,
-  } = useOnboardingState({ initialStep });
+  } = useOnboardingState({ uid: user?.uid, initialStep });
 
   const handleNextWithAnswers = useCallback(
     (patch) => {

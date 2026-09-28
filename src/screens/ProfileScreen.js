@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../components/Icon';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import { COLORS, createThemedStyles, ELEVATION, LAYOUT, TYPOGRAPHY, WEB_FOCUS } from '../utils/constants';
+import { COLORS, createThemedStyles, LAYOUT, TYPOGRAPHY, WEB_FOCUS } from '../utils/constants';
 import ScreenHeader from '../components/ScreenHeader';
 import Card from '../components/Card';
 import Button from '../components/Button';
@@ -15,9 +15,63 @@ import appConfig from '../../app.json';
 import { useProductTour } from '../components/productTour';
 import ProductTourTarget from '../components/productTour/ProductTourTarget';
 
+function ProfileMenuRow({
+  icon,
+  title,
+  subtitle,
+  onPress,
+  last = false,
+  tone = 'default',
+  disabled = false,
+  busy = false,
+  expanded,
+  accessory = 'forward',
+}) {
+  const destructive = tone === 'danger';
+  const accessoryIcon = accessory === 'expand'
+    ? (expanded ? 'chevron-up' : 'chevron-down')
+    : 'chevron-forward';
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole='button'
+      accessibilityLabel={title}
+      accessibilityHint={subtitle}
+      accessibilityState={{
+        disabled,
+        busy,
+        ...(typeof expanded === 'boolean' ? { expanded } : {}),
+      }}
+      style={({ pressed, hovered, focused }) => [
+        styles.menuItem,
+        !last && styles.menuItemBorder,
+        hovered && !disabled && styles.menuItemHovered,
+        focused && styles.menuItemFocused,
+        pressed && !disabled && styles.menuItemPressed,
+        disabled && styles.disabledItem,
+      ]}
+    >
+      <View style={[styles.menuIcon, destructive && styles.menuIconDanger]} accessible={false}>
+        <Icon name={icon} size={21} color={destructive ? COLORS.danger : COLORS.body} />
+      </View>
+      <View style={styles.menuText}>
+        <Text style={[styles.menuTitle, destructive && styles.menuTitleDanger]}>{title}</Text>
+        {subtitle ? <Text style={styles.menuSubtitle}>{subtitle}</Text> : null}
+      </View>
+      {accessory !== 'none' ? (
+        <View accessible={false}>
+          <Icon name={accessoryIcon} size={19} color={destructive ? COLORS.danger : COLORS.muted} />
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
 export default function ProfileScreen({ navigation }) {
   const { state, resetAllData, deleteAllAccountData } = useApp();
-  const { user, logOut, deleteAccount } = useAuth();
+  const { logOut, deleteAccount } = useAuth();
   const { startIfNeeded } = useProductTour();
   useEffect(() => { startIfNeeded('profile'); }, [startIfNeeded]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -30,45 +84,54 @@ export default function ProfileScreen({ navigation }) {
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [accountDeleteError, setAccountDeleteError] = useState('');
   const trackingMode = state.settings?.trackingMode || state.profile?.trackingMode || 'cycle';
-  const modeLabel = trackingMode === 'pcos' ? 'PCOS support mode' : 'Basic cycle mode';
-  const themeLabel = state.resolvedTheme === 'dark' ? 'Dark theme' : 'Light theme';
-  const movementDays = state.stats?.movementDays ?? new Set(
-    (state.movements || [])
-      .filter((item) => item.status !== 'not_today')
-      .map((item) => item.date)
-  ).size;
-  const stats = [
-    { value: state.stats?.totalCheckins ?? state.checkins?.length ?? 0, label: 'Check-ins' },
-    { value: state.stats?.totalCycles ?? state.periods?.length ?? 0, label: 'Cycles' },
-    { value: state.bookmarks?.length ?? 0, label: 'Saved' },
-    { value: state.stats?.mealsLogged ?? state.meals?.length ?? 0, label: 'Meals' },
-    { value: movementDays, label: 'Movement days' },
-  ];
+  const modeLabel = trackingMode === 'pcos' ? 'PCOS support' : 'Cycle tracking';
+  const displayName = preferredDisplayName(state.profile) || 'Your Bloom';
+  const isDevelopment = typeof __DEV__ !== 'undefined' && __DEV__;
 
   const menuSections = [
     {
-      title: 'Privacy and care',
+      title: 'My Bloom',
+      tourTargetIds: ['profile-preferences', 'profile-appearance'],
       items: [
-        { icon: 'document-text-outline', title: 'Privacy Policy', subtitle: 'How Bloom handles your data', route: 'Legal', params: { page: 'privacy' } },
-        { icon: 'document-text-outline', title: 'Terms of Use', subtitle: 'Using Bloom', route: 'Legal', params: { page: 'terms' } },
-        { icon: 'chatbubbles-outline', title: 'Contact / Support', subtitle: 'Get help with Bloom', route: 'Legal', params: { page: 'support' } },
-        { icon: 'shield-checkmark-outline', title: 'Privacy & security', subtitle: 'App lock and preview controls', route: 'PrivacySettings' },
-        { icon: 'medkit-outline', title: 'Doctor summary', subtitle: 'Preview a private, appointment-ready report', route: 'DoctorReport' },
-        { icon: 'download-outline', title: 'Export your data', subtitle: 'Keep a copy for yourself or your doctor', route: 'ExportData' },
+        { icon: 'options-outline', title: 'My preferences', subtitle: 'Name, goals, tracking and appearance', route: 'Preferences' },
+        { icon: 'notifications-outline', title: 'Reminders', subtitle: 'Choose what Bloom reminds you about', route: 'Reminders' },
       ],
     },
     {
-      title: 'Your preferences',
+      title: 'Privacy & data',
+      tourTargetIds: ['profile-privacy'],
       items: [
-        { icon: 'sparkles-outline', title: 'Learn Bloom', subtitle: 'Replay optional guides for Bloom', route: 'LearnBloom' },
-        { icon: 'notifications-outline', title: 'Reminders', subtitle: 'Choose when Bloom gently checks in', route: 'Reminders' },
-        { icon: 'options-outline', title: 'Personalisation', subtitle: `${themeLabel}, ${modeLabel.toLowerCase()}, goals and guidance`, route: 'Preferences' },
-        ...((typeof __DEV__ !== 'undefined' && __DEV__) ? [
-          { icon: 'sparkles-outline', title: 'Onboarding V3 Preview', subtitle: 'Explore the new isolated first-time user flow', route: 'OnboardingV3Preview' },
-        ] : []),
+        { icon: 'shield-checkmark-outline', title: 'Privacy', subtitle: 'App lock, previews and privacy controls', route: 'PrivacySettings' },
+        { icon: 'download-outline', title: 'Export my data', subtitle: 'Save a copy of your Bloom information', route: 'ExportData' },
+        { icon: 'medkit-outline', title: 'Doctor summary', subtitle: 'Review a private summary for appointments', route: 'DoctorReport' },
+        { icon: 'trash-outline', title: 'Delete tracked data', subtitle: 'Erase your records but keep your account', action: openDeleteDataConfirm, tone: 'danger', expanded: showDeleteConfirm, accessory: 'expand' },
+      ],
+    },
+    {
+      title: 'Help & legal',
+      items: [
+        { icon: 'sparkles-outline', title: 'Learn Bloom', subtitle: 'Replay Bloom’s optional guides', route: 'LearnBloom' },
+        { icon: 'chatbubbles-outline', title: 'Help & support', subtitle: 'Get help using Bloom', route: 'Legal', params: { page: 'support' } },
+        { icon: 'document-text-outline', title: 'Privacy Policy', route: 'Legal', params: { page: 'privacy' } },
+        { icon: 'document-text-outline', title: 'Terms of Use', route: 'Legal', params: { page: 'terms' } },
       ],
     },
   ];
+
+  function openDeleteDataConfirm() {
+    setDeleteError('');
+    setShowAccountDeleteConfirm(false);
+    setAccountPassword('');
+    setAccountDeleteError('');
+    setShowDeleteConfirm(true);
+  }
+
+  function openAccountDeleteConfirm() {
+    setShowDeleteConfirm(false);
+    setDeleteError('');
+    setAccountDeleteError('');
+    setShowAccountDeleteConfirm(true);
+  }
 
   async function handleDeleteData() {
     if (deletingData) return;
@@ -119,7 +182,6 @@ export default function ProfileScreen({ navigation }) {
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.backBar}>
         <IconButton icon='chevron-back' accessibilityLabel='Back to Bloom' onPress={() => navigation.goBack()} />
-        <Text style={styles.backTitle}>Profile</Text>
         <View style={styles.backSpacer} />
       </View>
       <ScrollView
@@ -131,241 +193,177 @@ export default function ProfileScreen({ navigation }) {
         showsVerticalScrollIndicator={Platform.OS === 'web'}
       >
         <View style={styles.inner}>
-          <ScreenHeader title='Your space' subtitle='Manage Bloom in a way that feels private and comfortable.' />
+          <ScreenHeader title='Profile' subtitle='Your preferences, privacy and support in one place.' />
 
           <View style={styles.profileRow}>
-            <View style={styles.avatar} accessibilityLabel='Bloom lotus mark'>
-              <LotusMark size={32} decorative={false} />
+            <View style={styles.avatar} accessible={false}>
+              <LotusMark size={30} decorative />
             </View>
             <View style={styles.profileCopy}>
-              <Text style={styles.name}>{preferredDisplayName(state.profile) || 'Your Bloom'}</Text>
-              <Text style={styles.profileMeta}>
-                {state.profile?.age ? `${state.profile.age} years old` : 'A quiet record of your own patterns'}
-              </Text>
-              <View style={styles.modeBadge}>
+              <Text testID='profile-display-name' style={styles.name}>{displayName}</Text>
+              <View style={styles.profileMetaRow}>
                 <Icon
                   name={trackingMode === 'pcos' ? 'flower-outline' : 'calendar-outline'}
-                  size={14}
+                  size={15}
                   color={COLORS.brand}
                 />
-                <Text style={styles.modeText}>{modeLabel}</Text>
+                <Text style={styles.profileMeta}>{modeLabel}</Text>
               </View>
             </View>
           </View>
 
-          <View style={styles.activitySection}>
-            <View style={styles.activityHeading}>
-              <Text style={[styles.sectionTitle, styles.activityTitle]}>Your activity</Text>
-              <Text style={styles.activityCaption}>A simple view of what you have chosen to record</Text>
-            </View>
-            <View style={styles.statsGrid} accessibilityLabel='Your Bloom activity'>
-              {stats.map((item, index) => (
-                <View
-                  key={item.label}
-                  style={[
-                    styles.stat,
-                    ![2, 4].includes(index) && styles.statDivider,
-                    index < 3 && styles.statRowDivider,
-                  ]}
-                >
-                  <Text style={styles.statValue}>{item.value}</Text>
-                  <Text style={styles.statLabel}>{item.label}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          <Card variant='sage' style={styles.privacyNote}>
-            <View style={styles.noteIcon}>
-              <Icon name='lock-closed-outline' size={20} color={COLORS.sage} />
-            </View>
-            <View style={styles.flex}>
-              <Text style={styles.noteTitle}>Your records belong to your account</Text>
-              <Text style={styles.noteText}>Your cycle dates and check-ins are available only after secure sign-in. You decide when to export or erase your data.</Text>
-            </View>
-          </Card>
-
-          {menuSections.map((section) => {
-            const tourTargetIds = section.title === 'Your preferences' ? ['profile-preferences', 'profile-appearance'] : ['profile-privacy'];
-            return (
+          {menuSections.map((section) => (
             <View key={section.title} style={styles.menuSection}>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
-              <ProductTourTarget ids={tourTargetIds}>
-              <View style={styles.menuGroup}>
-                {section.items.map((item, index) => (
-                  <Pressable
-                    key={item.title}
-                    onPress={() => item.action ? item.action() : navigation.navigate(item.route, item.params)}
-                    accessibilityRole='button'
-                    accessibilityLabel={`${item.title}. ${item.subtitle}`}
-                    style={({ pressed, hovered, focused }) => [
-                      styles.menuItem,
-                      index < section.items.length - 1 && styles.menuItemBorder,
-                      hovered && styles.menuItemHovered,
-                      focused && styles.menuItemFocused,
-                      pressed && styles.menuItemPressed,
-                    ]}
-                  >
-                    <View style={styles.menuIcon}>
-                      <Icon name={item.icon} size={21} color={COLORS.body} />
-                    </View>
-                    <View style={styles.menuText}>
-                      <Text style={styles.menuTitle}>{item.title}</Text>
-                      <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
-                    </View>
-                    <Icon name='chevron-forward' size={19} color={COLORS.muted} />
-                  </Pressable>
-                ))}
-              </View>
+              <Text accessibilityRole='header' style={styles.sectionTitle}>{section.title}</Text>
+              <ProductTourTarget ids={section.tourTargetIds}>
+                <View style={styles.menuGroup}>
+                  {section.items.map((item, index) => (
+                    <ProfileMenuRow
+                      key={item.title}
+                      {...item}
+                      onPress={() => item.action ? item.action() : navigation.navigate(item.route, item.params)}
+                      last={index === section.items.length - 1}
+                    />
+                  ))}
+                </View>
               </ProductTourTarget>
+
+              {section.title === 'Privacy & data' && showDeleteConfirm ? (
+                <Card
+                  variant='flat'
+                  style={styles.confirmCard}
+                >
+                  <Text accessibilityRole='header' accessibilityLiveRegion='polite' style={styles.confirmTitle}>Delete tracked data?</Text>
+                  <Text style={styles.confirmText}>This permanently removes your check-ins, cycle dates, meals, movement, Meg chats, saved articles and settings. Your sign-in stays active so you can keep using Bloom. This cannot be undone.</Text>
+                  {deleteError ? <Text style={styles.logoutError} accessibilityRole='alert'>{deleteError}</Text> : null}
+                  <View style={styles.confirmActions}>
+                    <Button
+                      title='Keep my data'
+                      variant='secondary'
+                      onPress={() => {
+                        setShowDeleteConfirm(false);
+                        setDeleteError('');
+                      }}
+                      disabled={deletingData}
+                      style={styles.confirmButton}
+                    />
+                    <Button
+                      title='Delete tracked data'
+                      variant='danger'
+                      onPress={handleDeleteData}
+                      loading={deletingData}
+                      disabled={deletingData}
+                      style={styles.confirmButton}
+                    />
+                  </View>
+                </Card>
+              ) : null}
             </View>
-            );
-          })}
+          ))}
+
+          {isDevelopment ? (
+            <View style={styles.menuSection}>
+              <Text accessibilityRole='header' style={styles.sectionTitle}>Developer preview</Text>
+              <View style={styles.menuGroup}>
+                <ProfileMenuRow
+                  icon='flask-outline'
+                  title='Onboarding V3 Preview'
+                  subtitle='Preview the isolated first-time flow'
+                  onPress={() => navigation.navigate('OnboardingV3Preview')}
+                  last
+                />
+              </View>
+              <Text style={styles.developerNote}>Only visible in development builds</Text>
+            </View>
+          ) : null}
 
           <ProductTourTarget id='profile-account'>
-          <View style={styles.menuSection}>
-            <Text style={styles.sectionTitle}>Account</Text>
-            <View style={styles.menuGroup}>
-              <Pressable
-                onPress={handleLogout}
-                disabled={loggingOut}
-                accessibilityRole='button'
-                accessibilityLabel='Log out of Bloom'
-                accessibilityState={{ disabled: loggingOut, busy: loggingOut }}
-                style={({ pressed, hovered, focused }) => [
-                  styles.menuItem,
-                  hovered && styles.menuItemHovered,
-                  focused && styles.menuItemFocused,
-                  pressed && styles.menuItemPressed,
-                  loggingOut && styles.disabledItem,
-                ]}
-              >
-                <View style={styles.menuIcon}>
-                  <Icon name='log-out-outline' size={21} color={COLORS.body} />
-                </View>
-                <View style={styles.menuText}>
-                  <Text style={styles.menuTitle}>{loggingOut ? 'Logging out…' : 'Log out'}</Text>
-                  <Text style={styles.menuSubtitle}>{user?.email || 'Return to secure sign-in'}</Text>
-                </View>
-                <Icon name='chevron-forward' size={19} color={COLORS.muted} />
-              </Pressable>
-            </View>
-            {logoutError ? <Text style={styles.logoutError} accessibilityRole='alert'>{logoutError}</Text> : null}
-          </View>
-          </ProductTourTarget>
-
-          <View style={styles.dataSection}>
-            <Text style={styles.sectionTitle}>Your data</Text>
-            {!showDeleteConfirm ? (
-              <Pressable
-                onPress={() => setShowDeleteConfirm(true)}
-                accessibilityRole='button'
-                style={({ pressed, hovered, focused }) => [
-                  styles.deleteTrigger,
-                  hovered && styles.deleteTriggerHovered,
-                  focused && styles.focusedControl,
-                  pressed && styles.menuItemPressed,
-                ]}
-              >
-                <Icon name='trash-outline' size={20} color={COLORS.error} />
-                <Text style={styles.deleteTriggerText}>Delete tracked Bloom data</Text>
-              </Pressable>
-            ) : (
-              <Card style={styles.confirmCard}>
-                <Text style={styles.confirmTitle}>Delete tracked data from your account?</Text>
-                <Text style={styles.confirmText}>This permanently removes your check-ins, cycle dates, meals, movement, Meg chats, saved articles and settings from your Bloom account and this device. Your sign-in and required consent profile remain so you can keep using Bloom. It cannot be undone.</Text>
-                {deleteError ? <Text style={styles.logoutError} accessibilityRole='alert'>{deleteError}</Text> : null}
-                <View style={styles.confirmActions}>
-                  <Button
-                    title='Keep my data'
-                    variant='secondary'
-                    onPress={() => setShowDeleteConfirm(false)}
-                    disabled={deletingData}
-                    style={styles.confirmButton}
-                  />
-                  <Button
-                    title='Delete tracked data'
-                    variant='danger'
-                    onPress={handleDeleteData}
-                    loading={deletingData}
-                    disabled={deletingData}
-                    style={styles.confirmButton}
-                  />
-                </View>
-              </Card>
-            )}
-          </View>
-
-          <View style={styles.accountDeleteSection}>
-            {!showAccountDeleteConfirm ? (
-              <Pressable
-                onPress={() => {
-                  setAccountDeleteError('');
-                  setShowAccountDeleteConfirm(true);
-                }}
-                accessibilityRole='button'
-                accessibilityLabel='Delete Bloom account'
-                style={({ pressed, hovered, focused }) => [
-                  styles.accountDeleteTrigger,
-                  hovered && styles.deleteTriggerHovered,
-                  focused && styles.focusedControl,
-                  pressed && styles.menuItemPressed,
-                ]}
-              >
-                <Icon name='person-remove-outline' size={20} color={COLORS.error} />
-                <Text style={styles.deleteTriggerText}>Delete Bloom account</Text>
-              </Pressable>
-            ) : (
-              <Card style={styles.confirmCard}>
-                <Text style={styles.confirmTitle}>Permanently delete your Bloom account?</Text>
-                <Text style={styles.confirmText}>This removes your sign-in, profile, check-ins, cycle dates, Diet records, Strength sessions, Meg chats and local Bloom data. It cannot be undone.</Text>
-                <Text style={styles.accountPasswordLabel}>Confirm with your password</Text>
-                <TextInput
-                  value={accountPassword}
-                  onChangeText={(value) => {
-                    setAccountPassword(value);
-                    setAccountDeleteError('');
-                  }}
-                  editable={!deletingAccount}
-                  secureTextEntry
-                  autoCapitalize='none'
-                  autoCorrect={false}
-                  autoComplete='current-password'
-                  textContentType='password'
-                  returnKeyType='done'
-                  onSubmitEditing={handleDeleteAccount}
-                  placeholder='Your Bloom password'
-                  placeholderTextColor={COLORS.muted}
-                  accessibilityLabel='Password to confirm account deletion'
-                  style={styles.accountPasswordInput}
+            <View style={styles.menuSection}>
+              <Text accessibilityRole='header' style={styles.sectionTitle}>Account</Text>
+              <View style={styles.menuGroup}>
+                <ProfileMenuRow
+                  icon='log-out-outline'
+                  title={loggingOut ? 'Logging out…' : 'Log out'}
+                  subtitle='Your Bloom data stays saved to your account'
+                  onPress={handleLogout}
+                  disabled={loggingOut}
+                  busy={loggingOut}
+                  accessory='none'
                 />
-                {accountDeleteError ? <Text style={styles.logoutError} accessibilityRole='alert'>{accountDeleteError}</Text> : null}
-                <View style={styles.confirmActions}>
-                  <Button
-                    title='Keep my account'
-                    variant='secondary'
-                    onPress={() => {
-                      setShowAccountDeleteConfirm(false);
-                      setAccountPassword('');
+                <ProfileMenuRow
+                  icon='person-remove-outline'
+                  title='Delete Bloom account'
+                  subtitle='Permanently remove your account and Bloom data'
+                  onPress={openAccountDeleteConfirm}
+                  tone='danger'
+                  expanded={showAccountDeleteConfirm}
+                  accessory='expand'
+                  last
+                />
+              </View>
+              {logoutError ? <Text style={styles.logoutError} accessibilityRole='alert'>{logoutError}</Text> : null}
+
+              {showAccountDeleteConfirm ? (
+                <Card
+                  variant='flat'
+                  style={styles.confirmCard}
+                >
+                  <Text accessibilityRole='header' accessibilityLiveRegion='polite' style={styles.confirmTitle}>Permanently delete your Bloom account?</Text>
+                  <Text style={styles.confirmText}>This removes your sign-in, profile, check-ins, cycle dates, Diet records, Strength sessions, Meg chats and local Bloom data. This cannot be undone.</Text>
+                  <Text style={styles.accountPasswordLabel}>Confirm with your password</Text>
+                  <TextInput
+                    value={accountPassword}
+                    onChangeText={(value) => {
+                      setAccountPassword(value);
                       setAccountDeleteError('');
                     }}
-                    disabled={deletingAccount}
-                    style={styles.confirmButton}
+                    editable={!deletingAccount}
+                    secureTextEntry
+                    autoCapitalize='none'
+                    autoCorrect={false}
+                    autoComplete='current-password'
+                    textContentType='password'
+                    returnKeyType='done'
+                    onSubmitEditing={handleDeleteAccount}
+                    placeholder='Your Bloom password'
+                    placeholderTextColor={COLORS.muted}
+                    accessibilityLabel='Password to confirm account deletion'
+                    style={styles.accountPasswordInput}
                   />
-                  <Button
-                    title='Delete account'
-                    variant='danger'
-                    onPress={handleDeleteAccount}
-                    loading={deletingAccount}
-                    loadingLabel='Deleting account…'
-                    disabled={!accountPassword || deletingAccount}
-                    style={styles.confirmButton}
-                  />
-                </View>
-              </Card>
-            )}
-          </View>
+                  {accountDeleteError ? <Text style={styles.logoutError} accessibilityRole='alert'>{accountDeleteError}</Text> : null}
+                  <View style={styles.confirmActions}>
+                    <Button
+                      title='Keep my account'
+                      variant='secondary'
+                      onPress={() => {
+                        setShowAccountDeleteConfirm(false);
+                        setAccountPassword('');
+                        setAccountDeleteError('');
+                      }}
+                      disabled={deletingAccount}
+                      style={styles.confirmButton}
+                    />
+                    <Button
+                      title='Delete account'
+                      variant='danger'
+                      onPress={handleDeleteAccount}
+                      loading={deletingAccount}
+                      loadingLabel='Deleting account…'
+                      disabled={!accountPassword || deletingAccount}
+                      style={styles.confirmButton}
+                    />
+                  </View>
+                </Card>
+              ) : null}
+            </View>
+          </ProductTourTarget>
 
+          <View style={styles.trustLine}>
+            <View accessible={false}>
+              <Icon name='lock-closed-outline' size={16} color={COLORS.sage} />
+            </View>
+            <Text style={styles.trustText}>Your Bloom information stays with your account. You choose when to export or erase it.</Text>
+          </View>
           <Text style={styles.version}>Bloom {appConfig.expo.version} · Private by design</Text>
         </View>
       </ScrollView>
@@ -374,8 +372,16 @@ export default function ProfileScreen({ navigation }) {
 }
 
 const styles = createThemedStyles({
-  backBar: { width: '100%', maxWidth: 600, alignSelf: 'center', minHeight: 60, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  backTitle: { ...TYPOGRAPHY.componentTitle, color: COLORS.ink },
+  backBar: {
+    width: '100%',
+    maxWidth: LAYOUT.phoneMaxWidth,
+    alignSelf: 'center',
+    minHeight: 60,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
   backSpacer: { width: 48 },
   safeArea: {
     flex: 1,
@@ -403,20 +409,19 @@ const styles = createThemedStyles({
       default: {},
     }),
   },
-  scrollContent: { paddingBottom: 40 },
+  scrollContent: { paddingBottom: 48 },
   inner: {
     width: '100%',
-    maxWidth: 600,
+    maxWidth: LAYOUT.phoneMaxWidth,
     alignSelf: 'center',
     paddingHorizontal: LAYOUT.screenPadding,
-    paddingTop: 24,
+    paddingTop: 12,
   },
-  flex: { flex: 1 },
   profileRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 15,
-    marginBottom: 22,
+    gap: 14,
+    marginBottom: 4,
   },
   avatar: {
     width: 58,
@@ -426,94 +431,26 @@ const styles = createThemedStyles({
     justifyContent: 'center',
     backgroundColor: COLORS.brandSoft,
   },
-  profileCopy: { flex: 1 },
+  profileCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
   name: {
+    flexShrink: 1,
     ...TYPOGRAPHY.sectionTitle,
     color: COLORS.ink,
+  },
+  profileMetaRow: {
+    minHeight: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 3,
   },
   profileMeta: {
-    marginTop: 2,
+    flexShrink: 1,
     ...TYPOGRAPHY.supporting,
     color: COLORS.muted,
-  },
-  modeBadge: {
-    minHeight: 30,
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginTop: 7,
-    paddingHorizontal: 10,
-    borderRadius: 15,
-    backgroundColor: COLORS.brandSoft,
-  },
-  modeText: {
-    ...TYPOGRAPHY.eyebrow,
-    color: COLORS.brand,
-  },
-  activitySection: {
-    marginTop: 2,
-  },
-  activityHeading: {
-    marginBottom: 10,
-  },
-  activityTitle: { marginBottom: 0 },
-  activityCaption: {
-    marginTop: 2,
-    ...TYPOGRAPHY.caption,
-    color: COLORS.muted,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    overflow: 'hidden',
-    borderRadius: LAYOUT.cardRadius,
-    backgroundColor: COLORS.surfaceSoft,
-  },
-  stat: {
-    minWidth: 92,
-    minHeight: 74,
-    flexGrow: 1,
-    flexBasis: '28%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 12,
-  },
-  statDivider: { borderRightWidth: 1, borderRightColor: COLORS.hairline },
-  statRowDivider: { borderBottomWidth: 1, borderBottomColor: COLORS.hairline },
-  statValue: {
-    ...TYPOGRAPHY.sectionTitle,
-    color: COLORS.ink,
-  },
-  statLabel: {
-    marginTop: 3,
-    ...TYPOGRAPHY.caption,
-    color: COLORS.muted,
-  },
-  privacyNote: {
-    marginTop: 24,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    borderWidth: 0,
-  },
-  noteIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.white,
-  },
-  noteTitle: {
-    ...TYPOGRAPHY.componentTitle,
-    color: COLORS.ink,
-  },
-  noteText: {
-    marginTop: 4,
-    ...TYPOGRAPHY.supporting,
-    color: COLORS.body,
   },
   menuSection: { marginTop: 28 },
   sectionTitle: {
@@ -523,80 +460,65 @@ const styles = createThemedStyles({
     color: COLORS.ink,
   },
   menuGroup: {
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: COLORS.hairline,
-    backgroundColor: COLORS.white,
+    overflow: 'hidden',
+    borderRadius: LAYOUT.cardRadius,
+    backgroundColor: COLORS.surfaceSoft,
   },
   menuItem: {
     minHeight: 72,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 13,
+    paddingVertical: 12,
     paddingHorizontal: 14,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surfaceSoft,
   },
-  menuItemBorder: { borderBottomWidth: 1, borderBottomColor: COLORS.hairline },
-  menuItemPressed: { backgroundColor: COLORS.surfaceSoft },
-  menuItemHovered: { backgroundColor: COLORS.surfaceWarm },
-  menuItemFocused: { backgroundColor: COLORS.brandSoft },
+  menuItemBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.hairline,
+  },
+  menuItemPressed: { backgroundColor: COLORS.surfaceStrong },
+  menuItemHovered: { backgroundColor: COLORS.surfaceStrong },
+  menuItemFocused: {
+    backgroundColor: COLORS.brandSoft,
+    ...Platform.select({ web: WEB_FOCUS, default: {} }),
+  },
   disabledItem: { opacity: 0.62 },
   menuIcon: {
     width: 40,
     height: 40,
+    flexShrink: 0,
     marginRight: 12,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.surfaceSoft,
+    backgroundColor: COLORS.canvas,
   },
-  menuText: { flex: 1, paddingRight: 10 },
+  menuIconDanger: { backgroundColor: COLORS.dangerSoft },
+  menuText: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 10,
+  },
   menuTitle: {
     ...TYPOGRAPHY.componentTitle,
     color: COLORS.ink,
   },
+  menuTitleDanger: { color: COLORS.danger },
   menuSubtitle: {
     marginTop: 3,
     ...TYPOGRAPHY.caption,
     color: COLORS.muted,
   },
-  logoutError: { marginTop: 8, ...TYPOGRAPHY.supporting, color: COLORS.error },
-  dataSection: { marginTop: 28 },
-  accountDeleteSection: { marginTop: 12 },
-  deleteTrigger: {
-    minHeight: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 9,
-    borderWidth: 1,
-    borderColor: '#E8C8C4',
-    borderRadius: LAYOUT.controlRadius,
-    backgroundColor: COLORS.white,
-  },
-  deleteTriggerHovered: { backgroundColor: '#FFF7F6', borderColor: '#DCA9A2' },
-  accountDeleteTrigger: {
-    minHeight: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 9,
-    borderRadius: LAYOUT.controlRadius,
-  },
-  focusedControl: {
-    borderColor: COLORS.brand,
-    ...Platform.select({ web: WEB_FOCUS, default: {} }),
-  },
-  deleteTriggerText: {
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: '600',
+  logoutError: {
+    marginTop: 8,
+    ...TYPOGRAPHY.supporting,
     color: COLORS.error,
   },
   confirmCard: {
+    marginTop: 12,
+    padding: 18,
     borderWidth: 0,
-    backgroundColor: '#FFF7F6',
-    ...Platform.select({ web: ELEVATION.web, ios: ELEVATION.ios, android: ELEVATION.android, default: {} }),
+    backgroundColor: COLORS.dangerSoft,
   },
   confirmTitle: {
     fontSize: 17,
@@ -606,11 +528,16 @@ const styles = createThemedStyles({
   },
   confirmText: {
     marginTop: 6,
-    fontSize: 14,
-    lineHeight: 21,
+    ...TYPOGRAPHY.supporting,
     color: COLORS.body,
   },
-  accountPasswordLabel: { marginTop: 16, marginBottom: 7, fontSize: 14, lineHeight: 20, fontWeight: '600', color: COLORS.ink },
+  accountPasswordLabel: {
+    marginTop: 16,
+    marginBottom: 7,
+    ...TYPOGRAPHY.supporting,
+    fontWeight: '600',
+    color: COLORS.ink,
+  },
   accountPasswordInput: {
     minHeight: 52,
     paddingHorizontal: 14,
@@ -626,8 +553,27 @@ const styles = createThemedStyles({
     gap: 10,
   },
   confirmButton: { paddingHorizontal: 12 },
-  version: {
+  developerNote: {
+    marginTop: 7,
+    paddingHorizontal: 4,
+    ...TYPOGRAPHY.caption,
+    color: COLORS.muted,
+  },
+  trustLine: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
     marginTop: 28,
+    paddingHorizontal: 4,
+  },
+  trustText: {
+    flex: 1,
+    minWidth: 0,
+    ...TYPOGRAPHY.caption,
+    color: COLORS.muted,
+  },
+  version: {
+    marginTop: 12,
     fontSize: 12,
     lineHeight: 17,
     color: COLORS.muted,

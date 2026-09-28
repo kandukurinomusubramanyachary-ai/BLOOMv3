@@ -28,8 +28,21 @@ test('Not sure mixes sweet, salty and crunchy while respecting exclusions', () =
   assert.ok(second.every((item) => !first.some((prior) => prior.id === item.id)));
 });
 
+test('food ideas can combine existing rescue categories without duplicating the catalog', () => {
+  const lightIdeas = diet.getRescuesForCraving(['sweet', 'crunchy']);
+  assert.equal(lightIdeas.length, 3);
+  assert.ok(lightIdeas.every((item) => ['sweet', 'crunchy'].includes(item.category)));
+});
+
 test('kit rescues rank first and kit estimates use catalog prices only', () => {
   const results = diet.getRescuesForCraving('sweet', { kitIds: ['dates-nuts'] });
   assert.equal(results[0].id, 'dates-nuts');
   assert.equal(diet.kitEstimate(['dates-nuts', 'unknown']), 55);
+});
+
+test('delivery discovery is deterministic and limited to prepared dishes', () => {
+  assert.equal(diet.RESCUE_BY_ID.get('paneer-roti').deliverySearchable, true);
+  assert.equal(diet.RESCUE_BY_ID.get('dal-rice-cup').deliverySearchable, true);
+  assert.notEqual(diet.RESCUE_BY_ID.get('banana-peanut').deliverySearchable, true);
+  assert.notEqual(diet.RESCUE_BY_ID.get('dates-nuts').deliverySearchable, true);
 });

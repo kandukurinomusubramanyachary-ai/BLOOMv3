@@ -12,15 +12,16 @@ The rule on `/users/{uid}` does not implicitly grant access to subcollections. E
 
 | Data | Firestore path | Document identity | Current rule behaviour |
 | --- | --- | --- | --- |
-| Root profile | `/users/{uid}` | One document per Firebase UID | Owner read/write. The current client persists the profile payload, converts its display `name` to `firstName`, and adds `updatedAt`. This root document is not field-allowlisted by the current rules. |
-| Cycle logs | `/users/{uid}/cycleLogs/{startDate}` | The document ID is the local `YYYY-MM-DD` period start date | Owner read/delete; owner create/update only when the cycle-log schema is valid. The stored `date` and `startDate` must match. |
-| Check-ins | `/users/{uid}/checkIns/{date}` | The document ID is the local `YYYY-MM-DD` check-in date | Owner read/delete; owner create/update only when the check-in schema is valid. |
+| Root profile | `/users/{uid}` | One document per Firebase UID | Owner read/delete; owner create/update only for the field-allowlisted profile schema. Existing `createdAt` values are immutable. |
+| Cycle logs | `/users/{uid}/cycleLogs/{startDate}` | The document ID is the local `YYYY-MM-DD` period start date | Owner read/delete; owner create/update only when the cycle-log schema is valid and the stored `startDate` matches the document ID. |
+| Check-ins | `/users/{uid}/checkIns/{date}` | The document ID is the local `YYYY-MM-DD` check-in date | Owner read/delete; owner create/update only when the check-in schema is valid and the stored `date` matches the document ID. |
 | Diet profile | `/users/{uid}/dietProfile/main` | The only writable profile ID is `main` | Owner read/delete; owner create/update only for `main` and a valid Diet profile. |
 | Meal logs | `/users/{uid}/mealLogs/{mealId}` | The record `id` must equal `{mealId}` | Owner read/delete; owner create/update only for a valid meal log. |
 | Meal reflections | `/users/{uid}/mealReflections/{mealId}` | The document ID is the related meal ID; `mealId` and `mealLogId` must both identify that meal | Owner read/delete; owner create/update only for a valid reflection. |
 | Diet observations | `/users/{uid}/dietObservations/{observationId}` | The record `id` must equal `{observationId}` | Owner read/delete; owner create/update only for a valid non-causal observation. |
-| Meg conversations | `/users/{uid}/megConversations/{conversationId}` | Conversation ID supplied by the Meg service | Owner read/write. The current rules do not field-allowlist conversation documents. |
-| Meg messages | `/users/{uid}/megConversations/{conversationId}/messages/{messageId}` | Message ID supplied by the Meg service | Owner read/write. The current rules do not field-allowlist message documents. |
+| Strength sessions | `/users/{uid}/strengthSessions/{sessionId}` | Stable summary ID generated for the completed session | Owner read/delete; owner create/update only for the privacy-filtered summary schema and when the stored ID matches the document ID. |
+| Meg conversations | `/users/{uid}/megConversations/{conversationId}` | Conversation ID supplied by the Meg service | Owner read/delete; owner create/update only for bounded legacy conversation metadata. |
+| Meg messages | `/users/{uid}/megConversations/{conversationId}/messages/{messageId}` | Message ID supplied by the Meg service | Owner read/delete and schema-validated create. Client updates are limited to the validated `feedback` field. |
 
 ## Stored shapes and validation
 
@@ -83,7 +84,9 @@ Allowed fields are `id`, `text`, `status`, `outcome`, `ingredient`, `sampleSize`
 
 ### Root profile and Meg
 
-The root profile, Meg conversation, and Meg message paths currently enforce authentication and ownership but not field-level schemas. The active client reads the Meg message fields `role`, `text` (or legacy `content`), `createdAt`, `feedback`, `safety`, and `source`, and conversation metadata including `title`, `mode`/`supportMode`, `language`, timestamps, and `messageCount`. This describes client consumption; it is not a rules allowlist.
+The root profile is restricted to the profile and personalization fields used by the current and retained legacy model. Strings, lists, maps, numbers, booleans, and timestamps have type and size bounds; arbitrary fields such as client-supplied roles are rejected. An existing profile `createdAt` timestamp cannot be changed.
+
+Legacy Firestore Meg conversations accept only bounded `title`, mode, language, timestamp, and message-count metadata. Messages accept only the fields consumed by the legacy reader: `id`, `role`, `text` or `content`, `createdAt`, `feedback`, `safety`, and `source`. Message updates can change only `feedback`. Meg V2's server persistence remains separate and is not rewritten by these client rules.
 
 ## UID-scoped device storage and local-first behaviour
 
@@ -94,13 +97,15 @@ Bloom's AsyncStorage records use versioned, UID-scoped keys of the form `@bloom_
 - `deletedMealIds` is the implemented meal-deletion tombstone list. It is retained in the local Diet profile and synced to `/users/{uid}/dietProfile/main`; hydration filters matching local and remote meals and attempts the remote deletions again. This prevents an offline-deleted meal from reappearing after sync.
 - Dismissed Diet observations are represented by `dismissedObservationIds` in the Diet profile and by the observation document's `dismissed` flag.
 - Meg conversations have a UID-scoped local queue/mirror so pending or failed delivery state can survive a restart. Firestore/the Meg service remains the account source of truth; local and remote conversations are merged only within the active UID scope.
+- In-progress V3 onboarding answers are local-only and use the same UID-scoped storage service. The former unscoped `@bloom:v3:onboarding:draft` value is discarded rather than attributed to whichever account signs in next.
+- Local collection mutations are serialized per account and key. A failed device read aborts the mutation instead of treating an unreadable collection as empty and overwriting it.
 - Malformed local JSON is removed and treated as missing instead of being loaded into application state. Legacy UID-scoped keys are migrated to the versioned key on read.
 
 ## Waitlist separation
 
-`/bloom_waitlist/{document}` is outside the signed-in `/users/{uid}` model and was not migrated or linked to a Bloom account by this data hardening work. Its rules remain unchanged:
+`/bloom_waitlist/{document}` is outside the signed-in `/users/{uid}` model and is not linked to a Bloom account:
 
-- A public client may create only the existing waitlist shape: `firstName`, a syntactically valid `email`, `optionalContact`, `answers`, affirmative `consent`, `interestScore`, `interestLevel`, `source`, and `createdAt` equal to the server request time.
+- A public client may create only the existing waitlist shape: `firstName`, a syntactically valid `email`, `optionalContact`, bounded `answers`, affirmative `consent`, a bounded `interestScore`, `interestLevel`, `source`, and `createdAt` equal to the server request time. Public string lengths are capped.
 - Clients, including signed-in app users, cannot read, update, or delete waitlist documents.
 - A narrow server-side eligibility helper remains in the repository, but the current Node app does not mount `/api/beta/check-email`, and the Beta access screen is not part of the active navigation. The automated suite verifies this disconnected state. If that flow is deliberately restored later, the helper uses a Firebase Admin equality query for one normalized email and returns only eligibility; the frontend never downloads the collection. A waitlist match is not Firebase Authentication, does not grant Firestore access, and does not create or open a Bloom user account.
 
@@ -108,5 +113,5 @@ Bloom's AsyncStorage records use versioned, UID-scoped keys of the form `@bloom_
 
 - `firestore.rules` was edited locally as part of this hardening work.
 - The rules have **not** been deployed to Firebase.
-- The Firestore emulator test suite is **BLOCKED** in this environment because Java is absent (`spawn java ENOENT`). This is not reported as a passing rules test.
-- Before release, install a supported Java runtime, run the Firestore emulator tests, review the results, and deploy the reviewed rules through the intended Firebase release process.
+- The Firestore Standard-edition emulator suite passes against these rules, including anonymous access, cross-UID access, schema pollution, oversized payload, deterministic ID, immutable timestamp, and feedback-only update cases.
+- Before release, deploy the reviewed rules through the intended Firebase release process. This repository audit did not deploy or inspect a live Firebase project.

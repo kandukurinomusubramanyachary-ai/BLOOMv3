@@ -5,7 +5,10 @@ const test = require('node:test');
 const babel = require('@babel/core');
 
 const personalization = require('../src/features/onboardingV3/utils/personalization');
-const { restoreOnboardingHistory } = require('../src/features/onboardingV3/utils/onboardingDraft');
+const {
+  restoreOnboardingDraft,
+  restoreOnboardingHistory,
+} = require('../src/features/onboardingV3/utils/onboardingDraft');
 const { createTourRecord, isTourHandled, productTourStorageKey } = require('../src/components/productTour/tourState');
 
 function loadTourSteps(platform) {
@@ -41,6 +44,28 @@ test('restored onboarding drafts preserve their real navigation history', () => 
   assert.deepEqual(restoreOnboardingHistory([0, 1, 2, 3, 4], 4), [0, 1, 2, 3, 4]);
   assert.deepEqual(restoreOnboardingHistory(null, 5), [0, 1, 2, 3, 4, 5]);
   assert.deepEqual(restoreOnboardingHistory([0, 1, 1, 2], 2), [0, 1, 2]);
+});
+
+test('malformed onboarding drafts restore only bounded known answers and steps', () => {
+  const restored = restoreOnboardingDraft({
+    step: 999,
+    history: [0, 1, 999, 'bad'],
+    answers: {
+      firstName: 'A'.repeat(100),
+      reasonsForJoining: ['diagnosed_pcos', 'unknown', 'diagnosed_pcos'],
+      symptoms: 'not-a-list',
+      emotionalState: { unsafe: true },
+      energyLevel: 99,
+      priorities: ['build_strength', 'unknown'],
+    },
+  });
+  assert.equal(restored.step, 9);
+  assert.equal(restored.answers.firstName.length, 80);
+  assert.deepEqual(restored.answers.reasonsForJoining, ['diagnosed_pcos']);
+  assert.deepEqual(restored.answers.symptoms, []);
+  assert.equal(restored.answers.emotionalState, null);
+  assert.equal(restored.answers.energyLevel, null);
+  assert.deepEqual(restored.answers.priorities, ['build_strength']);
 });
 
 test('priority resolution is deterministic rather than dependent on tap order', () => {

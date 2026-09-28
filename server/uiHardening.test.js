@@ -168,12 +168,19 @@ test('Diet v3.1 is a bounded, scrollable single tab with sheet-owned depth', () 
 
   assert.match(diet, /KeyboardAvoidingView/);
   assert.match(diet, /keyboardShouldPersistTaps='handled'/);
-  assert.match(diet, /I’m craving something/);
+  assert.match(diet, /Find me something/);
+  assert.match(diet, /Craving rescue/);
+  assert.match(diet, /My rescue kit/);
+  assert.doesNotMatch(diet, /I’m craving something/);
+  assert.doesNotMatch(diet, /Use what I have/);
   assert.match(diet, /QuickChips/);
+  assert.match(diet, /sheet === 'find'/);
   assert.match(diet, /sheet === 'sos'/);
   assert.match(diet, /sheet === 'kit'/);
   assert.match(diet, /sheet === 'learn'/);
   assert.match(diet, /sheet === 'stats'/);
+  assert.match(diet, /DietDeliveryDiscovery/);
+  assert.doesNotMatch(diet, /Search the web/);
   assert.match(diet, /overflowY: 'auto'/);
   assert.doesNotMatch(diet, /createBottomTabNavigator/);
 });

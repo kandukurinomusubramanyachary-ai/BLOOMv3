@@ -50,7 +50,17 @@ class InMemoryBackend {
 
   appendMessage(item) {
     this.ensureConversation(item.userId, item.conversationId);
-    const message = { ...item, id: randomUUID(), createdAt: new Date().toISOString(), content: String(item.content), clientMessageId: item.clientMessageId || null };
+    const content = String(item.content);
+    if (item.role === 'user' && item.clientMessageId) {
+      const existing = this.messages.find((message) => (
+        message.userId === item.userId
+        && message.conversationId === item.conversationId
+        && message.role === 'user'
+        && message.clientMessageId === item.clientMessageId
+      ));
+      if (existing) return existing.content === content ? existing : { conflict: true };
+    }
+    const message = { ...item, id: randomUUID(), createdAt: new Date().toISOString(), content, clientMessageId: item.clientMessageId || null };
     this.messages.push(message);
     return message;
   }

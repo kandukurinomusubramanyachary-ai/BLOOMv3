@@ -68,6 +68,17 @@ class SQLiteStore {
     const columns = new Set(this.db.prepare('PRAGMA table_info(messages)').all().map((row) => row.name));
     if (!columns.has('client_message_id')) this.db.exec('ALTER TABLE messages ADD COLUMN client_message_id TEXT');
     this.db.exec('CREATE INDEX IF NOT EXISTS messages_client_id_idx ON messages(user_id, conversation_id, client_message_id)');
+    this.db.transaction(() => {
+      this.db.exec(`DELETE FROM messages
+        WHERE role = 'user' AND client_message_id IS NOT NULL AND rowid NOT IN (
+          SELECT MIN(rowid) FROM messages
+          WHERE role = 'user' AND client_message_id IS NOT NULL
+          GROUP BY user_id, conversation_id, client_message_id
+        )`);
+      this.db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS messages_user_client_id_unique_idx
+        ON messages(user_id, conversation_id, client_message_id)
+        WHERE role = 'user' AND client_message_id IS NOT NULL`);
+    })();
     const metricColumns = new Set(this.db.prepare('PRAGMA table_info(provider_metrics)').all().map((row) => row.name));
     for (const [name, type] of Object.entries(METRIC_COLUMNS)) {
       if (!metricColumns.has(name)) this.db.exec(`ALTER TABLE provider_metrics ADD COLUMN ${name} ${type}`);
@@ -119,11 +130,27 @@ class SQLiteStore {
 
   appendMessage({ userId, conversationId, role, content, clientMessageId }) {
     this.ensureConversation(userId, conversationId);
+    const text = String(content);
     const item = { id: randomUUID(), createdAt: new Date().toISOString() };
+    if (role === 'user' && clientMessageId) {
+      const inserted = this.db.prepare(`INSERT INTO messages
+        (id, conversation_id, user_id, role, content, client_message_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id, conversation_id, client_message_id)
+        WHERE role = 'user' AND client_message_id IS NOT NULL DO NOTHING`)
+        .run(item.id, conversationId, userId, role, text, clientMessageId, item.createdAt);
+      if (inserted.changes === 0) {
+        const existing = this.db.prepare(`SELECT id, user_id AS userId, conversation_id AS conversationId,
+          role, content, client_message_id AS clientMessageId, created_at AS createdAt FROM messages
+          WHERE user_id = ? AND conversation_id = ? AND role = 'user' AND client_message_id = ? LIMIT 1`)
+          .get(userId, conversationId, clientMessageId);
+        return existing?.content === text ? existing : { conflict: true };
+      }
+      return { ...item, userId, conversationId, role, content: text, clientMessageId };
+    }
     this.db.prepare(`INSERT INTO messages
       (id, conversation_id, user_id, role, content, client_message_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
-      .run(item.id, conversationId, userId, role, String(content), clientMessageId || null, item.createdAt);
-    return { ...item, userId, conversationId, role, content: String(content), clientMessageId: clientMessageId || null };
+      .run(item.id, conversationId, userId, role, text, clientMessageId || null, item.createdAt);
+    return { ...item, userId, conversationId, role, content: text, clientMessageId: clientMessageId || null };
   }
 
   getRecentMessages({ userId, conversationId, limit = 8 }) {
