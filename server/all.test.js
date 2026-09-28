@@ -28,6 +28,7 @@ require('./notificationScheduling.test');
 require('./startupHardening.test');
 require('./dietData.test');
 require('./dietRescue.test');
+require('./foodDelivery.test');
 require('./periodTracking.test');
 require('./calendarUi.test');
 require('./checkinFlow.test');

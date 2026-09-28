@@ -229,6 +229,29 @@ test('Meg refreshes an expired Firebase token once and preserves the idempotency
   }
 });
 
+test('Meg fallback auth getter forwards forceRefresh after a 401', async () => {
+  const tokenCalls = [];
+  const currentUser = { async getIdToken(forceRefresh) { tokenCalls.push(forceRefresh); return forceRefresh ? 'fresh-token' : 'expired-token'; } };
+  const meg = loadMegModule(currentUser);
+  const originalFetch = global.fetch;
+  const authorizations = [];
+  global.fetch = async (_url, options) => {
+    authorizations.push(options.headers.Authorization);
+    return authorizations.length === 1
+      ? { ok: false, status: 401, json: async () => ({}) }
+      : { ok: true, status: 200, json: async () => ({ message: 'Authenticated reply' }) };
+  };
+
+  try {
+    const provider = meg.createLocalMegApiProvider({ baseUrl: 'http://127.0.0.1:3001', timeoutMs: 1000 });
+    await provider.reply({ accountUid: 'auth-fallback-user', message: 'Hello' });
+    assert.deepEqual(tokenCalls, [undefined, true]);
+    assert.deepEqual(authorizations, ['Bearer expired-token', 'Bearer fresh-token']);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test('Meg rejects empty input before calling the provider', async () => {
   const meg = loadMegModule(null);
   let calls = 0;

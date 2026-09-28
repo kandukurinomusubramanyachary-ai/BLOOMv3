@@ -323,7 +323,7 @@ export function createLocalMegApiProvider({
       const currentUser = auth?.currentUser;
       // Use the screen's active auth session (including explicit local dev auth).
       // This callback is never serialized into provider context or the body.
-      const getIdToken = request?.getIdToken || (currentUser ? () => currentUser.getIdToken() : null);
+      const getIdToken = request?.getIdToken || (currentUser ? (forceRefresh) => currentUser.getIdToken(forceRefresh) : null);
       if (typeof getIdToken !== 'function') {
         qaTiming?.setFailure(MEG_QA_FAILURE_CATEGORY.AUTH);
         throw new Error('Please sign in before messaging Meg.');

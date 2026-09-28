@@ -259,7 +259,8 @@ async function runChat({
     }), [])),
   ]);
   trace.memoryRetrievalMs = Date.now() - memoryStart;
-  await userWritePromise;
+  const userMessage = await userWritePromise;
+  if (userMessage?.conflict) throw new ChatRequestError('message_id_conflict', { status: 409 });
 
   const recentMessages = mergeRecentMessages(
     sanitizeHistory(body.history, message),
