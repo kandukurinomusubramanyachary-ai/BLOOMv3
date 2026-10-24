@@ -1,28 +1,47 @@
-# Bloom: assets, original story and 20 requested features
+# Bloom upgrade verification · 24 October 2026
 
-## Verified
+## Source and content
 
-- All 22 original story paragraphs and the original homepage excerpt match the fetched original HTML verbatim.
-- The approved logo, lockup, lotus and favicon match BLOOMv3's source bytes exactly.
-- Both light and dark homepages at 390 px and 1280 px report zero WCAG A/AA axe violations, no horizontal overflow and no visible targets below 24 px.
-- The original story page at 390 px also reports zero violations and no overflow.
-- Native password-field JSX parses and the exact AuthField component passes isolated rendering tests for initial masking, show/hide, retained value, masking after clearing, and no toggle on ordinary fields.
-- Empty sample check-in produces a real error; choosing energy produces its success state and next action.
-- Reset cancellation retains the selection; confirmation clears it. Dialogs and mobile navigation support Escape and focus restoration.
-- Local search finds text from the full original story, including its final line.
-- Feedback validation rejects incomplete input, produces an accurate draft-ready state and copies the draft successfully. Nothing is posted during verification.
-- Without attribution permission, signup has no UTM fields. Allowing attribution adds the synthetic test source/campaign; rejecting again removes them.
-- Back to top returns the hero to its initial position, restores brand focus and resets the progress bar to zero. The header stays at viewport top while scrolling.
-- JavaScript syntax and all local asset references are checked. Print CSS removes navigation, dialogs and floating controls; last-updated markup is machine readable.
+- JavaScript syntax checks pass for app.js and enhancements.js.
+- The full 22-paragraph story remains verbatim in content/original-story.html and the story page. The homepage’s seven-paragraph excerpt matches the previous source exactly.
+- The approved logo, lockup, lotus and favicon match the BLOOMv3 source PNGs byte for byte.
+- Every local page reference resolves, IDs are unique, and each page has one h1.
+- Taste source lint: 0 FAIL, 0 WARN. Narrow, documented exceptions are real interface boundaries and floating overlays permitted by the skill.
+- Impeccable’s mechanical detector returned an empty findings list for the changed UI files.
 
-## Implementation boundary
+## Browser checks
 
-Nineteen checklist features are implemented in the marketing website. Password visibility is implemented in the actual application's existing shared sign-in/sign-up/confirmation field, delivered in the GitHub branch. The app's normal build and release process is required to ship that native change.
+The supported CUA browser rendered the site in responsive frames at 320, 390, 768 and 1440 CSS pixels. Home-page axe WCAG A/AA scans reported no violations, no horizontal overflow and no interactive targets below 24px in both themes. Main headings fit within two lines. The final sticky-header top control was also checked at 320px while scrolled.
 
-Campaign attribution captures, remembers and forwards permitted UTM values. No third-party analytics or downstream conversion dashboard is added. Signup still runs on the original website. Contact prepares a public GitHub issue draft which the visitor reviews and posts themselves.
+The full story was checked at 390px in both themes: one h1, no overflow, no small targets and zero reported axe violations. The unchanged original paragraphs remain readable beside a reserved contact rail.
 
-## Limits
+Interaction checks passed:
 
-The supported browser does not expose device throttling, native OS reduced-motion emulation or native mobile compilation. Those measurements/builds are not claimed. The generic static preview error handler remains separate from the included designed 404.html page. No production accounts, health records, waitlist entries or feedback issues were created during testing.
+- Missing energy produces a real validation message; selecting energy synchronizes the hero, sample and doctor summary.
+- Saving completes the fictional check-in; the next action opens Patterns. Keyboard arrows move between tabs immediately.
+- Doctor-note copy reports success. Reset cancellation retains the selection; confirmation clears it and returns to Today.
+- Ctrl K opens local search. A sentence from the full original story finds its page; an unknown query gives an honest empty state.
+- Mobile navigation opens, supports Escape, and restores its control state.
+- Invalid feedback shows a field error. Synthetic product feedback produces a reviewable GitHub draft and copies successfully; no issue was posted.
+- Cookie settings reopen and essential-only closes the panel. Signup still points to https://bloom-nine-eta.vercel.app/.
+- Native FAQ details open the selected answer and close the previous answer.
+- Back-to-top, sticky navigation, theme changes and the original signup information dialog remain functional.
 
-The latest screenshots are in docs/preview. Source asset hashes are in content/provenance.json and the full checklist is in FEATURES_20.md.
+## Visual review
+
+Round 1 found a journal reveal that could leave content clipped, crowded tablet actions, and a three-line reminder heading at 320px. The reveal now affects only the lotus; tablet actions have deliberate spacing; the narrow reminder uses 24px. A later phone check moved back-to-top into the header so it does not cover the check-in controls.
+
+ROUND 2
+Seen in one second: Bloom’s reassurance, then a real energy choice.
+Idea: The promise to help women feel heard becomes a check-in that responds gently.
+Live thing: Energy selection carries from the hero into the sample journal and doctor note.
+Layout words by section: hero=working fragment / promise=strip / care=paired text / journal=tool / story=letter and quotation / FAQ=disclosure / close=invitation.
+Self-review scores: design 7.5 · usability 8 · creativity 6.5 · content 8 → overall 7.5.
+Caps: Creativity stays below 7 because a live product demonstration is an established approach.
+Remaining limits: The page is a concept, signup is an external handoff, and its imagery is approved brand artwork plus interface fragments. These are self-review observations, not an award or independent rating.
+
+## Verification limits
+
+Automated accessibility checks do not establish full conformance. Physical phones, iOS/Safari behavior, OS keyboard/safe-area behavior, reduced-motion emulation, native app builds, print-dialog output and throttled performance were not available or measured. Reduced-motion and print paths were checked in source. The prior isolated AuthField password visibility tests remain applicable because that app source did not change in this upgrade. Taste’s standalone browser inspector was not run; browser QA used the supported CUA preview workflow.
+
+No real account, waitlist submission, health record or GitHub issue was created during checks. Temporary audit files are removed before publication.

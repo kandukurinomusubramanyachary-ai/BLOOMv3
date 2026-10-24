@@ -5,7 +5,7 @@
 | 1 | Dark mode toggle | Header control, OS default, remembered preference, both themes designed |
 | 2 | Cookie banner | Essential-only and optional campaign attribution choices; settings can be reopened |
 | 3 | Site search | Local content index including the full original story; Ctrl/Cmd K shortcut |
-| 4 | Back to top | Floating control appears after scrolling and returns focus to the header |
+| 4 | Back to top | Sticky-header control appears after scrolling and returns focus to the brand; avoids covering the sample journal |
 | 5 | Mobile menus | Responsive navigation, keyboard loop, Escape and close-on-navigation |
 | 6 | Loading animations | Nonblocking indicator for real font/image loading; reduced-motion behavior |
 | 7 | Hover states | Visible feedback for primary actions, navigation, results and floating controls |

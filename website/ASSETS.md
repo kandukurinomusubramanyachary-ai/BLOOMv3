@@ -8,4 +8,4 @@ Their original colors and proportions are preserved. Dark mode uses a light plat
 
 All 22 story paragraphs come from the original website's story-modal-copy at https://bloom-nine-eta.vercel.app/, fetched October 24, 2026. They remain verbatim in content/original-story.html and the story page. The homepage preserves the original seven-paragraph excerpt. No story text is paraphrased.
 
-The provenance JSON records source and asset hashes. Fonts remain self-hosted with OFL licenses. GSAP and Lenis retain their notices.
+The provenance JSON records source and asset hashes. Fonts remain self-hosted with OFL licenses. The upgrade uses native CSS and WAAPI motion; the previously bundled motion engines have been removed.

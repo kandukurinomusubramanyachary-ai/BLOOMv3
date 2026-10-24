@@ -14,7 +14,7 @@
     $$('[data-theme-toggle]').forEach(button=>{
       button.setAttribute('aria-pressed',String(theme==='dark'));
       button.setAttribute('aria-label',`Switch to ${theme==='dark'?'light':'dark'} mode`);
-      $('span',button).textContent=theme==='dark'?'☼':'☾';
+      $('use',button)?.setAttribute('href',theme==='dark'?'#i-sun':'#i-moon');
     });
     if(remember)putStorage('bloom_theme',theme);
     $('meta[name="theme-color"]')?.setAttribute('content',theme==='dark'?'#121113':'#fffefe');
@@ -29,7 +29,7 @@
     loading.hidden=false;
     const finish=()=>{loading.hidden=true};
     const limit=setTimeout(finish,2500);
-    const images=$$('header img,.journal-card img');
+    const images=$$('header img,.hero-stage img');
     Promise.allSettled([document.fonts?.ready,...images.map(image=>image.decode?.())]).then(()=>{clearTimeout(limit);finish()});
   }
   function updateProgress(){
@@ -37,9 +37,10 @@
     document.documentElement.style.setProperty('--scroll-progress',max>0?String(Math.min(1,Math.max(0,scrollY/max))):'0');
     const top=$('#back-to-top');if(top)top.hidden=scrollY<600;
   }
-  if(window.gsap)gsap.ticker.add(updateProgress);
-  else addEventListener('scroll',updateProgress,{passive:true});
-  addEventListener('pagehide',()=>window.gsap?.ticker.remove(updateProgress));
+  let progressPending=false;
+  addEventListener('scroll',()=>{if(progressPending)return;progressPending=true;requestAnimationFrame(()=>{updateProgress();progressPending=false})},{passive:true});
+  addEventListener('resize',updateProgress);
+  if(window.ResizeObserver)new ResizeObserver(updateProgress).observe(document.body);
   updateProgress();
   $('#back-to-top')?.addEventListener('click',()=>{
     scrollTo({top:0,behavior:motion()?'smooth':'instant'});

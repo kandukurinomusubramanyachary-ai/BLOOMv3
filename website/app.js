@@ -3,11 +3,12 @@
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const reducedQuery = matchMedia('(prefers-reduced-motion: reduce)');
-  const hasMotion = () => !reducedQuery.matches && !!window.gsap;
-  const ease = 'power3.out';
-  let lenis = null;
-  let motionContext = null;
-  let lenisTick = null;
+  const hasMotion = () => !reducedQuery.matches;
+  let keyboardInput=false;
+  document.addEventListener('keydown',()=>{keyboardInput=true},{capture:true});
+  document.addEventListener('pointerdown',()=>{keyboardInput=false},{capture:true});
+  const uiEase='cubic-bezier(.23,1,.32,1)';
+  const move=(element,frames,duration)=>{if(!keyboardInput&&hasMotion()&&element?.animate)element.animate(frames,{duration,easing:uiEase})};
   let dialogOpener = null;
   const journal = {energy: null, symptoms: new Set(['Cramps'])};
   let checkinSaved = false;
@@ -30,7 +31,7 @@
       const selected = journal.symptoms.has(button.dataset.symptom);
       button.setAttribute('aria-pressed', String(selected));
       button.classList.toggle('selected', selected);
-      $('span', button).textContent = selected ? '✓' : '+';
+      $('span', button).innerHTML = `<svg class="icon" aria-hidden="true"><use href="#i-${selected?'check':'plus'}"/></svg>`;
     });
     const messages = {
       low: ['A little low is a valid place to be.', 'Some days ask for a softer pace.', 'You can notice how you feel without having to change it right away.'],
@@ -62,9 +63,8 @@
     });
     $$('.demo-panel').forEach(panel => {panel.hidden = panel.id !== `panel-${name}`;});
     const panel = $(`#panel-${name}`);
-    if (hasMotion()) gsap.fromTo(panel, {y:8}, {y:0,duration:.42,ease,overwrite:true,clearProps:'transform,opacity'});
+    if (!focus) move(panel,[{transform:'translateY(5px)'},{transform:'translateY(0)'}],200);
     if (focus) tab.focus();
-    window.ScrollTrigger?.refresh();
   }
   $$('[data-tab]').forEach((button,index,tabs) => {
     button.addEventListener('click', () => switchTab(button.dataset.tab));
@@ -81,7 +81,7 @@
   $$('[data-energy], [data-hero-mood]').forEach(button => button.addEventListener('click', () => {
     journal.energy = button.dataset.energy || button.dataset.heroMood;
     updateJournal();
-    if (hasMotion()) gsap.fromTo(button, {scale:.94}, {scale:1,duration:.35,ease,clearProps:'transform'});
+    move(button,[{transform:'scale(.97)'},{transform:'scale(1)'}],160);
   }));
   $$('[data-symptom]').forEach(button => button.addEventListener('click', () => {
     const name = button.dataset.symptom;
@@ -137,7 +137,7 @@
     const isOpen = menuToggle.getAttribute('aria-expanded') === 'true';
     if (isOpen) {closeMenu(); return;}
     menu.hidden = false; menuToggle.setAttribute('aria-expanded','true'); menuToggle.setAttribute('aria-label','Close navigation');
-    if (hasMotion()) gsap.fromTo(menu, {y:-8}, {y:0,duration:.35,ease,clearProps:'transform,opacity'});
+    move(menu,[{transform:'translateY(-8px)'},{transform:'translateY(0)'}],220);
     $('a',menu)?.focus();
   });
   document.addEventListener('keydown', event => {
@@ -154,16 +154,16 @@
     const anchor = event.target.closest('a[href^="#"]');
     if (anchor) {
       const target = document.getElementById(anchor.getAttribute('href').slice(1));
-      if (target) {event.preventDefault(); closeMenu(); if(lenis)lenis.scrollTo(target,{offset:-125}); else target.scrollIntoView({behavior:reducedQuery.matches?'instant':'smooth'}); history.replaceState(null,'',anchor.getAttribute('href')); target.setAttribute('tabindex','-1');target.focus({preventScroll:true});}
+      if (target) {event.preventDefault(); closeMenu(); target.scrollIntoView({behavior:reducedQuery.matches?'instant':'smooth'}); history.replaceState(null,'',anchor.getAttribute('href')); target.setAttribute('tabindex','-1');target.focus({preventScroll:true});}
     }
   });
-  matchMedia('(min-width: 651px)').addEventListener('change', event => {if(event.matches)closeMenu();});
+  matchMedia('(min-width: 961px)').addEventListener('change', event => {if(event.matches)closeMenu();});
 
   function showDialog(dialog, trigger) {
     if (!dialog) return;
-    closeMenu(); dialogOpener = trigger; dialog.showModal(); lenis?.stop();
+    closeMenu(); dialogOpener = trigger; dialog.showModal();
     document.body.style.overflow = 'hidden';
-    if (hasMotion()) gsap.fromTo(dialog, {y:18,scale:.98}, {y:0,scale:1,duration:.4,ease,clearProps:'transform,opacity'});
+    if(dialog.id!=='search-dialog')move(dialog,[{transform:'translateY(10px) scale(.98)'},{transform:'translateY(0) scale(1)'}],240);
   }
   window.BloomCore = {showDialog};
   $$('.bloom-dialog').forEach(dialog => {
@@ -173,7 +173,7 @@
       const rect = dialog.getBoundingClientRect();
       if (event.clientX<rect.left || event.clientX>rect.right || event.clientY<rect.top || event.clientY>rect.bottom) dialog.close();
     });
-    dialog.addEventListener('close', () => {if(document.querySelector('dialog[open]'))return;document.body.style.overflow='';lenis?.start();dialogOpener?.focus();});
+    dialog.addEventListener('close', () => {if(document.querySelector('dialog[open]'))return;document.body.style.overflow='';dialogOpener?.focus();});
   });
   $$('[data-join]').forEach(button => button.addEventListener('click', () => showDialog($('#join-dialog'),button)));
   $$('[data-policy]').forEach(button => button.addEventListener('click', () => {
@@ -185,32 +185,13 @@
     showDialog($('#policy-dialog'),button);
   }));
 
-  function initMotion() {
-    motionContext?.revert(); motionContext=null;
-    if(lenisTick){window.gsap?.ticker.remove(lenisTick);lenisTick=null;}
-    lenis?.destroy(); lenis=null;
-    if(!hasMotion())return;
-    gsap.registerPlugin(ScrollTrigger);
-    if (window.Lenis && matchMedia('(hover: hover) and (pointer: fine)').matches) {
-      lenis = new Lenis({lerp:.12,anchors:false,smoothWheel:true,autoRaf:false});
-      lenis.on('scroll',ScrollTrigger.update);
-      lenisTick = time => lenis.raf(time*1000); gsap.ticker.add(lenisTick); gsap.ticker.lagSmoothing(0);
-    }
-    motionContext = gsap.context(() => {
-      // Visible HTML is the baseline. Motion starts only after the local engine loads.
-      const intro = gsap.timeline({defaults:{ease}});
-      intro.from('.availability',{y:8,duration:.6},0)
-        .from('.hero h1',{y:16,duration:.8},.04)
-        .from('.hero-after, .hero-description, .hero-actions, .quiet-note',{y:12,stagger:.055,duration:.65},.12)
-        .from('.journal-card',{y:22,duration:.9},.05)
-        .from('.floating-checkin',{y:30,duration:.9},.22);
-      if ($('.petal-group')) gsap.to('.petal-group',{rotation:18,transformOrigin:'50% 50%',ease:'none',scrollTrigger:{trigger:'.hero',start:'top top',end:'bottom top',scrub:1}});
-      $$('.care-list article').forEach(article => gsap.from(article,{x:16,duration:.6,ease,scrollTrigger:{trigger:article,start:'top 95%',once:true}}));
-      if($('.story-image')) gsap.from('.story-image',{clipPath:'inset(7% 0 0 0 round 160px 160px 20px 20px)',duration:.9,ease,scrollTrigger:{trigger:'.story-image',start:'top 90%',once:true}});
-    });
-    document.fonts?.ready.then(() => window.ScrollTrigger?.refresh());
+  // Below-the-fold entrances remain fully readable even when scripts or motion are disabled.
+  if('IntersectionObserver' in window && hasMotion()){
+    const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{
+      if(!entry.isIntersecting)return;
+      entry.target.classList.add('arrived');observer.unobserve(entry.target);
+    }),{threshold:.1});
+    $$('.care-list article').forEach(article=>observer.observe(article));
+    addEventListener('pagehide',()=>observer.disconnect(),{once:true});
   }
-  reducedQuery.addEventListener('change',initMotion);
-  initMotion();
-  window.addEventListener('pagehide', () => {motionContext?.revert();if(lenisTick)window.gsap?.ticker.remove(lenisTick);lenis?.destroy();});
 })();
