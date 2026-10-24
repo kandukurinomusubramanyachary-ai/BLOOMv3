@@ -1,0 +1,24 @@
+{
+  "repository": "https://github.com/kandukurinomusubramanyachary-ai/BLOOMv3",
+  "commit": "15241e53e14a783dba5736e314c4a2525f8d77f5",
+  "assets": [
+    {
+      "path": "assets/bloom-lockup.png",
+      "sha256": "042072d9e5873ed1238f1b836da8e7be4500ec0a75669637f06b826f8e5cb1e5"
+    },
+    {
+      "path": "assets/lotus-mark.png",
+      "sha256": "c7184e38461032b38b143646e76f6691e1b7432944448e5294b56270558a06e5"
+    },
+    {
+      "path": "assets/bloom-logo-approved.png",
+      "sha256": "da9d34d38a5139f1e5fa456856a4d8c6846aa80ef9ea11e29fe71ee0928e9a28"
+    },
+    {
+      "path": "assets/favicon.png",
+      "sha256": "6495a755a6be4fb6f0ba0288b2e4afb2bab95baf2c64dd286a90ccbbdb99a7a5"
+    }
+  ],
+  "storySource": "https://bloom-nine-eta.vercel.app/",
+  "storyParagraphs": 22
+}
