@@ -1,0 +1,114 @@
+/* Utilities share the page tokens on every route. */
+.scroll-progress{height:3px;position:fixed;top:0;left:0;right:0;background:var(--accent);scale:var(--scroll-progress) 1;transform-origin:left;z-index:100;pointer-events:none}
+.floating-tools{position:fixed;right:20px;bottom:max(20px,env(safe-area-inset-bottom));z-index:45;display:flex;align-items:center;gap:8px}
+.float-contact,.float-top{display:flex;align-items:center;justify-content:center;gap:10px;min-width:48px;height:48px;border-radius:999px;padding:0 18px;background:var(--ink);color:var(--ground);box-shadow:0 4px 18px #0000001a;font-size:13px;transition:transform 160ms var(--ease-out)} /* taste-skill-ignore: the requested floating contact and top controls are real overlays. */
+.float-top{padding:0;background:var(--panel);color:var(--ink);border:1px solid var(--control)} /* taste-skill-ignore: an interactive control boundary. */
+.float-contact .icon{width:18px;height:18px}
+.cookie-banner{position:fixed;bottom:18px;left:20px;z-index:60;display:flex;gap:14px;width:440px;max-width:calc(100% - 40px);padding:24px;border-radius:var(--radius);background:var(--panel);box-shadow:0 8px 44px #00000026} /* taste-skill-ignore: the consent panel floats above the page. */
+.cookie-banner>img{width:30px;height:auto;align-self:start;margin-top:2px;flex-shrink:0}
+.cookie-banner h2{font-size:23px;letter-spacing:-.025em;line-height:1.2}
+.cookie-banner p{font-size:13px;line-height:1.65;color:var(--muted);margin-top:10px}
+.cookie-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.cookie-actions button{min-height:44px;padding:10px 15px;font-size:12px;border-radius:999px;background:var(--surface)}
+.cookie-actions .cookie-allow{background:var(--accent);color:#fff}
+html[data-theme=dark] .cookie-allow{color:#21131a}
+
+.bloom-dialog{border:0;margin:auto;width:calc(100% - 40px);max-width:560px;max-height:calc(100dvh - 40px);overflow-y:auto;overscroll-behavior:contain;padding:44px;background:var(--panel);color:var(--ink);border-radius:var(--radius);box-shadow:0 20px 80px #00000035;transform-origin:center;line-height:1.6} /* taste-skill-ignore: a native modal dialog is a real overlay. */
+.bloom-dialog::backdrop{background:#0009}
+.bloom-dialog h2{font-size:40px;line-height:1.12;letter-spacing:-.03em;padding-right:22px}
+.bloom-dialog>img{width:45px;height:auto;margin-bottom:26px}
+.bloom-dialog p{font-size:16px;line-height:1.7;margin-top:20px}
+.bloom-dialog .button{margin-top:28px;gap:18px;font-size:14px}
+.bloom-dialog .dialog-footnote{font-size:13px;color:var(--muted);margin-top:18px}
+.dialog-close{position:absolute;top:16px;right:16px;display:grid;place-content:center;width:44px;height:44px;border-radius:50%;background:var(--surface);font-size:28px;line-height:1}
+.bloom-dialog label{display:block;font-size:14px;font-weight:600;margin:24px 0 8px}
+.bloom-dialog input,.bloom-dialog textarea{width:100%;min-height:50px;border:1px solid var(--control);border-radius:10px;padding:12px 14px;background:var(--ground);color:var(--ink);font:16px var(--body);line-height:1.5}
+.bloom-dialog input::placeholder,.bloom-dialog textarea::placeholder{color:var(--muted)}
+.bloom-dialog textarea{resize:vertical}
+.bloom-dialog [aria-invalid=true]{border-color:var(--error)}
+.bloom-dialog .form-error,.save-status.is-error{color:var(--error)}
+.save-status.is-success,.contact-success #feedback-status{color:var(--positive)}
+.search-dialog{max-width:640px}
+.search-dialog .search-count{font-size:13px;color:var(--muted);margin-top:18px}
+.search-results{padding:0;list-style:none;margin:12px 0 0}
+.search-result{display:block;width:100%;min-height:50px;text-align:left;border-radius:8px;padding:12px 10px;font-size:16px;background:transparent;text-decoration:none!important}
+.search-results>li+li{margin-top:4px}
+.confirm-actions{display:flex;flex-wrap:wrap;align-items:center;gap:16px 24px;margin-top:28px}
+.confirm-actions .button{margin-top:0}
+.confirm-actions .text-link{font-size:14px}
+.contact-dialog h2{font-size:38px}
+.contact-dialog>p{font-size:15px}
+.contact-dialog .form-error{font-size:13px;min-height:22px;margin-top:10px}
+.contact-dialog .button{margin-top:16px}
+.contact-success{margin-top:28px}
+.contact-success h3{font-size:28px}
+.contact-success .text-link{display:flex;font-size:14px;margin-top:8px}
+.contact-success #feedback-status{min-height:24px;font-size:13px}
+.asset-loading{position:fixed;top:100px;right:20px;z-index:45;display:flex;align-items:center;gap:10px;border-radius:999px;background:var(--panel);padding:12px 16px;font-size:13px;box-shadow:0 3px 20px #00000015} /* taste-skill-ignore: transient loading status is a floating overlay. */
+.asset-loading>img{height:auto;animation:asset-breathe .8s ease-in-out infinite alternate}
+@keyframes asset-breathe{from{opacity:.5;transform:scale(.94)}
+to{opacity:1;transform:scale(1)}
+}
+
+@media(hover:hover) and (pointer:fine){.float-contact:hover,.float-top:hover{transform:translateY(-2px)}
+.search-result:hover,.dialog-close:hover{background:var(--surface)}
+.cookie-actions button:hover{transform:translateY(-1px)}
+}
+
+@media(max-width:960px){.asset-loading{top:92px}
+}
+
+@media(max-width:760px){html{scroll-padding-bottom:110px}
+.floating-tools{right:12px;bottom:max(14px,env(safe-area-inset-bottom));flex-direction:column;gap:8px}
+.float-contact,.float-top{width:44px;min-width:44px;height:44px;padding:0}
+.float-contact>span{display:none}
+.has-consent-banner .floating-tools{bottom:calc(var(--consent-height) + 4px)}
+.cookie-banner{left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));width:auto;max-width:none;padding:20px;gap:12px}
+.cookie-banner>img{width:24px}
+.cookie-banner h2{font-size:22px}
+.cookie-banner p{font-size:12px}
+.cookie-actions{gap:8px;margin-top:16px}
+.cookie-actions button{font-size:12px;padding-inline:12px}
+.bloom-dialog{max-width:540px;padding:38px 24px 28px;width:calc(100% - 28px);max-height:calc(100dvh - 28px)}
+.bloom-dialog h2,.contact-dialog h2{font-size:32px}
+.bloom-dialog p{font-size:15px}
+.bloom-dialog>img{width:38px;margin-bottom:24px}
+.bloom-dialog .button{font-size:13px;min-height:50px;padding-inline:20px;gap:14px}
+.dialog-close{top:12px;right:12px}
+.bloom-dialog .dialog-footnote{font-size:12px}
+.bloom-dialog label{font-size:14px}
+.search-results{max-height:40dvh;overflow-y:auto}
+.search-result{font-size:15px;min-height:50px}
+.confirm-actions{gap:8px 20px}
+.contact-dialog .form-error{font-size:12px}
+.contact-success h3{font-size:26px}
+.asset-loading{top:86px;right:12px;font-size:12px}
+}
+
+@media(prefers-reduced-motion:reduce){.asset-loading>img{animation:none}
+}
+
+@media print{ :root,html[data-theme=dark]{--ground:#fff;--ink:#222;--muted:#555;--accent:#222;--surface:#fff;--panel:#fff;color-scheme:light}
+body{background:#fff!important;color:#222!important}
+.site-header,.site-footer,.floating-tools,.cookie-banner,.bloom-dialog,.scroll-progress,.asset-loading,.mobile-menu,.skip-link,.icon-definitions{display:none!important}
+.story-page{padding:0;width:100%;max-width:100%}
+.story-page h1{font-size:28pt}
+.original-story{max-width:100%;padding:0;margin-top:28pt}
+.original-story p{color:#222;font-size:12pt;break-inside:avoid}
+.original-story .story-final-line{font-size:20pt;color:#222}
+.story-original-end{padding:0;break-inside:avoid}
+.story-original-end>.text-link{display:none}
+body.printing-note>main>*{display:none!important}
+body.printing-note main>.demo-section{display:block!important;background:#fff;padding:0}
+body.printing-note .section-heading,body.printing-note .demo-sidebar,body.printing-note .demo-topline,body.printing-note .demo-caption,body.printing-note .demo-panel-heading,body.printing-note .note-actions,body.printing-note .demo-panel:not(#panel-note){display:none!important}
+body.printing-note #panel-note{display:block!important}
+body.printing-note .demo-workspace{display:block;width:100%;padding:0;min-height:0;background:#fff}
+body.printing-note .demo-content{padding:0}
+body.printing-note .doctor-note{padding:24pt 0;background:#fff;color:#222}
+body.printing-note .doctor-note h4{font-size:22pt}
+body.printing-note .note-detail>p{font-size:12pt}
+body.printing-note .note-detail>span{font-size:10pt}
+}
+
+
+@media(min-width:761px) and (max-width:960px){.floating-tools{flex-direction:column;right:12px}.float-contact{width:44px;min-width:44px;height:44px;padding:0}.float-contact>span{display:none}}

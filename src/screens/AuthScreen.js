@@ -31,13 +31,20 @@ function AuthField({
   focused,
   onFocus,
   onBlur,
+  secureTextEntry = false,
   ...inputProps
 }) {
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  useEffect(() => {
+    if (!value) setPasswordVisible(false);
+  }, [value]);
   return (
     <View style={styles.field}>
       <Text style={styles.label}>{label}</Text>
+      <View style={styles.inputWrap}>
       <TextInput
         {...inputProps}
+        secureTextEntry={secureTextEntry && !passwordVisible}
         value={value}
         onChangeText={onChangeText}
         onFocus={onFocus}
@@ -46,10 +53,29 @@ function AuthField({
         accessibilityState={{ invalid: Boolean(error) }}
         style={[
           styles.input,
+          secureTextEntry && styles.passwordInput,
           focused && styles.inputFocused,
           error && styles.inputError,
         ]}
       />
+      {secureTextEntry ? (
+        <Pressable
+          onPress={() => setPasswordVisible(visible => !visible)}
+          accessibilityRole='button'
+          accessibilityLabel={`${passwordVisible ? 'Hide' : 'Show'} ${label.toLowerCase()}`}
+          accessibilityState={{ selected: passwordVisible }}
+          hitSlop={4}
+          style={({ pressed, hovered, focused: controlFocused }) => [
+            styles.passwordToggle,
+            hovered && styles.passwordToggleHovered,
+            controlFocused && styles.controlFocused,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.passwordToggleText}>{passwordVisible ? 'Hide' : 'Show'}</Text>
+        </Pressable>
+      ) : null}
+      </View>
       {error ? (
         <Text style={styles.fieldError} accessibilityRole='alert'>
           {error}
@@ -478,6 +504,16 @@ const styles = createThemedStyles({
     backgroundColor: COLORS.white,
   },
   field: { gap: 7 },
+  inputWrap: { position: 'relative' },
+  passwordInput: { paddingRight: 82 },
+  passwordToggle: {
+    position: 'absolute', right: 7, top: 7,
+    minWidth: 62, minHeight: 42,
+    alignItems: 'center', justifyContent: 'center',
+    borderRadius: 8,
+  },
+  passwordToggleHovered: { backgroundColor: COLORS.surfaceSoft },
+  passwordToggleText: { fontSize: 14, fontWeight: '600', color: COLORS.brand },
   label: { fontSize: 14, lineHeight: 20, fontWeight: '600', color: COLORS.ink },
   input: {
     minHeight: 56,
