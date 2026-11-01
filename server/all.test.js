@@ -2,6 +2,7 @@ require('./megV2Bridge.test');
 require('./authLifecycle.test');
 require('./accountDeletion.test');
 require('./exportData.test');
+require('./doctorReportStrength.test');
 require('./firebaseConfiguration.test');
 require('./megDataLifecycle.test');
 require('./megClient.test');
