@@ -117,7 +117,7 @@ function CycleContext({ state, navigation }) {
         <View style={styles.phaseIconWrap}>
           <Icon name='water' size={20} color={COLORS.brand} />
         </View>
-        <Text style={styles.phaseTitle}>{phaseLabel || 'Pattern still forming'}</Text>
+        <Text style={styles.phaseTitle}>{phaseLabel ? `${phaseLabel} · estimated` : 'Pattern still forming'}</Text>
       </View>
       <View style={styles.phaseProgress}>
         <View style={styles.phaseTrack} accessibilityRole='progressbar' accessibilityValue={{ min: 0, max: 4, now: activePhase + 1 }}>
@@ -138,6 +138,7 @@ function CycleContext({ state, navigation }) {
           ))}
         </View>
       </View>
+      <Text style={styles.emptyCycleText}>Phase timing is an estimate from your period logs, not a confirmation of ovulation or fertility.</Text>
     </View>
   );
 }
