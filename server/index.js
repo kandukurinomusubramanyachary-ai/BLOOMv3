@@ -120,10 +120,11 @@ function createApp({
     return async (request, response) => {
       response.set('Cache-Control', 'no-store');
       try {
-        const result = await operation({ uid: request.auth.uid, conversationId: request.params.id });
+        const result = await operation({ uid: request.auth.uid, conversationId: request.params.id,
+          messageId: request.params.messageId, feedback: request.body?.feedback });
         return response.json(result ?? { ok: true });
       } catch (error) {
-        const status = error?.status === 400 ? 400 : 503;
+        const status = [400, 404, 409].includes(error?.status) ? error.status : 503;
         logger.warn('meg_data_operation_failed', { status });
         return response.status(status).json({ error: status === 400
           ? 'Choose a valid conversation.' : 'Meg data could not be updated. Please try again.' });
@@ -139,6 +140,9 @@ function createApp({
     return { ok: true };
   }));
   app.get('/api/meg/data', requireVerifiedFirebaseAuth, dataHandler((input) => bridge.exportUserData(input)));
+  app.get('/api/meg/conversations', requireVerifiedFirebaseAuth, dataHandler(input => bridge.listConversations(input)));
+  app.patch('/api/meg/conversations/:id/messages/:messageId/feedback', requireVerifiedFirebaseAuth,
+    dataHandler(input => bridge.updateFeedback(input)));
 
   app.post('/api/meg/chat', requireFirebaseAuth, async (request, response) => {
     response.set('Cache-Control', 'no-store');
@@ -153,11 +157,14 @@ function createApp({
     response.once('close', onClose);
 
     try {
-      const payload = await bridge.chat({
+      const { timings = {}, ...payload } = await bridge.chat({
         uid: request.auth.uid,
         body: request.body || {},
         signal: controller.signal,
       });
+      const stages = { auth: request.authenticationMs, ...timings };
+      response.set('Server-Timing', Object.entries(stages).filter(([, value]) => Number.isFinite(value) && value >= 0)
+        .map(([name, value]) => `${name};dur=${Math.round(value)}`).join(', '));
       return response.json(payload);
     } catch (error) {
       const status = Number(error?.status);

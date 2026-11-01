@@ -18,7 +18,8 @@
     "test:rules": "firebase emulators:exec --only firestore --project demo-bloom-auth \"node server/firestore.rules.test.js\"",
     "generate:brand-assets": "node scripts/generate-logo-assets.js",
     "check:native-config": "node scripts/check-native-config.cjs",
-    "eas-build-post-install": "node scripts/check-eas-build.cjs"
+    "eas-build-post-install": "node scripts/check-eas-build.cjs",
+    "check:meg-live": "node scripts/check-meg-live.cjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.16",

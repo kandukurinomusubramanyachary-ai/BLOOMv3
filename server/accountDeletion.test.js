@@ -42,6 +42,7 @@ function loadDeletionServices({ records = {}, onRead, onCommit, onServerDelete }
     const localRequire = (request) => {
       if (request === 'firebase/firestore') return firestore;
       if (request === './firebase') return { auth, db: {}, firebaseConfigurationError: null };
+      if (request === './megLocalQueue') return load('megLocalQueue');
       if (request === './userData') return { stripUndefined: (value) => value };
       if (request === '../utils/dateKey') return { requireLocalDateKey: (value) => value };
       if (request === './megAccountData') return {

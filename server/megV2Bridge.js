@@ -4,6 +4,7 @@ const { createApp: createMegEngineApp } = require('../meg-engine-v2/src/app');
 const { loadConfig } = require('../meg-engine-v2/src/config/env');
 const { createBufferedChatRunner, ChatRequestError } = require('../meg-engine-v2/src/http/chatHandler');
 const { cleanSupportMode } = require('../meg-engine-v2/src/prompts/support-mode');
+const { conversationsForClient } = require('./megHistory');
 
 function shortString(value, max = 120) {
   if (typeof value !== 'string') return null;
@@ -185,6 +186,8 @@ function createMegV2Bridge({ environment = process.env, engineOverrides = {} } =
         urgent: Boolean(result.urgent),
         engineVersion: config.engineVersion,
         traceId: result.metadata?.traceId || null,
+        provider: result.metadata?.provider || null,
+        timings: result.timings || {},
       };
     },
     deleteUserData({ uid }) {
@@ -198,6 +201,21 @@ function createMegV2Bridge({ environment = process.env, engineOverrides = {} } =
     },
     exportUserData({ uid }) {
       return runtime.store.exportUserData({ userId: verifiedUid(uid) });
+    },
+    listConversations({ uid }) {
+      return { conversations: conversationsForClient(runtime.store.exportUserData({ userId: verifiedUid(uid) })) };
+    },
+    updateFeedback({ uid, conversationId, messageId, feedback }) {
+      const userId = verifiedUid(uid);
+      if (mutations.has(userId)) throw new ChatRequestError('data_operation_in_progress', { status: 409 });
+      if (![conversationId, messageId].every(value => typeof value === 'string' && value.trim()
+        && value.length <= 240 && !/[\\/]/.test(value))
+        || ![null, 'helpful', 'not_helpful'].includes(feedback)) {
+        throw new ChatRequestError('invalid_feedback', { status: 400 });
+      }
+      const result = runtime.store.updateFeedback({ userId, conversationId, messageId, feedback });
+      if (!result) throw new ChatRequestError('reply_not_found', { status: 404 });
+      return { ok: true, ...result };
     },
     health() {
       const providers = typeof runtime.providerManager.status === 'function' ? runtime.providerManager.status() : {};

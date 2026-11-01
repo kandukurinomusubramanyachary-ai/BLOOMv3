@@ -67,6 +67,14 @@ class InMemoryBackend {
   getRecentMessages({ userId, conversationId, limit = 8 }) {
     return this.messages.filter((item) => item.userId === userId && item.conversationId === conversationId).slice(-limit);
   }
+  updateFeedback({ userId, conversationId, messageId, feedback }) {
+    const message = this.messages.find(item => item.userId === userId
+      && item.conversationId === conversationId && item.id === messageId && item.role === 'assistant');
+    if (!message) return null;
+    const result = { feedback, feedbackUpdatedAt: new Date().toISOString() };
+    Object.assign(message, result);
+    return result;
+  }
   addMemory(item) {
     this.ensureUser(item.userId);
     const existing = this.memories.find((memory) => memory.userId === item.userId && memory.content === String(item.content));
@@ -150,6 +158,7 @@ class JsonBackend extends InMemoryBackend {
   completeRequest(item) { super.completeRequest(item); this.persist(); }
   releaseRequest(item) { super.releaseRequest(item); this.persist(); }
   appendMessage(item) { const result = super.appendMessage(item); this.persist(); return result; }
+  updateFeedback(item) { const result = super.updateFeedback(item); this.persist(); return result; }
   addMemory(item) { const result = super.addMemory(item); this.persist(); return result; }
   markMemoryUsed(id) { super.markMemoryUsed(id); this.persist(); }
   saveProviderMetric(metric) { super.saveProviderMetric(metric); this.persist(); }
@@ -179,6 +188,7 @@ class MemoryStore {
   completeRequest(...args) { return this.backend.completeRequest(...args); }
   releaseRequest(...args) { return this.backend.releaseRequest(...args); }
   appendMessage(...args) { return this.backend.appendMessage(...args); }
+  updateFeedback(...args) { return this.backend.updateFeedback(...args); }
   getRecentMessages(...args) { return this.backend.getRecentMessages(...args); }
   addMemory(...args) { return this.backend.addMemory(...args); }
   listMemories(...args) { return this.backend.listMemories(...args); }

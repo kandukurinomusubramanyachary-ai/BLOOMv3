@@ -96,3 +96,10 @@ test('Meg history merge preserves local reply feedback when remote omits it', ()
   assert.equal(merged[0].messages[0].feedback, 'helpful');
 });
 
+
+test('newer explicit remote feedback removal and newer local ratings survive history merge', () => {
+  const local = [{ id: 'chat', messages: [{ id: 'reply', feedback: 'helpful', feedbackUpdatedAt: '2026-11-01T10:00:00Z' }] }];
+  const remote = [{ id: 'chat', messages: [{ id: 'reply', feedback: null, feedbackUpdatedAt: '2026-11-01T10:01:00Z' }] }];
+  assert.equal(queue.mergeMegConversations(local, remote)[0].messages[0].feedback, null);
+  assert.equal(queue.mergeMegConversations(remote, local)[0].messages[0].feedback, null);
+});

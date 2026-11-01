@@ -67,6 +67,8 @@ class SQLiteStore {
   migrate() {
     const columns = new Set(this.db.prepare('PRAGMA table_info(messages)').all().map((row) => row.name));
     if (!columns.has('client_message_id')) this.db.exec('ALTER TABLE messages ADD COLUMN client_message_id TEXT');
+    if (!columns.has('feedback')) this.db.exec('ALTER TABLE messages ADD COLUMN feedback TEXT');
+    if (!columns.has('feedback_updated_at')) this.db.exec('ALTER TABLE messages ADD COLUMN feedback_updated_at TEXT');
     this.db.exec('CREATE INDEX IF NOT EXISTS messages_client_id_idx ON messages(user_id, conversation_id, client_message_id)');
     this.db.transaction(() => {
       this.db.exec(`DELETE FROM messages
@@ -156,8 +158,16 @@ class SQLiteStore {
   getRecentMessages({ userId, conversationId, limit = 8 }) {
     return this.db.prepare(`SELECT id, user_id AS userId, conversation_id AS conversationId, role, content,
       client_message_id AS clientMessageId, created_at AS createdAt FROM messages
-      WHERE user_id = ? AND conversation_id = ? ORDER BY created_at DESC LIMIT ?`)
+      WHERE user_id = ? AND conversation_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?`)
       .all(userId, conversationId, limit).reverse();
+  }
+
+  updateFeedback({ userId, conversationId, messageId, feedback }) {
+    const updatedAt = new Date().toISOString();
+    const result = this.db.prepare(`UPDATE messages SET feedback = ?, feedback_updated_at = ?
+      WHERE user_id = ? AND conversation_id = ? AND id = ? AND role = 'assistant'`)
+      .run(feedback, updatedAt, userId, conversationId, messageId);
+    return result.changes ? { feedback, feedbackUpdatedAt: updatedAt } : null;
   }
 
   addMemory({ userId, conversationId, layer, content, tags = [], importance = 0.5 }) {
@@ -215,7 +225,7 @@ class SQLiteStore {
     return {
       user: this.db.prepare('SELECT * FROM users WHERE id = ?').get(userId) || null,
       conversations: this.db.prepare('SELECT * FROM conversations WHERE user_id = ?').all(userId),
-      messages: this.db.prepare('SELECT * FROM messages WHERE user_id = ? ORDER BY created_at').all(userId),
+      messages: this.db.prepare('SELECT * FROM messages WHERE user_id = ? ORDER BY created_at, rowid').all(userId),
       memories: this.db.prepare('SELECT * FROM memories WHERE user_id = ?').all(userId),
       requests: this.db.prepare('SELECT * FROM request_dedup WHERE user_id = ?').all(userId),
     };

@@ -526,6 +526,7 @@ function finishChat({
 
   const metadata = {
     messageId: assistantMessage?.id || null,
+    provider: state.provider || null,
     ...publicTraceMetadata(trace, { development: config.nodeEnv === 'development' }),
   };
   if (!connection.closed) connection.done(metadata);
@@ -536,6 +537,7 @@ function finishChat({
     safety: safety.triggered ? safety.category : null,
     urgent: Boolean(safety.triggered && isUrgentCategory(safety.category)),
     metadata,
+    timings: { routing: trace.routingMs, context: trace.contextMs, memory: trace.memoryRetrievalMs, provider: trace.generationMs, persistence: trace.persistenceMs },
   };
 }
 
@@ -673,7 +675,7 @@ function sendCompletedSse(res, { conversationId, messageId, text, metadata = {},
 }
 
 function replayMetadata(metadata = {}, messageId) {
-  return { traceId: metadata.traceId || null, messageId: messageId || metadata.messageId || null };
+  return { traceId: metadata.traceId || null, messageId: metadata.messageId || messageId || null, provider: metadata.provider || null };
 }
 function parseMeta(value) {
   if (!value) return {};
