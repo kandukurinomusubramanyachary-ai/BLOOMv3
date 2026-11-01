@@ -1,6 +1,6 @@
 # Final hardening issue ledger
 
-29 concrete engineering fixes, grouped by defect rather than counting dependency nodes. Native on-device tracking is an additional implemented capability awaiting device acceptance. A missing provider key and unapproved legal decisions are external release blockers, not claimed resolved.
+30 concrete engineering fixes, grouped by defect rather than counting dependency nodes. Native on-device tracking is an additional implemented capability awaiting device acceptance. A missing provider key and unapproved legal decisions are external release blockers, not claimed resolved.
 
 | # | Confirmed defect or hardening gap | Result | Regression evidence |
 |---|---|---|---|
@@ -33,3 +33,4 @@
 | 27 | Android permission requested before channel creation | Create channel before permission prompt | server/notificationScheduling.test.js |
 | 28 | iOS permission dialog invalidated explicit camera request | Preserve pending intent through inactive; cancel on blur/unmount | server/nativePosePermissionUI.test.js |
 | 29 | Fresh Firebase startup crashed before profile hydration | Nullable display names are safe during signup/session restoration | server/uiHardening.test.js and real-Firebase browser signup |
+| 30 | Candidate could send data to the legacy backend lacking new privacy controls | Public capability probe gates chat, history, export and deletion before tokens/private payloads | server/megServiceContract.test.js and actual legacy probe |

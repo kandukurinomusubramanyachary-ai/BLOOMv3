@@ -2,6 +2,7 @@ import { auth } from './firebase';
 import { MEG_QA_FAILURE_CATEGORY } from './megQaTiming';
 const { resolveMegApiBaseUrl } = require('./megUrlPolicy');
 const accountWork = require('./accountWork');
+const { assertMegServiceContract } = require('./megServiceContract');
 
 const MODE_IDS = {
   LISTEN: 'listen',
@@ -329,10 +330,13 @@ export function createLocalMegApiProvider({
         throw new Error('Please sign in before messaging Meg.');
       }
 
-      const tokenStartedAt = qaTiming?.mark();
+
       const work = accountWork.request(request?.accountUid || currentUser?.uid || 'preview');
       const timeout = setTimeout(work.abort, timeoutMs);
       try {
+        await assertMegServiceContract(baseUrl, { signal: work.signal });
+        work.check();
+        const tokenStartedAt = qaTiming?.mark();
         let idToken;
         try {
           idToken = await waitForMegWork(getIdToken(), work.signal);
@@ -481,7 +485,8 @@ export function createMegService({ provider } = {}) {
         if (!result?.text) throw new Error('Meg V2 returned an empty response.');
         return urgent ? { ...result, safety: result.safety || urgent.kind, urgent: true } : result;
       } catch (error) {
-        const message = error?.status === 401 ? 'Please sign in again, then retry your message.'
+        const message = error?.code === 'meg_backend_upgrade_required' ? 'Meg needs a service update before it can safely handle your data. Please try again later.'
+          : error?.status === 401 ? 'Please sign in again, then retry your message.'
           : error?.status === 429 ? 'Meg needs a short pause. Wait a little, then retry your message.'
           : isOfflineError(error) ? 'Meg could not connect. Your message is still here; check your connection and retry.'
           : "Meg couldn't respond right now. Please try again.";

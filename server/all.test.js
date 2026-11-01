@@ -53,3 +53,5 @@ require('./reminderCoordinator.test');
 require('./dependencyAdvisories.test');
 
 require('./nativePosePermissionUI.test');
+
+require('./megServiceContract.test');

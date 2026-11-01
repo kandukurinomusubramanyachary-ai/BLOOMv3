@@ -1,5 +1,6 @@
 import { auth } from './firebase';
 const accountWork = require('./accountWork');
+const { assertMegServiceContract } = require('./megServiceContract');
 const { resolveMegApiBaseUrl } = require('./megUrlPolicy');
 
 // Privacy operations intentionally never use the preview/dev token.
@@ -17,6 +18,8 @@ export async function requestMegAccountData({ method = 'GET', conversationId, me
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30000);
   try {
+    await assertMegServiceContract(baseUrl, { signal: controller.signal });
+    checkAccount();
     const token = await user.getIdToken();
     checkAccount();
     const path = messageId

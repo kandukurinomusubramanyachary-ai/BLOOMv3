@@ -1,6 +1,7 @@
 require('dotenv').config({ quiet: true });
 
 const express = require('express');
+const { MEG_SERVICE_CONTRACT } = require('../src/services/megServiceContract');
 const { createRequireFirebaseAuth } = require('./firebaseAuth');
 const { verifyFirebaseIdToken } = require('./firebaseAdmin');
 const { safeLogger } = require('./safeLogger');
@@ -99,6 +100,7 @@ function createApp({
   app.use(express.json({ limit: '32kb', strict: true }));
 
   app.get('/health', (_request, response) => {
+    response.set('Cache-Control', 'no-store');
     const meg = typeof bridge.health === 'function' ? bridge.health() : {};
     const ready = meg.ready === true;
     response.status(ready ? 200 : 503).json({
@@ -106,6 +108,7 @@ function createApp({
       status: ready ? 'ready' : 'not_ready',
       build: buildStatus,
       provider: 'meg-v2',
+      contract: MEG_SERVICE_CONTRACT,
       engineVersion: meg.engineVersion || 'meg-v2',
       persistence: meg.persistence || 'unknown',
       authenticationConfigured: meg.authenticationConfigured === true,

@@ -4,10 +4,12 @@ require('dotenv').config({ quiet: true });
 const { randomUUID } = require('node:crypto');
 const { performance } = require('node:perf_hooks');
 const { resolveMegApiBaseUrl } = require('../src/services/megUrlPolicy');
+const { assertMegServiceContract } = require('../src/services/megServiceContract');
 
 async function main() {
   const base = resolveMegApiBaseUrl({ configuredValue: process.env.EXPO_PUBLIC_MEG_API_URL,
     isDevelopment: process.env.BLOOM_QA_ALLOW_LOCAL_BACKEND === '1' });
+  await assertMegServiceContract(base, { signal: AbortSignal.timeout(15000) });
   let token = process.env.BLOOM_QA_FIREBASE_ID_TOKEN;
   const started = performance.now();
   if (!token) {
@@ -48,4 +50,4 @@ async function main() {
   console.log(JSON.stringify({ status: 'PASS', provider: first.data.provider, authenticationMs, replyMs, serverTiming: first.timing, replay: true, history: true, feedback: true, syntheticConversationId: body.conversationId }));
   console.log('The synthetic QA conversation remains for restart/device acceptance. No health records or reply contents were printed.');
 }
-main().catch(error => { console.error('BLOCKED/FAIL: ' + (/required|unavailable|confirmed|failed|persisted|replay/.test(error.message) ? error.message : 'Check QA configuration and service connectivity.')); process.exitCode = 1; });
+main().catch(error => { console.error('BLOCKED/FAIL: ' + (error.code === 'meg_backend_upgrade_required' || /required|unavailable|confirmed|failed|persisted|replay/.test(error.message) ? error.message : 'Check QA configuration and service connectivity.')); process.exitCode = 1; });
