@@ -14,7 +14,8 @@
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
-        "NSFaceIDUsageDescription": "Allow Bloom to use Face ID to protect your private health records."
+        "NSFaceIDUsageDescription": "Allow Bloom to use Face ID to protect your private health records.",
+        "NSCameraUsageDescription": "Use the camera only when you choose on-device Strength tracking."
       }
     },
     "android": {

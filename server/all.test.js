@@ -45,3 +45,5 @@ require('./privacyRaces.test');
 require('./appLockLifecycle.test');
 
 require('./legalPublication.test');
+
+require('./nativePoseSession.test');

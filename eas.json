@@ -13,7 +13,8 @@
       },
       "env": {
         "EXPO_PUBLIC_BLOOM_DEV_AUTH": "0",
-        "EXPO_PUBLIC_BLOOM_STRENGTH": "1"
+        "EXPO_PUBLIC_BLOOM_STRENGTH": "1",
+        "EXPO_PUBLIC_BLOOM_NATIVE_TRACKING": "0"
       },
       "ios": {
         "image": "sdk-57"
@@ -32,7 +33,14 @@
       },
       "env": {
         "EXPO_PUBLIC_BLOOM_DEV_AUTH": "0",
-        "EXPO_PUBLIC_BLOOM_STRENGTH": "1"
+        "EXPO_PUBLIC_BLOOM_STRENGTH": "1",
+        "EXPO_PUBLIC_BLOOM_NATIVE_TRACKING": "0"
+      }
+    },
+    "native-qa": {
+      "extends": "preview",
+      "env": {
+        "EXPO_PUBLIC_BLOOM_NATIVE_TRACKING": "1"
       }
     }
   }
