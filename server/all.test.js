@@ -43,3 +43,5 @@ require('./onboardingTour.test');
 require('./finalMegHardening.test');
 require('./privacyRaces.test');
 require('./appLockLifecycle.test');
+
+require('./legalPublication.test');

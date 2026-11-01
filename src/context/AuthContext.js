@@ -42,7 +42,7 @@ export const REQUIRED_DATA_CONSENT =
   'I agree that Bloom may securely store my cycle, symptom, check-in and Meg conversation data to personalise my experience.';
 
 export const OPTIONAL_MODEL_CONSENT =
-  'I agree that my anonymised conversations and feedback may be reviewed to improve Meg.';
+  'I would like to opt in to future Meg improvement programs. This preference does not authorize data sharing or training without further notice.';
 
 const AuthContext = createContext(null);
 
