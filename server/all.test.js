@@ -47,3 +47,5 @@ require('./appLockLifecycle.test');
 require('./legalPublication.test');
 
 require('./nativePoseSession.test');
+
+require('./reminderCoordinator.test');

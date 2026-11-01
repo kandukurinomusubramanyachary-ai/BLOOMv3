@@ -32,6 +32,7 @@ import {
 import { ensureAuthProfile } from '../services/authProfile';
 import { createAuthSession } from '../services/authSession';
 import { storage } from '../services/storage';
+import { reminderCoordinator } from '../services/reminderCoordinator';
 import { prepareCurrentUserAccountDeletion } from '../services/userData';
 import { requestMegAccountData } from '../services/megAccountData';
 const { deleteAccountInOrder } = require('../services/accountLifecycle');
@@ -245,6 +246,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logOut = useCallback(async () => {
+    await reminderCoordinator.stop();
     if (user?.uid) accountWork.invalidate(user.uid);
     if (!auth) {
       if (user?.uid) storage.clearUserScope(user.uid);
@@ -292,6 +294,7 @@ export function AuthProvider({ children }) {
     try {
       await deleteAccountInOrder({
         reauthenticate: async () => {
+          await reminderCoordinator.stop();
           await accountWork.drain(user.uid);
           await prepareCurrentUserAccountDeletion(user.uid);
         }, // Reauthentication completed above. Fence all devices before deletion.
@@ -314,6 +317,8 @@ export function AuthProvider({ children }) {
       );
     } finally { resume(); }
   }, [user]);
+
+  useEffect(() => { void reminderCoordinator.setOwner(user?.uid).catch(() => undefined); }, [user?.uid]);
 
   const value = useMemo(() => ({
     user,

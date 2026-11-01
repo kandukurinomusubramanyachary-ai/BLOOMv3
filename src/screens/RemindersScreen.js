@@ -3,94 +3,19 @@ import { Platform, Pressable, Text, View } from 'react-native';
 import Icon from '../components/Icon';
 import { useApp } from '../context/AppContext';
 import { COLORS, createThemedStyles, LAYOUT, TYPOGRAPHY, WEB_FOCUS } from '../utils/constants';
+import { reminderCoordinator } from '../services/reminderCoordinator';
 import { notifications } from '../services/notifications';
+import { useAuth } from '../context/AuthContext';
 import ScreenHeader from '../components/ScreenHeader';
 import ScreenScaffold from '../components/ScreenScaffold';
 import {
   generateWaterReminderTimes,
   normalizeWaterReminderSettings,
-  waterReminderService,
 } from '../services/waterReminders';
 
 const WATER_INTERVALS = [2, 3, 4];
 
-const DEFAULT_REMINDERS = {
-  checkin: { enabled: true, time: '20:00' },
-  period: { enabled: false, time: '20:00' },
-  medication: { enabled: false, time: '09:00' },
-  meals: { enabled: false, time: '13:00' },
-  movement: { enabled: false, time: '18:00' },
-  sleep: { enabled: false, time: '22:00' },
-  weekly: { enabled: true, time: '09:00', day: 0 },
-};
-
-const REMINDER_CONFIGS = [
-  {
-    key: 'checkin',
-    label: 'Daily check-in',
-    desc: 'A gentle nudge to notice your day',
-    icon: 'checkmark-circle-outline',
-    title: 'A note from Bloom',
-    body: 'Take a quiet moment for your daily check-in when you are ready.',
-  },
-  {
-    key: 'period',
-    label: 'Period logging',
-    desc: 'Remember to update bleeding when it is useful',
-    icon: 'water-outline',
-    title: 'A note from Bloom',
-    body: 'You can update your cycle record when it feels useful.',
-  },
-  {
-    key: 'medication',
-    label: 'Medicine or supplement',
-    desc: 'A private prompt for something you planned',
-    icon: 'medkit-outline',
-    title: 'A note from Bloom',
-    body: 'A gentle reminder for something you planned today.',
-  },
-  {
-    key: 'meals',
-    label: 'Meals',
-    desc: 'A no-pressure prompt to log a meal',
-    icon: 'restaurant-outline',
-    title: 'A note from Bloom',
-    body: 'Log a meal if it would help you remember your day.',
-  },
-  {
-    key: 'movement',
-    label: 'Movement',
-    desc: 'A realistic prompt for movement or recovery',
-    icon: 'walk-outline',
-    title: 'A note from Bloom',
-    body: 'Choose movement, stretching or rest based on how you feel.',
-  },
-  {
-    key: 'sleep',
-    label: 'Sleep',
-    desc: 'A quiet cue to begin winding down',
-    icon: 'moon-outline',
-    title: 'A note from Bloom',
-    body: 'A small wind-down moment may help you prepare for rest.',
-  },
-  {
-    key: 'weekly',
-    label: 'Weekly summary',
-    desc: 'A gentle prompt to review your week',
-    icon: 'analytics-outline',
-    title: 'Your Bloom week',
-    body: 'Your weekly summary is ready whenever you want to look back.',
-  },
-];
-
-function mergeReminders(saved = {}) {
-  return Object.fromEntries(
-    Object.entries(DEFAULT_REMINDERS).map(([key, value]) => [
-      key,
-      { ...value, ...(saved[key] || {}) },
-    ])
-  );
-}
+const { DEFAULT_REMINDERS, REMINDER_CONFIGS, mergeReminders } = require('../services/reminderDefinitions');
 
 function formatClock(value) {
   const [hour, minute] = String(value).split(':').map(Number);
@@ -114,6 +39,7 @@ function waterScheduleSummary(settings) {
 
 export default function RemindersScreen({ navigation }) {
   const { state, saveSettings } = useApp();
+  const { user } = useAuth();
   const [reminders, setReminders] = useState(() => mergeReminders(state.settings?.reminders));
   const [water, setWater] = useState(() => normalizeWaterReminderSettings(state.settings?.waterReminders));
   const [busyKey, setBusyKey] = useState(null);
@@ -121,93 +47,36 @@ export default function RemindersScreen({ navigation }) {
   const [status, setStatus] = useState('');
 
   useEffect(() => {
-    void notifications.setupAndroidChannel().catch((error) => {
-      if (typeof __DEV__ !== 'undefined' && __DEV__) {
-        console.warn('[Bloom reminders] Notification channel setup failed.', error);
-      }
-    });
-  }, []);
-
+    setReminders(mergeReminders(state.settings?.reminders));
+    setWater(normalizeWaterReminderSettings(state.settings?.waterReminders));
+  }, [state.settings]);
   useEffect(() => {
-    let active = true;
-    async function initializeWaterReminders() {
-      if (Platform.OS === 'web') return;
-      const current = normalizeWaterReminderSettings(state.settings?.waterReminders);
-      try {
-        let permission = await waterReminderService.permissionStatus();
-        let next = current;
-        if (current.enabled && !permission.granted && !current.permissionRequested) {
-          permission = await waterReminderService.requestNotificationPermission();
-          next = { ...current, permissionRequested: true, enabled: permission.granted };
-        } else if (current.enabled && !permission.granted) {
-          next = { ...current, enabled: false };
-        }
-        if (next.enabled && permission.granted) {
-          next = await waterReminderService.reconcileWaterReminders(next);
-        }
-        if (!active) return;
-        if (JSON.stringify(next) !== JSON.stringify(current)) {
-          await saveSettings({ waterReminders: next });
-        }
-        setWater(next);
-        if (!permission.granted && current.enabled) {
-          setError(permission.canAskAgain
-            ? 'Bloom needs notification permission before water reminders can turn on.'
-            : 'Notifications are blocked for Bloom. Enable them in your device settings, then try again.');
-        }
-      } catch {
-        if (active) setError('Bloom could not prepare water reminders. Your settings are still here.');
-      }
-    }
-    void initializeWaterReminders();
-    return () => { active = false; };
+    let active=true;
+    if(Platform.OS!=='web')void notifications.getPermissionStatus().then(permission=>{if(active&&!permission.granted)setError('Notification permission is off. Your preferences are saved, but reminders cannot be delivered until you enable permission.');}).catch(()=>{if(active)setError('Bloom could not check notification permission.');});
+    return()=>{active=false;};
   }, []);
+  async function commitSettings(next, requestPermission = false) {
+    return reminderCoordinator.update(user?.uid, next, state.settings, saveSettings, { requestPermission });
+  }
 
   async function updateWater(nextValue, successMessage, requestPermission = false) {
     if (busyKey) return;
     setBusyKey('water');
     setError('');
     setStatus('');
-    const previous = water;
     try {
-      let next = normalizeWaterReminderSettings({ ...previous, ...nextValue });
+      const next = normalizeWaterReminderSettings({ ...water, ...nextValue });
       generateWaterReminderTimes(next);
-      if (requestPermission && next.enabled) {
-        const permission = await waterReminderService.requestNotificationPermission();
-        next = { ...next, permissionRequested: true };
-        if (!permission.granted) {
-          next = { ...next, enabled: false, notificationIds: [], scheduleSignature: null };
-          await saveSettings({ waterReminders: next });
-          setWater(next);
-          setError(permission.canAskAgain
-            ? 'Bloom needs notification permission before water reminders can turn on.'
-            : 'Notifications are blocked for Bloom. Enable them in your device settings, then try again.');
-          return;
-        }
-      }
-      const scheduled = await waterReminderService.rescheduleWaterReminders(next, previous);
-      try {
-        await saveSettings({ waterReminders: scheduled });
-      } catch (saveError) {
-        await waterReminderService.rescheduleWaterReminders(previous, scheduled).catch(() => undefined);
-        throw saveError;
-      }
-      setWater(scheduled);
+      const scheduled = await commitSettings({ ...state.settings, waterReminders: next }, requestPermission);
+      setWater(scheduled.waterReminders);
       setStatus(successMessage);
     } catch (updateError) {
-      setError(updateError?.message === 'End time must be later than the start time.'
+      setError(updateError?.code === 'permission' || updateError?.message === 'End time must be later than the start time.'
         ? updateError.message
         : 'Bloom could not update water reminders. Please try again.');
     } finally {
       setBusyKey(null);
     }
-  }
-
-  async function schedule(key, reminder) {
-    const config = REMINDER_CONFIGS.find((item) => item.key === key);
-    const [hour, minute] = reminder.time.split(':').map(Number);
-    const weekday = key === 'weekly' ? Number(reminder.day) + 1 : null;
-    await notifications.scheduleReminder(key, config.title, config.body, hour, minute, true, weekday);
   }
 
   async function toggleReminder(key, enabled) {
@@ -217,22 +86,11 @@ export default function RemindersScreen({ navigation }) {
     setStatus('');
 
     try {
-      if (enabled) {
-        const permissionGranted = await notifications.requestPermissions();
-        if (!permissionGranted) {
-          const permissionError = new Error('Notifications are turned off for Bloom. You can enable them in your device settings.');
-          permissionError.code = 'permission';
-          throw permissionError;
-        }
-      }
-
       const updated = {
         ...reminders,
         [key]: { ...reminders[key], enabled },
       };
-      await saveSettings({ reminders: updated });
-      if (enabled) await schedule(key, updated[key]);
-      else await notifications.cancelReminder(key);
+      await commitSettings({ ...state.settings, reminders: updated }, enabled);
       setReminders(updated);
       setStatus(`${REMINDER_CONFIGS.find((item) => item.key === key)?.label} reminder ${enabled ? 'turned on' : 'turned off'}.`);
     } catch (updateError) {
@@ -253,14 +111,12 @@ export default function RemindersScreen({ navigation }) {
     setStatus('');
     const current = reminders[key] || DEFAULT_REMINDERS[key];
     const [hour, minute] = current.time.split(':').map(Number);
-    const date = new Date();
-    date.setHours(hour, minute + minutes, 0, 0);
-    const newTime = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    const wallMinutes=((hour*60+minute+minutes)%1440+1440)%1440;
+    const newTime = String(Math.floor(wallMinutes/60)).padStart(2,'0')+':'+String(wallMinutes%60).padStart(2,'0');
     const updated = { ...reminders, [key]: { ...current, time: newTime } };
 
     try {
-      await saveSettings({ reminders: updated });
-      if (updated[key].enabled) await schedule(key, updated[key]);
+      await commitSettings({ ...state.settings, reminders: updated });
       setReminders(updated);
       setStatus(`${REMINDER_CONFIGS.find((item) => item.key === key)?.label} reminder moved to ${newTime}.`);
     } catch (updateError) {

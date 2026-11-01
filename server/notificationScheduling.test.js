@@ -48,3 +48,5 @@ test('one-time reminders use a future date and invalid reminder times are reject
   assert.ok(f.scheduled[0].trigger.date.getTime() > Date.now());
   await assert.rejects(f.service.scheduleDailyReminder({ hour: 25, minute: 0 }), /invalid/);
 });
+
+test('daily wall-clock and weekly weekday fields are unchanged across India, DST and UTC timezones',async()=>{const previous=process.env.TZ;try{for(const tz of ['Asia/Kolkata','America/New_York','UTC']){process.env.TZ=tz;const f=fixture('ios');await f.service.scheduleReminder('daily','Reminder','',8,30);await f.service.scheduleReminder('weekly','Reminder','',9,0,true,1);assert.deepEqual(f.scheduled[0].trigger,{type:'daily',hour:8,minute:30});assert.deepEqual(f.scheduled[1].trigger,{type:'weekly',weekday:1,hour:9,minute:0});}}finally{if(previous===undefined)delete process.env.TZ;else process.env.TZ=previous;}});

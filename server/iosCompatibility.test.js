@@ -6,7 +6,7 @@ const path = require('node:path');
 const projectRoot = path.resolve(__dirname, '..');
 const read = (relativePath) => fs.readFileSync(path.join(projectRoot, relativePath), 'utf8');
 
-test('Expo iOS configuration includes identity and the only required protected-resource copy', () => {
+test('Expo iOS configuration includes identity and accurate protected-resource copy', () => {
   const config = JSON.parse(read('app.json')).expo;
   const localAuthPlugin = config.plugins.find((plugin) => (
     Array.isArray(plugin) && plugin[0] === 'expo-local-authentication'
@@ -18,7 +18,8 @@ test('Expo iOS configuration includes identity and the only required protected-r
   assert.match(config.ios.infoPlist.NSFaceIDUsageDescription, /protect your private health records/i);
   assert.match(localAuthPlugin[1].faceIDPermission, /protect your private health records/i);
   assert.ok(config.plugins.includes('expo-notifications'));
-  assert.doesNotMatch(JSON.stringify(config.ios.infoPlist), /Camera|Microphone|Location|Photo/);
+  assert.match(config.ios.infoPlist.NSCameraUsageDescription, /only when you choose on-device Strength tracking/);
+  assert.doesNotMatch(JSON.stringify(config.ios.infoPlist), /Microphone|Location|Photo/);
 });
 
 test('Strength flag enables the native camera-free implementation without requesting camera access', () => {
@@ -38,8 +39,10 @@ test('notifications use cross-platform triggers and keep Android priority Androi
 
   assert.match(notifications, /Number\.isInteger\(weekday\)/);
   assert.match(notifications, /Platform\.OS === 'android'[\s\S]*priority/);
-  assert.match(reminders, /key === 'weekly' \? Number\(reminder\.day\) \+ 1 : null/);
-  assert.match(reminders, /setupAndroidChannel\(\)\.catch/);
+  const coordinator = read('src/services/reminderCoordinatorCore.js');
+  assert.match(coordinator, /config.key==='weekly'\?Number\(reminder.day\)\+1:null/);
+  assert.match(coordinator, /await adapter.setupAndroidChannel\(\)/);
+  assert.match(reminders, /reminderCoordinator.update/);
 });
 
 test('device authentication cancellation remains recoverable on iOS', () => {

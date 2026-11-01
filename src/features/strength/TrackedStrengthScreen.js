@@ -41,7 +41,7 @@ function NativePlayer({ exercise, sets=1, onFallback, onExit, onComplete, onNext
     catch {if(mounted.current)setError('Your result is still here. Try saving again before leaving.');}
     finally {saving.current=false;if(mounted.current)setPending(false);}
   }
-  useEffect(()=>{if(state.phase==='complete'){setCamera(false);void save();}},[state.phase]);
+  useEffect(()=>{if(state.phase==='paused')setCamera(false);if(state.phase==='complete'){setCamera(false);void save();}},[state.phase]);
   const active=camera&&focused&&foreground&&state.phase!=='complete';
   return <StrengthScreenFrame header={<StrengthHeader title={exercise.name} subtitle='Native camera QA ? device validation pending' onBack={state.started&&state.phase!=='complete'?undefined:onExit} />}>
     <View style={s.content}>

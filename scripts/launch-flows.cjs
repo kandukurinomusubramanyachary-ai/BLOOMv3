@@ -44,7 +44,7 @@ const origin = process.env.BLOOM_TEST_URL || 'http://127.0.0.1:8082';
     const restored = await page.evaluate(() => localStorage.getItem('@bloom_user:v1:dev-user:bloom_meg_conversations'));
     assert.equal(restored, saved, 'Reload must retain the failed-send queue');
     await page.getByRole('button', { name: 'Open your profile', exact: true }).click();
-    for (const label of ['Privacy Policy', 'Terms of Use', 'Contact / Support']) {
+    for (const label of ['Privacy Policy', 'Terms of Use', 'Help & support']) {
       await page.getByRole('button', { name: new RegExp(`^${label.replace('/', '\\/')}\\.`) }).click();
       await page.getByText('Beta template · founder and legal review required', { exact: true }).waitFor();
       await page.getByRole('button', { name: 'Back', exact: true }).click();

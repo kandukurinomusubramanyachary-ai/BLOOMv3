@@ -148,11 +148,12 @@ test('Strength web defaults to pose tracking with a reachable guided fallback; n
   // ...but the camera-free guided session stays reachable as an explicit fallback.
   assert.match(webScreen, /TrackedPlayer=\{TrackedStrengthScreen\}/);
   assert.match(experience, /import SessionPlayer from '\.\/components\/SessionPlayer'/);
-  assert.match(experience, /TrackedPlayer && !run\.guided && modeForExercise\(exercise\.id, Platform\.OS\) === 'pose'/);
+  assert.match(experience, /TrackedPlayer && !run\.guided && modeForExercise\(exercise\.id, Platform\.OS, isNativeTrackingEnabled\(\)\) === 'pose'/);
   assert.match(experience, /const Player = pose \? TrackedPlayer : SessionPlayer/);
   assert.match(experience, /onFallback=\{\(\) => setRun\(current => \(\{ \.\.\.current, guided: true \}\)\)\}/);
   // Native resolves to the camera-free guided experience (no native pose module).
   assert.match(nativeScreen, /GuidedStrengthScreen/);
+  assert.match(nativeScreen, /isNativeTrackingEnabled\(\) \? TrackedStrengthScreen : undefined/);
   assert.match(guidedEntry, /export \{ default \} from '\.\/StrengthExperience'/);
   assert.doesNotMatch(guidedEntry, /TrackedPlayer/);
   // The live guided engine must not try to acquire/release a camera or rep-velocity lock.
