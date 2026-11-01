@@ -15,11 +15,13 @@ export function useOnboardingState({ uid, initialStep = ONBOARDING_STEPS.WELCOME
   const [history, setHistory] = useState([initialStep]);
   const [hydratedUid, setHydratedUid] = useState(null);
   const saveQueueRef = useRef(Promise.resolve());
+  const finishedRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
     let hydrationSucceeded = false;
     setIsReady(false);
+    finishedRef.current = false;
     setHydratedUid(null);
     accountStorage.removeLegacyUnscopedOnboardingDraft()
       .then(() => accountStorage.getOnboardingDraft())
@@ -45,7 +47,7 @@ export function useOnboardingState({ uid, initialStep = ONBOARDING_STEPS.WELCOME
   }, [accountStorage, initialStep, uid]);
 
   useEffect(() => {
-    if (!isReady || hydratedUid !== uid) return;
+    if (!isReady || hydratedUid !== uid || finishedRef.current) return;
     const payload = { answers, step: currentStep, history };
     saveQueueRef.current = saveQueueRef.current
       .catch(() => {})
@@ -95,6 +97,18 @@ export function useOnboardingState({ uid, initialStep = ONBOARDING_STEPS.WELCOME
     setHistory((h) => [...h, step]);
   }, []);
 
+  const discardCompletedDraft = useCallback(async () => {
+    // Wait for every in-flight answer save before deleting the sensitive draft.
+    finishedRef.current = true;
+    try {
+      await saveQueueRef.current.catch(() => {});
+      await accountStorage.removeOnboardingDraft();
+    } catch (error) {
+      finishedRef.current = false;
+      throw error;
+    }
+  }, [accountStorage]);
+
   const resetOnboarding = useCallback(async () => {
     saveQueueRef.current = saveQueueRef.current
       .catch(() => {})
@@ -118,6 +132,7 @@ export function useOnboardingState({ uid, initialStep = ONBOARDING_STEPS.WELCOME
     goToPrevStep,
     jumpToStep,
     resetOnboarding,
+    discardCompletedDraft,
     result,
   };
 }

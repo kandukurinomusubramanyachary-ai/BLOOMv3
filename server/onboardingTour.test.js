@@ -117,3 +117,15 @@ test('onboarding and Learn Bloom no longer rely on survey labels, emoji graphics
   assert.match(learn, /requestTourReplay/);
   assert.doesNotMatch(strength, /ids=\{\['strength-workout-progress', 'strength-guidance', 'strength-reps', 'strength-pause'\]\}/);
 });
+
+test('first-time onboarding is reachable and completion is persisted before entering the app', () => {
+  const navigation = fs.readFileSync(path.resolve(__dirname, '../src/navigation/RootNavigator.js'), 'utf8');
+  const onboarding = fs.readFileSync(path.resolve(__dirname, '../src/features/onboardingV3/OnboardingV3Screen.js'), 'utf8');
+  const draft = fs.readFileSync(path.resolve(__dirname, '../src/features/onboardingV3/hooks/useOnboardingState.js'), 'utf8');
+  assert.match(navigation, /state\.profile\?\.onboardingCompleted === false/);
+  assert.match(onboarding, /await saveProfile\(/);
+  assert.match(onboarding, /onboardingCompleted: true/);
+  assert.match(onboarding, /await discardCompletedDraft\(\)/);
+  assert.match(draft, /await saveQueueRef\.current\.catch/);
+  assert.match(draft, /await accountStorage\.removeOnboardingDraft\(\)/);
+});
