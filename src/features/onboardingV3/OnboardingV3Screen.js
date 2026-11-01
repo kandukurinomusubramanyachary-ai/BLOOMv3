@@ -17,7 +17,6 @@ import { COLORS, createThemedStyles } from '../../utils/constants';
 import { useProductTour } from '../../components/productTour';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
-import { storage } from '../../services/storage';
 
 /**
  * Self-contained Bloom V3 Onboarding Module Container.
@@ -51,6 +50,7 @@ export default function OnboardingV3Screen({
     goToNextStep,
     goToPrevStep,
     result,
+    discardCompletedDraft,
   } = useOnboardingState({ uid: user?.uid, initialStep });
 
   const handleNextWithAnswers = useCallback(
@@ -82,7 +82,7 @@ export default function OnboardingV3Screen({
         ...(record.hasExplicitName && record.firstName ? { firstName: record.firstName } : {}),
       });
       // The draft contains sensitive self-reported answers and is no longer needed.
-      await storage.forUser(user.uid).removeOnboardingDraft();
+      await discardCompletedDraft();
       if (onComplete) {
         await onComplete(result, action);
       } else if (navigation?.reset) {
@@ -102,7 +102,7 @@ export default function OnboardingV3Screen({
     } finally {
       setSaving(false);
     }
-  }, [navigation, onComplete, requestOverviewInvitation, result, saveProfile, saving, user?.uid]);
+  }, [discardCompletedDraft, navigation, onComplete, requestOverviewInvitation, result, saveProfile, saving, user?.uid]);
 
   const handlePrimaryAction = useCallback(
     (action) => { void completeOnboarding(action); },
