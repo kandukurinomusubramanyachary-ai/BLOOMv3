@@ -4,7 +4,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { requireOptionalNativeModule, requireNativeViewManager } from 'expo-modules-core';
 import { exerciseById } from './exercises';
 import { poseEngineIdForExercise } from './poseCapability';
-import { createNativePoseSession, normalizeNativePose } from './engine/nativePoseSession';
+import { createNativePoseSession, normalizeNativePose, createCameraPermissionGuard } from './engine/nativePoseSession';
 import { StrengthButton, StrengthHeader, StrengthNote, StrengthScreenFrame } from './components/StrengthUI';
 import { STRENGTH_TYPE as T, useStrengthStyles } from './strengthTheme';
 const native = requireOptionalNativeModule('BloomPose');
@@ -17,21 +17,21 @@ function NativePlayer({ exercise, sets=1, onFallback, onExit, onComplete, onNext
   const [state,setState]=useState(session.snapshot());
   const [camera,setCamera]=useState(false), [foreground,setForeground]=useState(AppState.currentState==='active');
   const [error,setError]=useState(''), [pending,setPending]=useState(false), [saved,setSaved]=useState(false);
-  const mounted=useRef(true), saving=useRef(false), summary=useRef(null), attempt=useRef(0);
-  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;attempt.current++;};},[]);
+  const mounted=useRef(true), saving=useRef(false), summary=useRef(null), permissionGuard=useRef(createCameraPermissionGuard());
+  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;permissionGuard.current.invalidate();};},[]);
   useEffect(()=>{const sub=AppState.addEventListener('change',value=>setForeground(value==='active'));return()=>sub.remove();},[]);
-  useEffect(()=>{if(!focused||!foreground) {setState(session.pause());setCamera(false);attempt.current++;}},[focused,foreground,session]);
+  useEffect(()=>{if(!focused||!foreground) {setState(session.pause());setCamera(false);permissionGuard.current.leave({focused});}},[focused,foreground,session]);
   useEffect(()=>{const timer=setInterval(()=>setState(session.checkStall()),1000);return()=>clearInterval(timer);},[session]);
   async function openCamera() {
     if(pending || !PoseView) return;
-    const version=++attempt.current;setPending(true);setError('');
+    const version=permissionGuard.current.begin();if(version===null)return;setPending(true);setError('');
     try {
       const granted=Platform.OS==='android' ? await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA)===PermissionsAndroid.RESULTS.GRANTED : await native.requestPermission();
-      if(!mounted.current||version!==attempt.current) return;
+      if(!mounted.current||!permissionGuard.current.isCurrent(version)) return;
       if(!granted) {setError('Camera permission is off. You can enable it in device settings or continue guided.');return;}
       setState(session.resume());setCamera(true);
-    } catch {if(mounted.current&&version===attempt.current)setError('Camera access is unavailable. Continue guided or try again.');}
-    finally {if(mounted.current)setPending(false);}
+    } catch {if(mounted.current&&permissionGuard.current.isCurrent(version))setError('Camera access is unavailable. Continue guided or try again.');}
+    finally {permissionGuard.current.finish(version);if(mounted.current)setPending(false);}
   }
   async function save() {
     if(saving.current||saved)return;

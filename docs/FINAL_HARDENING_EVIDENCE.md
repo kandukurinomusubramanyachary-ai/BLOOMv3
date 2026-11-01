@@ -108,3 +108,15 @@ safety flags and the assistant reply ID survive history/replay and restart,
 including repair of metadata written by the former implementation. Provider
 retries/fallbacks now share a deadline below the client wait budget. Standalone
 production Meg refuses to start with API-key authentication disabled.
+
+## Final integration follow-up
+
+All 420 Bloom tests now pass locally, including actual native React permission UI tests and the null-profile startup regression. Meg passes 50/50; Firestore rules pass 16/16. The new SDK account driver passes all six stages. Doctor21/21, typecheck and web export pass. The 200-case benchmark reports route accuracy100%, intent accuracy93.5% and20/20 safety routing, rather than a fabricated perfect intent score.
+
+The real Firebase browser signup found a null profile display-name crash missed by the synthetic developer session; it is fixed and regression-tested. Subsequent disposable-account signup, full onboarding completion, overview tour, Learn Bloom and contextual Strength guides pass. All browser QA profiles and logins were removed. No real health records were accessed.
+
+Android and iOS compilation passed with the new MediaPipe module. Artifact inspection initially found an empty iOS model bundle despite a successful compile. Model resources now live inside the pod root, and CI compares the built iOS model with the source. Android CI verifies the bundled model and16KB ELF alignment;23 arm64 libraries passed. Native tracking stays off in public profiles and requires real-device acceptance. The iOS permission-dialog lifecycle race is covered by helper and actual React UI tests.
+
+The browser launch suite passes synthetic401/429/500/503 recovery, stable retry identity, offline queue restoration, legal routes, export failure, logout and password-recovery navigation. The responsive suite passes six viewports, including dark mode, Timeline/year calendar and check-in steps. Strength browser fixtures pass framing, ten portrait/landscape layouts, rotation, overlay alignment, speech controls, pause/resume, guided fallback and camera cleanup. Fixtures are synthetic and do not certify physical tracking accuracy or audible speech.
+
+Final immutable source/build identifiers, artifact links and external blockers are recorded in FINAL_RELEASE_REPORT.md and PR13. Public release validation remains blocked by16 missing/unapproved legal requirements. No public deployment, merge or store submission has occurred.

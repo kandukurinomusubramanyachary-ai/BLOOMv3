@@ -51,3 +51,5 @@ require('./nativePoseSession.test');
 require('./reminderCoordinator.test');
 
 require('./dependencyAdvisories.test');
+
+require('./nativePosePermissionUI.test');

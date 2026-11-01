@@ -58,4 +58,14 @@ function createNativePoseSession(exercise, { sets=1, targetReps=8, now=Date.now,
   }
   return {ingest,start,pause,resume,nextSet,finish,summary,snapshot,checkStall(){if(phase==='active' && now()-receivedAt>1500) pause();return snapshot();}};
 }
-module.exports={normalizeNativePose,createNativePoseSession};
+function createCameraPermissionGuard() {
+  let revision=0,awaiting=false;
+  return {
+    begin(){if(awaiting)return null;awaiting=true;return ++revision;},
+    invalidate(){revision++;awaiting=false;},
+    leave({focused}){if(!focused||!awaiting)this.invalidate();},
+    isCurrent(token){return token!==null&&token===revision;},
+    finish(token){if(token===revision)awaiting=false;},
+  };
+}
+module.exports={normalizeNativePose,createNativePoseSession,createCameraPermissionGuard};

@@ -193,3 +193,5 @@ test('meal mutations cannot be reported as failed only because a derived plan re
   assert.match(context, /Do not report a completed deletion as failed/);
   assert.match(context, /try \{\s*await refreshPlan\(value\.date, \{ meals \}\);\s*\} catch/s);
 });
+
+test('display names remain safe while a new or restored Firebase profile is still null',()=>{const {preferredDisplayName}=loadSourceModule('src/utils/displayName.js');assert.equal(preferredDisplayName(null),'');assert.equal(preferredDisplayName(undefined),'');assert.equal(preferredDisplayName({firstName:'Maya'}),'Maya');});
