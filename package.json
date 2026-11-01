@@ -15,11 +15,12 @@
     "release:config:check": "node scripts/check-release-config.cjs",
     "test": "node server/all.test.js",
     "test:backend": "node server/megV2Bridge.test.js",
-    "test:rules": "firebase emulators:exec --only firestore --project demo-bloom-auth \"node server/firestore.rules.test.js\"",
+    "test:rules": "node scripts/run-firebase-tests.cjs rules",
     "generate:brand-assets": "node scripts/generate-logo-assets.js",
     "check:native-config": "node scripts/check-native-config.cjs",
     "eas-build-post-install": "node scripts/check-eas-build.cjs",
-    "check:meg-live": "node scripts/check-meg-live.cjs"
+    "check:meg-live": "node scripts/check-meg-live.cjs",
+    "test:accounts": "node scripts/run-firebase-tests.cjs accounts"
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.17",
@@ -77,6 +78,12 @@
     },
     "gaxios": {
       "uuid": "11.1.1"
+    },
+    "@firebase/firestore": {
+      "@grpc/grpc-js": "1.14.6"
+    },
+    "@expo/cli": {
+      "zod": "4.6.7"
     }
   }
 }

@@ -165,6 +165,7 @@ function createMegV2Bridge({ environment = process.env, engineOverrides = {} } =
         mode: routeModeForSupportMode(supportMode),
         supportMode,
         language: body.language || 'en',
+        memoryEnabled: body.memoryEnabled === true,
         context: mapBloomContext(body.context),
         history: Array.isArray(body.history) ? body.history : [],
       }, { signal: controller.signal }) };

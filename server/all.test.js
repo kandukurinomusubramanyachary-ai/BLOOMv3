@@ -41,3 +41,4 @@ require('./theme.test');
 require('./onboardingTour.test');
 
 require('./finalMegHardening.test');
+require('./privacyRaces.test');

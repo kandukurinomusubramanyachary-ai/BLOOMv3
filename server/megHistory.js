@@ -11,6 +11,8 @@ function conversationsForClient(data = {}) {
       text: row.content,
       createdAt: row.createdAt || row.created_at,
       deliveryStatus: 'delivered',
+      safety: row.safety || null,
+      urgent: Boolean(row.urgent),
       ...(row.feedbackUpdatedAt || row.feedback_updated_at ? {
         feedback: row.feedback ?? null,
         feedbackUpdatedAt: row.feedbackUpdatedAt || row.feedback_updated_at,

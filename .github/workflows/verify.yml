@@ -57,6 +57,9 @@ jobs:
       - name: Run Firestore rules tests
         run: npm run test:rules
 
+      - name: Firebase account lifecycle with synthetic emulator users
+        run: npm run test:accounts
+
       - name: Typecheck
         run: npm run typecheck
 

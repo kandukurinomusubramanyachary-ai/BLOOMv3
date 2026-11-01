@@ -77,6 +77,7 @@ function loadConfig(env = process.env) {
       DOCTOR: integer(env.SMART_TIMEOUT_MS, 25000),
       LOCAL: integer(env.LOCAL_TIMEOUT_MS, 45000),
     },
+    requestTimeoutMs: Math.max(1000, Math.min(90000, integer(env.MEG_REQUEST_TIMEOUT_MS, 85000))),
     retries: integer(env.PROVIDER_RETRIES, 1),
     retry: {
       baseDelayMs: integer(env.RETRY_BASE_DELAY_MS, 80),

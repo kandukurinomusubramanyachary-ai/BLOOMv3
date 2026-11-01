@@ -271,13 +271,13 @@ function profileFixture(options = {}) {
   const stamp = { serverTimestamp: true };
   const snapshot = reference => { const value = documents.get(reference); return { exists: () => value !== undefined, data: () => value }; };
   const firestore = {
-    doc: (database, collection, uid) => { assert.equal(collection, 'users'); assert.ok(uid && !uid.includes('@')); return `${collection}/${uid}`; },
-    getDoc: async reference => { reads.push(reference); if (options.readFailure) throw options.readFailure; return snapshot(reference); },
+    doc: (database, collection, uid) => { assert.ok(['users', 'accountDeletions'].includes(collection)); assert.ok(uid && !uid.includes('@')); return `${collection}/${uid}`; },
+    getDoc: async reference => { reads.push(reference); if (options.readFailure) throw options.readFailure; await options.onRead?.(reference, firebase.auth); return snapshot(reference); },
     serverTimestamp: () => stamp,
     runTransaction: (database, operation) => {
       transactions++;
       const attempt = tail.then(async () => {
-        options.beforeTransaction?.(documents);
+        options.beforeTransaction?.(documents, firebase.auth);
         const pending = [];
         const result = await operation({ get: async reference => snapshot(reference), set: (reference, value) => pending.push([reference, value]) });
         for (const entry of pending) { documents.set(...entry); writes.push(entry); }
@@ -287,7 +287,7 @@ function profileFixture(options = {}) {
       return attempt;
     },
   };
-  const firebase = { db: options.noDatabase ? null : {}, auth: {} };
+  const firebase = { db: options.noDatabase ? null : {}, auth: { currentUser: options.currentUser || alice } };
   function load(filename) {
     const transformed = babel.transformFileSync(path.resolve(__dirname, '../src/services', filename), {
       babelrc: false, configFile: false, presets: [['babel-preset-expo', { lazyImports: false }]],
@@ -297,6 +297,7 @@ function profileFixture(options = {}) {
       if (name.startsWith('@babel/runtime/')) return require(name);
       if (name === 'firebase/firestore') return firestore;
       if (name === './firebase') return firebase;
+      if (name === './accountWork') return require('../src/services/accountWork');
       if (name === './userData') return load('userData.js');
       if (name === '../utils/dateKey') return require('../src/utils/dateKey');
       throw new Error(`Unexpected profile dependency: ${name}`);
@@ -350,4 +351,25 @@ test('profile storage and read failures propagate without destructive fallback w
   assert.equal(f.writes.length, 0);
   await assert.rejects(profileFixture({ noDatabase: true }).ensureAuthProfile(alice), /unavailable/);
   await assert.rejects(profileFixture().ensureAuthProfile({}), /unavailable/);
+});
+
+test('profile provisioning cannot write after logout or account switching during a read', async () => {
+  for (const replacement of [null, bob]) {
+    const f = profileFixture({ onRead: (_reference, auth) => { auth.currentUser = replacement; } });
+    await assert.rejects(f.ensureAuthProfile(alice, { firstName: 'Old signup' }), { code: 'bloom/auth-changed' });
+    assert.equal(f.writes.length, 0);
+  }
+});
+test('profile transaction retries recheck the active account before writing', async () => {
+  const f = profileFixture({ beforeTransaction: (_documents, auth) => { auth.currentUser = bob; } });
+  await assert.rejects(f.ensureAuthProfile(alice), { code: 'bloom/auth-changed' });
+  assert.equal(f.writes.length, 0);
+});
+
+test('a partially deleted account can sign in to retry deletion without recreating its profile', async () => {
+  const f = profileFixture({ documents: [['accountDeletions/alice', { requestedAt: 'synthetic timestamp' }]] });
+  const result = await f.ensureAuthProfile(alice);
+  assert.equal(result.deletionPending, true);
+  assert.equal(result.onboardingCompleted, true);
+  assert.equal(f.writes.length, 0);
 });

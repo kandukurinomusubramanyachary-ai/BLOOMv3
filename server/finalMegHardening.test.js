@@ -6,7 +6,7 @@ const path = require('node:path');
 const { once } = require('node:events');
 const { createApp } = require('./index');
 const { createMegV2Bridge } = require('./megV2Bridge');
-const { InMemoryBackend } = require('../meg-engine-v2/src/memory/memoryStore');
+const { InMemoryBackend, JsonBackend } = require('../meg-engine-v2/src/memory/memoryStore');
 const { SQLiteStore } = require('../meg-engine-v2/src/persistence/sqlite');
 const logger = { info() {}, warn() {}, error() {} };
 
@@ -88,3 +88,55 @@ test('synthetic provider response and retry survive SQLite restart without dupli
     assert.equal(bridge.listConversations({ uid: 'synthetic-user' }).conversations[0].messages.length, 2);
   } finally { store.close(); fs.rmSync(directory, { recursive: true, force: true }); }
 });
+
+test('Bloom memory opt-out suppresses backend retrieval, extraction and previously cached personalised replies', async () => {
+  const store = new InMemoryBackend(); let reads = 0; let writes = 0; let calls = 0;
+  store.listMemories = () => { reads++; return []; };
+  store.addMemory = () => { writes++; };
+  const providerManager = { status: () => ({}), async *stream() { calls++; yield 'A synthetic educational response.'; } };
+  const bridge = createMegV2Bridge({ environment: { NODE_ENV: 'test' }, engineOverrides: { store, providerManager, logger } });
+  const body = { conversationId: 'privacy-chat', messageId: 'off', message: 'What is PCOS?', memoryEnabled: false };
+  await bridge.chat({ uid: 'synthetic-privacy', body });
+  assert.equal(reads, 0); assert.equal(writes, 0);
+  await bridge.chat({ uid: 'synthetic-privacy', body: { ...body, messageId: 'on', memoryEnabled: true } });
+  assert.ok(reads > 0);
+  assert.equal(calls, 2, 'cache must distinguish memory consent');
+});
+
+test('safety metadata survives SQLite history and idempotent replay after restart', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'bloom-safety-final-'));
+  const filename = path.join(directory, 'meg.db'); let store = new SQLiteStore({ filename });
+  const make = () => createMegV2Bridge({ environment: { NODE_ENV: 'test' }, engineOverrides: { store, logger } });
+  let bridge = make(); const request = { uid: 'synthetic-crisis', body: { conversationId: 'crisis', messageId: 'crisis-1', message: 'I want to kill myself' } };
+  try {
+    const first = await bridge.chat(request); assert.equal(first.urgent, true); assert.ok(first.safety);
+    // Simulate a completed request written by the older metadata implementation.
+    const row = store.db.prepare('SELECT response_meta FROM request_dedup').get();
+    store.db.prepare('UPDATE request_dedup SET response_meta = ?').run(JSON.stringify({ ...JSON.parse(row.response_meta), messageId: request.body.messageId }));
+    store.close(); store = new SQLiteStore({ filename }); bridge = make();
+    const replay = await bridge.chat(request);
+    assert.equal(replay.messageId, first.messageId); assert.equal(replay.safety, first.safety); assert.equal(replay.urgent, true);
+    const history = bridge.listConversations({ uid: request.uid }).conversations[0].messages;
+    assert.equal(history.length, 2); assert.equal(history[1].urgent, true); assert.equal(history[1].safety, first.safety);
+  } finally { store.close(); fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+for (const driver of ['memory', 'json', 'sqlite']) {
+  test(driver + ': identical conversation IDs in different accounts keep independent metadata and history', async () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'bloom-collision-'));
+    const filename = path.join(directory, driver === 'json' ? 'meg.json' : 'meg.db');
+    const create = () => driver === 'memory' ? new InMemoryBackend() : driver === 'json' ? new JsonBackend(filename) : new SQLiteStore({ filename });
+    let store = create();
+    try {
+      for (const userId of ['alice', 'bob']) store.appendMessage({ userId, conversationId: 'same-id', role: 'user', content: userId + ' synthetic message' });
+      if (driver !== 'memory') { store.close(); store = create(); }
+      const alice = store.exportUserData({ userId: 'alice' }); const bob = store.exportUserData({ userId: 'bob' });
+      assert.equal(alice.conversations.length, 1); assert.equal(bob.conversations.length, 1);
+      assert.equal(alice.messages[0].content, 'alice synthetic message');
+      assert.equal(bob.messages[0].content, 'bob synthetic message');
+      store.deleteConversation({ userId: 'alice', conversationId: 'same-id' });
+      assert.deepEqual(store.exportUserData({ userId: 'bob' }), bob);
+      assert.equal(store.exportUserData({ userId: 'alice' }).conversations.length, 0);
+    } finally { store.close(); fs.rmSync(directory, { recursive: true, force: true }); }
+  });
+}

@@ -734,6 +734,7 @@ export default function MegScreen({ route, navigation }) {
         context,
         history: pendingMessages,
         memory,
+        memoryEnabled,
         ...(qaTiming ? { qaTiming } : {}),
       });
       const providerWaitMs = Date.now() - providerStartedAt;

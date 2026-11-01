@@ -46,3 +46,25 @@ test('provider HTTP errors cannot echo response secrets into telemetry codes', a
     return true;
   });
 });
+
+test('the shared request deadline bounds all retries and provider fallbacks', async () => {
+  const { ProviderManager } = require('../src/providers/providerManager');
+  let calls = 0;
+  const provider = { isConfigured: () => true, async *stream() { calls++; await new Promise(() => {}); } };
+  const manager = new ProviderManager({ providers: { first: provider, second: provider }, config: { requestTimeoutMs: 30, timeouts: { SMART: 1000 }, retries: 2, retry: { baseDelayMs: 0, maxDelayMs: 0, jitterRatio: 0 } } });
+  const started = Date.now();
+  await assert.rejects(manager.generate({ providerNames: ['first', 'second'], route: 'SMART', messages: [] }), error => error.code === 'ALL_PROVIDERS_FAILED');
+  assert.ok(Date.now() - started < 500, 'must not spend the route timeout on every retry/provider');
+  assert.equal(calls, 1);
+});
+
+test('standalone production transport cannot start with authentication disabled', () => {
+  const { spawnSync } = require('node:child_process');
+  const path = require('node:path');
+  const child = spawnSync(process.execPath, [path.resolve(__dirname, '../src/server.js')], {
+    env: { ...process.env, NODE_ENV: ' production ', MEG_API_KEY: '' },
+    encoding: 'utf8', windowsHide: true, timeout: 5000,
+  });
+  assert.equal(child.status, 1);
+  assert.match(child.stderr, /Standalone production Meg requires MEG_API_KEY/);
+});

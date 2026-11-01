@@ -1,16 +1,29 @@
 import { doc, getDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
-import { db } from './firebase';
-import { stripUndefined } from './userData';
+import { auth, db } from './firebase';
+const accountWork = require('./accountWork');
+import { stripUndefined, getCurrentUserDeletionStatus } from './userData';
 
 // Returning users keep their profile exactly as saved. The transaction also
 // prevents two tabs repairing the same missing profile from overwriting it.
 export async function ensureAuthProfile(user, signupProfile) {
   if (!db || !user?.uid) throw new Error('Bloom profile storage is unavailable.');
+  const version = accountWork.epoch(user.uid);
+  const check = () => {
+    if (auth?.currentUser?.uid !== user.uid || !accountWork.isCurrent(user.uid, version)) throw Object.assign(new Error('Your sign-in changed. Please retry.'), { code: 'bloom/auth-changed' });
+  };
+  check();
   const reference = doc(db, 'users', user.uid);
   const existing = await getDoc(reference);
+  check();
   if (existing.exists()) return existing.data();
+  if (await getCurrentUserDeletionStatus(user.uid)) {
+    check();
+    return { onboardingCompleted: true, deletionPending: true };
+  }
+  check();
   return runTransaction(db, async transaction => {
     const current = await transaction.get(reference);
+    check();
     if (current.exists()) return current.data();
     const timestamp = serverTimestamp();
     const profile = stripUndefined({

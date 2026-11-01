@@ -354,6 +354,7 @@ export function createLocalMegApiProvider({
           mode: request?.mode || null,
           supportMode: request?.supportMode || request?.mode || null,
           language: request?.language || 'en',
+          memoryEnabled: request?.memoryEnabled === true,
           context: cleanMegContextForRequest(request?.context),
           history: apiHistory([...(request?.memory || []), ...(request?.history || [])], message),
         });

@@ -32,6 +32,7 @@ import {
 import { ensureAuthProfile } from '../services/authProfile';
 import { createAuthSession } from '../services/authSession';
 import { storage } from '../services/storage';
+import { prepareCurrentUserAccountDeletion } from '../services/userData';
 import { requestMegAccountData } from '../services/megAccountData';
 const { deleteAccountInOrder } = require('../services/accountLifecycle');
 const accountWork = require('../services/accountWork');
@@ -290,7 +291,10 @@ export function AuthProvider({ children }) {
     const resume = accountWork.pause(user.uid);
     try {
       await deleteAccountInOrder({
-        reauthenticate: async () => {}, // Completed above; keep password errors field-specific.
+        reauthenticate: async () => {
+          await accountWork.drain(user.uid);
+          await prepareCurrentUserAccountDeletion(user.uid);
+        }, // Reauthentication completed above. Fence all devices before deletion.
         deleteMeg: () => requestMegAccountData({ method: 'DELETE', expectedUid: user.uid }),
         deleteAppData: async () => { await beforeDelete(user.uid); },
         deleteAuth: async () => { await deleteUser(user); },
