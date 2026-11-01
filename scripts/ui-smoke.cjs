@@ -70,13 +70,14 @@ async function checkLayout(page, name) {
         await tab.click();
         await checkLayout(page, `${item.name}-${screen.toLowerCase()}`);
       }
-      await page.getByRole('button', { name: 'Quick & filling', exact: true }).click();
+      await page.getByRole('button', { name: /^Find me something/ }).click();
       await checkLayout(page, `${item.name}-food-sheet`);
       await page.keyboard.press('Escape');
+      await page.getByRole('tab', { name: 'Today', exact: true }).click();
       await page.getByRole('button', { name: 'Open your profile', exact: true }).click();
       await checkLayout(page, `${item.name}-profile`);
       if (item.name === 'phone' || item.name === 'small-phone') {
-        await page.getByRole('button', { name: /^Personalisation\./ }).click();
+        await page.getByRole('button', { name: 'Personalisation', exact: true }).click();
         await page.getByRole('textbox', { name: 'Preferred name', exact: true }).fill('A longer preferred name');
         await checkLayout(page, `${item.name}-preferences`);
         await page.getByRole('button', { name: 'Go back', exact: true }).click();

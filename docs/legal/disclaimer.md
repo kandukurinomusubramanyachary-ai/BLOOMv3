@@ -1,6 +1,6 @@
 # Medical and wellness disclaimer
 
-**DRAFT ? UNAPPROVED ? DO NOT PUBLISH**
+**DRAFT — UNAPPROVED — DO NOT PUBLISH**
 
 ## Purpose
 

@@ -1,3 +1,5 @@
+> Historical record. The final hardening branch adds gated native pose tracking and newer build metadata. Use [PR #13](https://github.com/kandukurinomusubramanyachary-ai/BLOOMv3/pull/13) and `docs/FINAL_RELEASE_REPORT.md` for current evidence.
+
 # Bloom Android Beta installation
 
 ## Release status

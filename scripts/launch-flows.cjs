@@ -10,8 +10,9 @@ const origin = process.env.BLOOM_TEST_URL || 'http://127.0.0.1:8082';
     const errors = []; page.on('pageerror', (error) => errors.push(error.message));
     let responseStatus = 401;
     const requests = [];
+    const statuses = [];
     await context.route('**/api/meg/chat', async (route) => {
-      const body = route.request().postDataJSON(); requests.push(body);
+      const body = route.request().postDataJSON(); requests.push(body); statuses.push(responseStatus);
       await route.fulfill({ status: responseStatus, contentType: 'application/json', body: JSON.stringify(responseStatus === 200
         ? { message: 'Synthetic launch test reply.', conversationId: body.conversationId, messageId: 'fixture-reply', source: 'meg-v2' }
         : { error: 'INTERNAL_PROVIDER_SECRET_FIXTURE' }) });
@@ -26,7 +27,8 @@ const origin = process.env.BLOOM_TEST_URL || 'http://127.0.0.1:8082';
       responseStatus = status; await retry.click();
       await page.waitForFunction(() => [...document.querySelectorAll('[role="button"]')].some((button) => button.textContent === 'Try again' && button.getAttribute('aria-disabled') !== 'true'));
     }
-    assert.equal(requests.length, 4);
+    assert.equal(requests.length, 5, '401 refresh retries once before the three explicit outage retries');
+    assert.deepEqual(statuses, [401, 401, 429, 503, 500]);
     assert.equal(new Set(requests.map((request) => request.messageId)).size, 1, 'Retry must preserve the message ID');
     assert.ok(!await page.getByText('INTERNAL_PROVIDER_SECRET_FIXTURE', { exact: true }).count());
     responseStatus = 200; await retry.click();
@@ -45,11 +47,11 @@ const origin = process.env.BLOOM_TEST_URL || 'http://127.0.0.1:8082';
     assert.equal(restored, saved, 'Reload must retain the failed-send queue');
     await page.getByRole('button', { name: 'Open your profile', exact: true }).click();
     for (const label of ['Privacy Policy', 'Terms of Use', 'Help & support']) {
-      await page.getByRole('button', { name: new RegExp(`^${label.replace('/', '\\/')}\\.`) }).click();
-      await page.getByText('Beta template · founder and legal review required', { exact: true }).waitFor();
+      await page.getByRole('button', { name: new RegExp(`^${label.replace('/', '\\/')}(?:\\.|$)`) }).click();
+      await page.getByText('Unpublished draft \u00b7 founder and legal review required', { exact: true }).waitFor();
       await page.getByRole('button', { name: 'Back', exact: true }).click();
     }
-    await page.getByRole('button', { name: /^Export your data\./ }).click();
+    await page.getByRole('button', { name: 'Export your data', exact: true }).click();
     await page.getByRole('button', { name: /JSON/ }).click();
     await page.getByText(/Export did not finish\. Check your connection/).waitFor();
     await page.getByRole('button', { name: 'Go back', exact: true }).click();

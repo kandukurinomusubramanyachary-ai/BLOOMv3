@@ -1,6 +1,6 @@
 # Google Play Data Safety mapping
 
-**DRAFT ? UNAPPROVED ? DO NOT PUBLISH**
+**DRAFT — UNAPPROVED — DO NOT PUBLISH**
 
 ## Submission status
 
@@ -12,7 +12,7 @@ Personal information: email, account UID and optional profile/name. Health and f
 
 ## Purposes and recipients
 
-App functionality, account management and personalization are confirmed purposes. Firebase and the Meg hosting service process synchronized data; the configured AI provider receives requested conversation context. Decide Play?s collected/shared/service-provider categories from actual contracts and policy definitions, not assumptions. Provider names, regions, retention, human access and sharing exemptions: [PENDING VERIFIED INVENTORY]. No advertising SDK or remote push-token registration is implemented in this candidate.
+App functionality, account management and personalization are confirmed purposes. Firebase and the Meg hosting service process synchronized data; the configured AI provider receives requested conversation context. Decide Play’s collected/shared/service-provider categories from actual contracts and policy definitions, not assumptions. Provider names, regions, retention, human access and sharing exemptions: [PENDING VERIFIED INVENTORY]. No advertising SDK or remote push-token registration is implemented in this candidate.
 
 ## Camera and notifications
 
@@ -24,4 +24,4 @@ Release endpoints require HTTPS and private stores use authenticated UID isolati
 
 ## Store checklist
 
-Finalize the public Privacy Policy and deletion-request URL; name the approved publisher; reconcile all data types, required/optional collection, purposes, recipients, transport encryption, deletion options, children/target-audience and health-app declarations against the signed binary and services. Obtain legal and publisher approval before submitting. Review Google Play?s current User Data, account deletion, health-content and Data Safety instructions.
+Finalize the public Privacy Policy and deletion-request URL; name the approved publisher; reconcile all data types, required/optional collection, purposes, recipients, transport encryption, deletion options, children/target-audience and health-app declarations against the signed binary and services. Obtain legal and publisher approval before submitting. Review Google Play’s current User Data, account deletion, health-content and Data Safety instructions.

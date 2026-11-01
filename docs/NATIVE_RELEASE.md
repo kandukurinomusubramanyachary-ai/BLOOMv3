@@ -1,16 +1,13 @@
 # Bloom V3 native release
 
-The canonical integration branch is `release/bloom-v3`. It combines current
-`main`, PR #4 and the September 20 local Strength/auth/account-deletion fixes.
-Use this branch when preparing release builds; the September 15 snapshot is
-not the complete release candidate.
+The final hardening candidate is on `fix/bloom-final-production-hardening`, reviewed in [PR #13](https://github.com/kandukurinomusubramanyachary-ai/BLOOMv3/pull/13). It incorporates the valid PR #12 fixes. Historical release branches are behind main. See FINAL_RELEASE_REPORT.md for exact tested commits and artifact evidence. Public deployment, merging and store submission require founder approval.
 
 ## Product scope
 
 Android and iOS V3 ship **guided Strength**: exercise instructions, paced
 repetitions, rests, pause/resume and saved workout history. They do not measure
 movement or assess form. Native screens say this before a workout starts and
-must never request camera permission. Portrait is intentional for this scope.
+request no camera permission in the default guided flow. Portrait is intentional for this scope.
 
 Web Strength retains camera tracking for squat, wall push-up and standing
 side-leg raise. Other movements remain guided. Camera performance now monitors
@@ -21,9 +18,7 @@ count as poor performance. Completed repetitions remain available to save.
 Model initialization retries are bounded; timed-out models are not started
 again in parallel.
 
-Do not advertise native camera tracking in store text or screenshots. A native
-pose module, native permission/lifecycle handling and physical-phone validation
-are a separate implementation project.
+Native tracking now has an on-device CameraX/AVFoundation + MediaPipe implementation behind the separate native-qa profile. It remains disabled in production and ordinary preview builds until physical-device acceptance. See [native QA boundaries](strength/NATIVE_POSE_QA.md). Do not advertise verified native tracking in store copy.
 
 ## Build gates
 
@@ -47,8 +42,7 @@ merging a release. Workflow files alone do not enable GitHub branch protection.
 Do not tag or submit a release until the signed-build evidence and the following
 physical-device/production checks are complete for the same candidate.
 
-Build numbers are managed locally. This candidate increments iOS 2 to 3 and
-Android 4 to 5. Once a number has been uploaded to a store, increment it in
+Build numbers are managed locally. This candidate uses iOS build 4 and Android version code 6. Once a number has been uploaded to a store, increment it in
 `app.json` and commit before rebuilding; do not reuse the same number.
 
 ## Physical-device record — pending

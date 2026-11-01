@@ -1,6 +1,6 @@
 # Terms of Service
 
-**DRAFT ? UNAPPROVED ? DO NOT PUBLISH**
+**DRAFT — UNAPPROVED — DO NOT PUBLISH**
 
 ## Parties and scope
 
@@ -16,7 +16,7 @@ Bloom records wellness information, estimates cycle patterns, provides reports, 
 
 ## Acceptable use
 
-Do not access another person?s data, interfere with the service, bypass security controls, upload unlawful content or use Bloom to harm others. Do not rely on Meg for emergencies. Do not provide third-party private information without appropriate authority. Enforcement, notice, appeal and legally permitted suspension procedures: [PENDING LEGAL REVIEW].
+Do not access another person’s data, interfere with the service, bypass security controls, upload unlawful content or use Bloom to harm others. Do not rely on Meg for emergencies. Do not provide third-party private information without appropriate authority. Enforcement, notice, appeal and legally permitted suspension procedures: [PENDING LEGAL REVIEW].
 
 ## Your information and permissions
 

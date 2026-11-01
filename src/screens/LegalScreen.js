@@ -28,7 +28,7 @@ export default function LegalScreen({ navigation, route, page, onBack }) {
   return (
     <ScreenScaffold>
       <Button title='Back' variant='ghost' onPress={onBack || (() => navigation.goBack())} />
-      <ScreenHeader title={selected.title} subtitle={url ? 'Read the published information from Bloom’s owner.' : 'Beta template · founder and legal review required'} />
+      <ScreenHeader title={selected.title} subtitle={url ? 'Read the published information from Bloom’s owner.' : 'Unpublished draft \u00b7 founder and legal review required'} />
       {url ? <Button title={`Open ${selected.title}`} onPress={openLink} /> : selected.sections.map(([title, body]) => <React.Fragment key={title}><Text accessibilityRole='header' style={styles.heading}>{title}</Text><Text selectable style={styles.body}>{body}</Text></React.Fragment>)}
       {!url && <Text style={styles.note}>TODO · Owner: Bloom founder · Status: awaiting review · Effective date: not set. This draft is not an approved policy.</Text>}
       {Object.entries(PAGES).filter(([key]) => key !== selectedPage).map(([key, value]) => <Button key={key} title={value.title} variant='ghost' onPress={() => { setSelectedPage(key); setError(''); }} />)}

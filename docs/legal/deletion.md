@@ -1,6 +1,6 @@
 # Account deletion instructions
 
-**DRAFT ? UNAPPROVED ? DO NOT PUBLISH**
+**DRAFT — UNAPPROVED — DO NOT PUBLISH**
 
 ## Delete in the app
 
@@ -8,7 +8,7 @@ For a disposable account, open Profile, choose Delete account, enter your curren
 
 ## What the operation does
 
-The app confirms recent identity, writes an account-deletion barrier, removes the authenticated user?s Meg records and memory, removes private Firestore tracking, diet, legacy Meg and profile records, deletes the Firebase login and clears account-scoped device storage. Reminders are canceled on account lifecycle changes. A deletion receipt containing UID and request timestamp remains to prevent old devices from recreating records. Retention and authorized cleanup of that receipt: [PENDING LEGAL REVIEW].
+The app confirms recent identity, writes an account-deletion barrier, removes the authenticated user’s Meg records and memory, removes private Firestore tracking, diet, legacy Meg and profile records, deletes the Firebase login and clears account-scoped device storage. Reminders are canceled on account lifecycle changes. A deletion receipt containing UID and request timestamp remains to prevent old devices from recreating records. Retention and authorized cleanup of that receipt: [PENDING LEGAL REVIEW].
 
 ## Other copies and failures
 

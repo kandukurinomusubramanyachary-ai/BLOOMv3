@@ -13,5 +13,5 @@ Pod::Spec.new do |s|
   s.dependency 'ExpoModulesCore'
   s.dependency 'MediaPipeTasksVision', '0.10.35'
   s.source_files = '**/*.swift'
-  s.resource_bundles = { 'BloomPoseModels' => '../../../public/strength/pose_landmarker_lite.task' }
+  s.resource_bundles = { 'BloomPoseModels' => 'Resources/pose_landmarker_lite.task' }
 end

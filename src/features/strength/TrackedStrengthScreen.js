@@ -43,17 +43,17 @@ function NativePlayer({ exercise, sets=1, onFallback, onExit, onComplete, onNext
   }
   useEffect(()=>{if(state.phase==='paused')setCamera(false);if(state.phase==='complete'){setCamera(false);void save();}},[state.phase]);
   const active=camera&&focused&&foreground&&state.phase!=='complete';
-  return <StrengthScreenFrame header={<StrengthHeader title={exercise.name} subtitle='Native camera QA ? device validation pending' onBack={state.started&&state.phase!=='complete'?undefined:onExit} />}>
+  return <StrengthScreenFrame header={<StrengthHeader title={exercise.name} subtitle='Native camera QA · device validation pending' onBack={state.started&&state.phase!=='complete'?undefined:onExit} />}>
     <View style={s.content}>
       <StrengthNote icon='information-circle-outline'>Experimental on-device tracking. Counts can be wrong. Stop if you feel pain or unwell.</StrengthNote>
       {active&&PoseView?<PoseView style={s.camera} active={active} inferenceActive={['calibrating','ready','active'].includes(state.phase)} onReady={()=>setError('')} onPose={event=>{const frame=normalizeNativePose(event);if(frame)setState(session.ingest(frame));}} onError={()=>{setState(session.pause());setCamera(false);setError('Camera interrupted. Your counted reps are kept. Reopen the camera to reframe.');}}/>:null}
       <Text accessibilityRole='header' style={s.title}>{state.phase==='complete'?'Session summary':state.instruction}</Text>
-      <Text accessibilityLiveRegion='polite' style={s.body}>{state.totalReps} camera-counted reps ? Set {state.currentSet} of {state.sets}</Text>
+      <Text accessibilityLiveRegion='polite' style={s.body}>{state.totalReps} camera-counted reps · Set {state.currentSet} of {state.sets}</Text>
       {error?<Text accessibilityRole='alert' style={s.body}>{error}</Text>:null}
       {!PoseView?<Text style={s.body}>This build has no native pose module. Guided movement is available.</Text>:null}
       {state.phase==='complete'?<>
         <Text style={s.body}>{saved?'Saved to your workout history.':'Keep this screen open until the result is saved.'}</Text>
-        {!saved?<StrengthButton title={pending?'Saving?':'Try saving again'} disabled={pending} onPress={save}/>:<StrengthButton title={nextLabel||'Done'} onPress={onNext||onExit}/>}
+        {!saved?<StrengthButton title={pending?'Saving…':'Try saving again'} disabled={pending} onPress={save}/>:<StrengthButton title={nextLabel||'Done'} onPress={onNext||onExit}/>}
       </>:<>
         {!active&&PoseView?<StrengthButton title='Start camera tracking (QA)' disabled={pending||!focused||!foreground} onPress={openCamera}/>:null}
         {active&&state.phase==='ready'?<StrengthButton title='Start measured set' onPress={()=>setState(session.start())}/>:null}

@@ -1,6 +1,6 @@
 # Data retention disclosures
 
-**DRAFT ? UNAPPROVED ? DO NOT PUBLISH**
+**DRAFT — UNAPPROVED — DO NOT PUBLISH**
 
 ## Approval required
 

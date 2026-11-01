@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**DRAFT ? UNAPPROVED ? DO NOT PUBLISH**
+**DRAFT — UNAPPROVED — DO NOT PUBLISH**
 
 ## Who operates Bloom
 

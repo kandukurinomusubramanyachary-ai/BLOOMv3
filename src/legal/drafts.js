@@ -54,7 +54,7 @@ module.exports = {
       ],
       [
         "Acceptable use",
-        "Do not access another person?s data, interfere with the service, bypass security controls, upload unlawful content or use Bloom to harm others. Do not rely on Meg for emergencies. Do not provide third-party private information without appropriate authority. Enforcement, notice, appeal and legally permitted suspension procedures: [PENDING LEGAL REVIEW]."
+        "Do not access another person’s data, interfere with the service, bypass security controls, upload unlawful content or use Bloom to harm others. Do not rely on Meg for emergencies. Do not provide third-party private information without appropriate authority. Enforcement, notice, appeal and legally permitted suspension procedures: [PENDING LEGAL REVIEW]."
       ],
       [
         "Your information and permissions",
@@ -100,7 +100,7 @@ module.exports = {
       ],
       [
         "What the operation does",
-        "The app confirms recent identity, writes an account-deletion barrier, removes the authenticated user?s Meg records and memory, removes private Firestore tracking, diet, legacy Meg and profile records, deletes the Firebase login and clears account-scoped device storage. Reminders are canceled on account lifecycle changes. A deletion receipt containing UID and request timestamp remains to prevent old devices from recreating records. Retention and authorized cleanup of that receipt: [PENDING LEGAL REVIEW]."
+        "The app confirms recent identity, writes an account-deletion barrier, removes the authenticated user’s Meg records and memory, removes private Firestore tracking, diet, legacy Meg and profile records, deletes the Firebase login and clears account-scoped device storage. Reminders are canceled on account lifecycle changes. A deletion receipt containing UID and request timestamp remains to prevent old devices from recreating records. Retention and authorized cleanup of that receipt: [PENDING LEGAL REVIEW]."
       ],
       [
         "Other copies and failures",
@@ -175,7 +175,7 @@ module.exports = {
       ],
       [
         "Purposes and recipients",
-        "App functionality, account management and personalization are confirmed purposes. Firebase and the Meg hosting service process synchronized data; the configured AI provider receives requested conversation context. Decide Play?s collected/shared/service-provider categories from actual contracts and policy definitions, not assumptions. Provider names, regions, retention, human access and sharing exemptions: [PENDING VERIFIED INVENTORY]. No advertising SDK or remote push-token registration is implemented in this candidate."
+        "App functionality, account management and personalization are confirmed purposes. Firebase and the Meg hosting service process synchronized data; the configured AI provider receives requested conversation context. Decide Play’s collected/shared/service-provider categories from actual contracts and policy definitions, not assumptions. Provider names, regions, retention, human access and sharing exemptions: [PENDING VERIFIED INVENTORY]. No advertising SDK or remote push-token registration is implemented in this candidate."
       ],
       [
         "Camera and notifications",
@@ -187,7 +187,7 @@ module.exports = {
       ],
       [
         "Store checklist",
-        "Finalize the public Privacy Policy and deletion-request URL; name the approved publisher; reconcile all data types, required/optional collection, purposes, recipients, transport encryption, deletion options, children/target-audience and health-app declarations against the signed binary and services. Obtain legal and publisher approval before submitting. Review Google Play?s current User Data, account deletion, health-content and Data Safety instructions."
+        "Finalize the public Privacy Policy and deletion-request URL; name the approved publisher; reconcile all data types, required/optional collection, purposes, recipients, transport encryption, deletion options, children/target-audience and health-app declarations against the signed binary and services. Obtain legal and publisher approval before submitting. Review Google Play’s current User Data, account deletion, health-content and Data Safety instructions."
       ]
     ]
   }
