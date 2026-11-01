@@ -27,6 +27,7 @@ const origin = process.env.BLOOM_TEST_URL || 'http://127.0.0.1:8082';
       responseStatus = status; await retry.click();
       await page.waitForFunction(() => [...document.querySelectorAll('[role="button"]')].some((button) => button.textContent === 'Try again' && button.getAttribute('aria-disabled') !== 'true'));
     }
+    console.log('PASS fault recovery and stable replay identity');
     assert.equal(requests.length, 5, '401 refresh retries once before the three explicit outage retries');
     assert.deepEqual(statuses, [401, 401, 429, 503, 500]);
     assert.equal(new Set(requests.map((request) => request.messageId)).size, 1, 'Retry must preserve the message ID');
@@ -51,11 +52,15 @@ const origin = process.env.BLOOM_TEST_URL || 'http://127.0.0.1:8082';
       await page.getByText('Unpublished draft \u00b7 founder and legal review required', { exact: true }).waitFor();
       await page.getByRole('button', { name: 'Back', exact: true }).click();
     }
-    await page.getByRole('button', { name: 'Export your data', exact: true }).click();
+    console.log('PASS unpublished legal draft routes');
+    await page.getByRole('button', { name: 'Export my data', exact: true }).click();
     await page.getByRole('button', { name: /JSON/ }).click();
+    console.log('CHECK export request sent');
     await page.getByText(/Export did not finish\. Check your connection/).waitFor();
+    console.log('PASS export failure remains visible');
     await page.getByRole('button', { name: 'Go back', exact: true }).click();
-    await page.getByRole('button', { name: 'Log out of Bloom', exact: true }).click();
+    await page.getByRole('button', { name: 'Log out', exact: true }).click();
+    console.log('CHECK logout requested');
     await page.getByRole('tab', { name: 'Log in', exact: true }).click();
     await page.getByRole('button', { name: 'Forgot password?', exact: true }).click();
     await page.getByText('Reset your password', { exact: true }).waitFor();

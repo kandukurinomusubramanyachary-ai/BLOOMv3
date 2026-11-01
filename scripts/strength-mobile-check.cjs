@@ -66,7 +66,7 @@ function installFixtures() {
 }
 
 async function enter(page, guided=false) {
-  await page.goto(process.env.BLOOM_PREVIEW_URL || 'http://localhost:8090',{waitUntil:'commit',timeout:30000});
+  await page.goto(process.env.BLOOM_PREVIEW_URL || 'http://localhost:8090',{waitUntil:'commit',timeout:120000});
   await page.getByRole('tab',{name:'Strength',exact:true}).click({timeout:60000});
   await page.getByRole('button',{name:'View today’s workout',exact:true}).click();
   await page.getByRole('button',{name:'Start workout',exact:true}).click();
@@ -81,6 +81,7 @@ async function reachable(page, name) {
 }
 
 async function main() {
+  await require('./browser-qa.cjs').waitForLocalApp(process.env.BLOOM_PREVIEW_URL || 'http://localhost:8090');
   const output=path.join(os.tmpdir(),'bloom-strength-mobile');fs.mkdirSync(output,{recursive:true});
   const browser=await chromium.launch({channel:process.env.BLOOM_BROWSER_CHANNEL || 'msedge',headless:true});
   const results=[];

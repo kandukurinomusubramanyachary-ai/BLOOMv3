@@ -52,6 +52,7 @@ async function completeOnboarding(page, name) {
 }
 
 (async () => {
+  await require('./browser-qa.cjs').waitForLocalApp(origin);
   await fs.mkdir(output, { recursive: true });
   const browser = await chromium.launch({ channel: process.env.BLOOM_BROWSER_CHANNEL || 'msedge', headless: true });
   try {

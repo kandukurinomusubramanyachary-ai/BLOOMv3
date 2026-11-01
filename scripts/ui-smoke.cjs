@@ -77,7 +77,7 @@ async function checkLayout(page, name) {
       await page.getByRole('button', { name: 'Open your profile', exact: true }).click();
       await checkLayout(page, `${item.name}-profile`);
       if (item.name === 'phone' || item.name === 'small-phone') {
-        await page.getByRole('button', { name: 'Personalisation', exact: true }).click();
+        await page.getByRole('button', { name: 'My preferences', exact: true }).click();
         await page.getByRole('textbox', { name: 'Preferred name', exact: true }).fill('A longer preferred name');
         await checkLayout(page, `${item.name}-preferences`);
         await page.getByRole('button', { name: 'Go back', exact: true }).click();
