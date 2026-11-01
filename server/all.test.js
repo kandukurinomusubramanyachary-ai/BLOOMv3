@@ -49,3 +49,5 @@ require('./legalPublication.test');
 require('./nativePoseSession.test');
 
 require('./reminderCoordinator.test');
+
+require('./dependencyAdvisories.test');
