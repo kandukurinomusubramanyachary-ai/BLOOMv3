@@ -9,7 +9,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.bloom.app",
-      "buildNumber": "3",
+      "buildNumber": "4",
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -24,7 +24,7 @@
         "backgroundColor": "#FFFDFE"
       },
       "package": "com.bloomhealth.app",
-      "versionCode": 5,
+      "versionCode": 6,
       "permissions": [
         "SCHEDULE_EXACT_ALARM",
         "RECEIVE_BOOT_COMPLETED",
