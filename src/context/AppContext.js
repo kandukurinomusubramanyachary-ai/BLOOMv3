@@ -26,7 +26,6 @@ import {
   deleteAllCurrentUserMegData,
   deleteCurrentUserMegConversation,
   loadCurrentUserMegConversations,
-  updateCurrentUserMegFeedback,
 } from '../services/megData';
 import {
   applyDietReflections,
@@ -830,20 +829,27 @@ export function AppProvider({ children }) {
   }
 
   async function saveMegFeedback(conversationId, messageId, feedback) {
-    const version = accountWork.epoch(user.uid);
-    await persist(() => updateCurrentUserMegFeedback(conversationId, messageId, feedback));
-    const conversations = state.megConversations.map((conversation) => (
-      conversation.id !== conversationId
-        ? conversation
-        : {
-            ...conversation,
-            messages: (conversation.messages || []).map((message) => (
-              message.id === messageId ? { ...message, feedback: feedback ?? null } : message
-            )),
-          }
+    const uid = user?.uid;
+    if (!uid || activeUidRef.current !== uid) throw new Error('Please sign in to save feedback.');
+    const version = accountWork.epoch(uid);
+    const conversation = state.megConversations.find((item) => item.id === conversationId);
+    if (!conversation?.messages?.some((message) => message.id === messageId && message.role === 'assistant')) {
+      throw new Error('The Meg reply is no longer in your conversation. Reopen the chat and try again.');
+    }
+    // Meg V2 keeps delivered conversation data in the authenticated backend.
+    // Some replies never have a legacy Firestore message document; updateDoc
+    // against that nonexistent document made thumbs-up/down always fail.
+    // Persist feedback to the same UID-scoped local history as the chat UI.
+    const conversations = state.megConversations.map((item) => (
+      item.id !== conversationId ? item : {
+        ...item,
+        messages: (item.messages || []).map((message) => (
+          message.id === messageId ? { ...message, feedback: feedback ?? null } : message
+        )),
+      }
     ));
-    if (activeUidRef.current !== user.uid || !accountWork.isCurrent(user.uid, version)) return;
-    await storage.setMegConversations(conversations, user.uid);
+    await persist(() => storage.forUser(uid).setMegConversations(conversations));
+    if (activeUidRef.current !== uid || !accountWork.isCurrent(uid, version)) return;
     dispatch({ type: 'SET_MEG_CONVERSATIONS', payload: conversations });
   }
 
