@@ -104,7 +104,7 @@ export default function RootNavigator() {
         onReady={handleNavigationReady}
       >
         <Stack.Navigator
-          initialRouteName='Main'
+          initialRouteName={state.profile?.onboardingCompleted === false ? 'OnboardingV3Preview' : 'Main'}
           screenOptions={{
             headerShown: false,
             cardStyle: { flex: 1, minHeight: 0, backgroundColor: COLORS.canvas },
