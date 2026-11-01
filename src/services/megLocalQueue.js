@@ -11,11 +11,19 @@ function mergeMessages(localMessages = [], remoteMessages = []) {
   (Array.isArray(remoteMessages) ? remoteMessages : []).forEach((message) => {
     if (!message?.id) return;
     const id = String(message.id);
-    messages.set(id, { ...(messages.get(id) || {}), ...message });
+    const saved = messages.get(id) || {};
+    const merged = { ...saved, ...message };
+    // Meg's server-backed history can lack local-only reply feedback.
+    // A remote null must not erase a rating saved on this device.
+    if (timeValue(saved.feedbackUpdatedAt) > timeValue(message.feedbackUpdatedAt)
+      || (!message.feedbackUpdatedAt && saved.feedback != null)) {
+      merged.feedback = saved.feedback ?? null;
+      if (saved.feedbackUpdatedAt) merged.feedbackUpdatedAt = saved.feedbackUpdatedAt;
+    }
+    messages.set(id, merged);
   });
   return [...messages.values()].sort((left, right) => (
     timeValue(left.createdAt) - timeValue(right.createdAt)
-    || String(left.id).localeCompare(String(right.id))
   ));
 }
 

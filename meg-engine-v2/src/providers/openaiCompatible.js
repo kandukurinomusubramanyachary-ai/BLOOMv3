@@ -31,6 +31,7 @@ class OpenAICompatibleProvider {
         try { json = JSON.parse(raw); } catch (error) {
           throw new ProviderError(`${this.name} returned malformed streaming data`, { provider: this.name, retryable: true, code: 'MALFORMED_STREAM', cause: error });
         }
+        if (json.error) throw new ProviderError(`${this.name} stream failed`, { provider: this.name, status: json.error.code, code: 'STREAM_ERROR' });
         const text = parseOpenAiToken(json);
         if (text) yield text;
       }

@@ -27,6 +27,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -43,9 +45,12 @@ jobs:
       - name: Compile release APK and AAB
         working-directory: android
         run: ./gradlew :app:assembleRelease :app:bundleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
+      - name: Inspect Android model and ELF alignment
+        if: runner.os == 'Linux'
+        run: python3 scripts/check-android-artifact.py android/app/build/outputs/apk/release/app-release.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: android-compilation-${{ github.sha }}
+          name: android-compilation-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             android/app/build/outputs/apk/release/*.apk
             android/app/build/outputs/bundle/release/*.aab
@@ -58,6 +63,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -74,9 +81,11 @@ jobs:
           xcodebuild -workspace ios/Bloom.xcworkspace -scheme Bloom
           -configuration Release -sdk iphoneos -destination 'generic/platform=iOS'
           -derivedDataPath ios-build-inspect CODE_SIGNING_ALLOWED=NO build
+      - name: Require bundled on-device pose model
+        run: cmp ios-build-inspect/Build/Products/Release-iphoneos/Bloom.app/BloomPoseModels.bundle/pose_landmarker_lite.task modules/bloom-pose/ios/Resources/pose_landmarker_lite.task
       - uses: actions/upload-artifact@v4
         with:
-          name: ios-compilation-${{ github.sha }}
+          name: ios-compilation-${{ github.event.pull_request.head.sha || github.sha }}
           path: ios-build-inspect/Build/Products/Release-iphoneos/Bloom.app
           if-no-files-found: error
           retention-days: 7

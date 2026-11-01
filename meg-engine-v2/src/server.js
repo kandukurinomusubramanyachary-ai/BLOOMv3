@@ -2,6 +2,9 @@ try { require('dotenv').config(); } catch {}
 const { loadConfig } = require('./config/env');
 const { createApp } = require('./app');
 
+if (String(process.env.NODE_ENV || '').trim().toLowerCase() === 'production' && !String(process.env.MEG_API_KEY || '').trim()) {
+  throw new Error('Standalone production Meg requires MEG_API_KEY. Bloom uses its separate Firebase-authenticated server.');
+}
 const config = loadConfig();
 const app = createApp({ config });
 const server = app.listen(config.port, config.host, () => {

@@ -15,13 +15,15 @@
     "release:config:check": "node scripts/check-release-config.cjs",
     "test": "node server/all.test.js",
     "test:backend": "node server/megV2Bridge.test.js",
-    "test:rules": "firebase emulators:exec --only firestore --project demo-bloom-auth \"node server/firestore.rules.test.js\"",
+    "test:rules": "node scripts/run-firebase-tests.cjs rules",
     "generate:brand-assets": "node scripts/generate-logo-assets.js",
     "check:native-config": "node scripts/check-native-config.cjs",
-    "eas-build-post-install": "node scripts/check-eas-build.cjs"
+    "eas-build-post-install": "node scripts/check-eas-build.cjs",
+    "check:meg-live": "node scripts/check-meg-live.cjs",
+    "test:accounts": "node scripts/run-firebase-tests.cjs accounts"
   },
   "dependencies": {
-    "@expo/metro-runtime": "~57.0.16",
+    "@expo/metro-runtime": "~57.0.17",
     "@expo/vector-icons": "^15.0.2",
     "@mediapipe/tasks-vision": "1.0.1",
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -31,20 +33,20 @@
     "@types/react": "~19.2.0",
     "date-fns": "^3.6.0",
     "dotenv": "^17.4.2",
-    "expo": "~57.0.24",
-    "expo-asset": "~57.0.18",
-    "expo-build-properties": "~57.0.21",
+    "expo": "~57.0.31",
+    "expo-asset": "~57.0.20",
+    "expo-build-properties": "~57.0.22",
     "expo-clipboard": "~57.0.2",
-    "expo-constants": "~57.0.19",
-    "expo-crypto": "~57.0.3",
+    "expo-constants": "~57.0.22",
+    "expo-crypto": "~57.0.4",
     "expo-file-system": "~57.0.7",
     "expo-font": "~57.0.4",
     "expo-local-authentication": "~57.0.3",
-    "expo-notifications": "~57.0.20",
-    "expo-screen-capture": "~57.0.3",
+    "expo-notifications": "~57.0.24",
+    "expo-screen-capture": "~57.0.4",
     "expo-secure-store": "~57.0.4",
-    "expo-sharing": "~57.0.21",
-    "expo-splash-screen": "~57.0.9",
+    "expo-sharing": "~57.0.24",
+    "expo-splash-screen": "~57.0.10",
     "expo-status-bar": "~57.0.1",
     "expo-system-ui": "~57.0.4",
     "express": "^4.22.2",
@@ -76,6 +78,12 @@
     },
     "gaxios": {
       "uuid": "11.1.1"
+    },
+    "@firebase/firestore": {
+      "@grpc/grpc-js": "1.14.6"
+    },
+    "@expo/cli": {
+      "zod": "4.6.7"
     }
   }
 }

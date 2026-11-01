@@ -1,0 +1,9 @@
+# Native camera QA ? not public enabled
+
+Android uses CameraX 1.4.2 and MediaPipe Tasks Vision 0.10.35. iOS uses AVFoundation and MediaPipeTasksVision 0.10.35. Both versions were verified in the official Maven/CocoaPods registries. The existing lite model is bundled; no model download or frame upload occurs. Only 33 measured landmarks are accepted; missing feet are never synthesized. Two-person detection blocks counting through the shared engine.
+
+Camera permission is requested only by Start camera tracking (QA). Guided mode remains available. CPU processing uses 640?480 capture, at most 10 inference frames/second, one serial worker and dropped stale frames. Portrait output is normalized; geometry changes, lost framing, stalled input, pause and background require re-framing. Saves contain scalar session facts, no frames or landmarks. Guided and measured reps retain distinct sessionMode values.
+
+Production and preview flags default off. The internal native-qa EAS profile explicitly enables EXPO_PUBLIC_BLOOM_NATIVE_TRACKING=1; the public release gate rejects that flag. Native code is compiled in the normal build even while hidden, so compilation errors cannot be masked by the flag. Android autolinking and Expo generation passed locally. Remote Android/iOS compilation evidence is recorded in the final report. Physical accuracy, thermal behavior, camera interruptions, orientation and lower-end hardware remain required acceptance tests. No reliability claim is made from compilation alone.
+
+Official integration references: [Android](https://developers.google.com/edge/mediapipe/solutions/vision/pose_landmarker/android), [iOS](https://developers.google.com/edge/mediapipe/solutions/vision/pose_landmarker/ios), [iOS sample](https://github.com/google-ai-edge/mediapipe-samples/tree/main/examples/pose_landmarker/ios).

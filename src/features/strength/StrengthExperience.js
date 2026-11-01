@@ -9,6 +9,7 @@ import { EXERCISE_LIBRARY, FOCUS_AREAS, LEVELS } from './data/exerciseLibrary';
 import { WORKOUT_PLANS, planMinutes, planEquipment, singleMovePlan } from './data/workoutPlans';
 import { historyStats, normalizeHistory } from './data/sessionHistory';
 import { modeForExercise } from './poseCapability';
+import { isNativeTrackingEnabled } from './featureFlag';
 import { useStrengthStyles, STRENGTH_TYPE as T } from './strengthTheme';
 import { StrengthButton, StrengthHeader, StrengthScreenFrame, StrengthNote, StrengthEmpty, StrengthSkeleton } from './components/StrengthUI';
 import ExerciseCard from './components/ExerciseCard';
@@ -107,10 +108,10 @@ export default function StrengthExperience({ TrackedPlayer, TourTarget, onWorkou
 
   if (view === 'session' && run) {
     const { exercise, sets } = run.plan.exercises[run.index];
-    const pose = TrackedPlayer && !run.guided && modeForExercise(exercise.id, Platform.OS) === 'pose';
+    const pose = TrackedPlayer && !run.guided && modeForExercise(exercise.id, Platform.OS, isNativeTrackingEnabled()) === 'pose';
     const Player = pose ? TrackedPlayer : SessionPlayer;
     const nextItem = run.index + 1 < run.plan.exercises.length ? run.plan.exercises[run.index + 1] : null;
-    const continuousNext = pose && nextItem && modeForExercise(nextItem.exercise.id, Platform.OS) === 'pose' ? nextItem : null;
+    const continuousNext = Platform.OS === 'web' && pose && nextItem && modeForExercise(nextItem.exercise.id, Platform.OS) === 'pose' ? nextItem : null;
     // One camera, one workout: the tracked player stays mounted across
     // exercises (stable key), so the camera and MediaPipe session start
     // exactly once per workout. Guided players keep per-exercise keys.
@@ -149,7 +150,7 @@ export default function StrengthExperience({ TrackedPlayer, TourTarget, onWorkou
     <Text style={s.body}>{plan.exercises.length} exercises · No weights needed</Text><Text style={s.supporting}>{planEquipment(plan)}</Text>
     <View><Text style={s.sectionTitle}>Your movements</Text><Text style={[s.supporting, { marginTop: 8 }]}>Tap a movement to read its guide or adjust sets.</Text>{plan.exercises.map((item, i) => <ExerciseCard key={item.exercise.id} {...item} index={i} onPress={exercise => { setSelected(exercise); setInspectIndex(i); setView('detail'); }} />)}</View>
     <StrengthNote title="Room to breathe" icon="time-outline">30–50 seconds of planned rest between sets. Take longer or finish early whenever you need.</StrengthNote>
-    <Text style={s.supporting}>{Platform.OS === 'web' && TrackedPlayer ? 'Camera guidance is optional for supported movements. Other movements use camera-free pacing. No camera starts without your permission.' : 'This app uses camera-free pacing. Follow the timer and count your own repetitions; your movement is not measured.'}</Text>
+    <Text style={s.supporting}>{TrackedPlayer ? 'Camera guidance is optional for supported movements. Other movements use camera-free pacing. No camera starts without your permission.' : 'This app uses camera-free pacing. Follow the timer and count your own repetitions; your movement is not measured.'}</Text>
   </StrengthScreenFrame>;
 
   if (recentRecord) return <StrengthScreenFrame header={<StrengthHeader title="Session summary" onBack={() => setRecentRecord(null)} />} footer={<StrengthButton title="Done" onPress={() => setRecentRecord(null)} />}>

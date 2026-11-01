@@ -3,6 +3,7 @@ const { ProviderError, normalizeError } = require('./provider');
 const CIRCUIT_STATES = Object.freeze({ CLOSED: 'CLOSED', OPEN: 'OPEN', HALF_OPEN: 'HALF_OPEN' });
 const DEFAULT_CONFIG = {
   retries: 1,
+  requestTimeoutMs: 85000,
   retry: { baseDelayMs: 80, maxDelayMs: 800, jitterRatio: 0.25 },
   circuit: { failureThreshold: 3, cooldownMs: 60000, rollingWindowMs: 120000, rollingMinimumRequests: 5, failureRateThreshold: 0.6 },
   timeouts: { FAST: 12000, SMART: 25000, SAFETY: 25000, DOCTOR: 25000, LOCAL: 45000 },
@@ -175,15 +176,18 @@ class ProviderManager {
     const errors = [];
     const maxAttempts = 1 + Math.max(0, Number(this.config.retries) || 0);
     const timeoutMs = this.config.timeouts[route] || this.config.timeouts.FAST;
+    const deadline = this.now() + Math.max(1, Number(this.config.requestTimeoutMs) || 85000);
 
     for (const name of candidates) {
       const provider = this.providers[name];
       if (!provider || !this.configured(name) || !this.acquire(name)) continue;
       try {
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+          const remainingMs = deadline - this.now();
+          if (remainingMs <= 0) break;
           const controller = new AbortController();
           const unlink = linkAbortSignals(signal, controller);
-          const timeout = setTimeout(() => controller.abort(new Error('provider timeout')), timeoutMs);
+          const timeout = setTimeout(() => controller.abort(new Error('provider timeout')), Math.min(timeoutMs, remainingMs));
           const startedAt = this.now();
           let emitted = false;
           state.attempts = (state.attempts || 0) + 1;
@@ -223,7 +227,7 @@ class ProviderManager {
             if (!emitted && this.circuitState(name) === CIRCUIT_STATES.OPEN) break;
             if (!emitted && attempt + 1 < maxAttempts && isRetryable(normalized)) {
               state.retries += 1;
-              await wait(this.retryDelay(attempt), signal);
+              await wait(Math.min(this.retryDelay(attempt), Math.max(0, deadline - this.now())), signal);
               continue;
             }
             if (emitted) throw normalized;

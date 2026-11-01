@@ -18,7 +18,6 @@
   },
   "dependencies": {
     "better-sqlite3": "12.11.1",
-    "bloom": "file:..",
     "dotenv": "^16.6.1",
     "express": "^5.1.0"
   }

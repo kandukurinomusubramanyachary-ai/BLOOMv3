@@ -1,7 +1,7 @@
 const { resolveMegApiBaseUrl, isNonPublicHostname } = require('../src/services/megUrlPolicy');
 const { FIREBASE_CONFIG_ENV_NAMES, validateFirebaseConfiguration } = require('../src/services/firebaseConfiguration');
 
-function validateReleaseConfiguration(environment = {}) {
+function validateReleaseConfiguration(environment = {}, legalPublication = require('../config/legal-publication.json')) {
   const config = Object.fromEntries(Object.entries(FIREBASE_CONFIG_ENV_NAMES).map(([key, name]) => [key, environment[name]]));
   const issues = validateFirebaseConfiguration(config, { devAuthFlag: environment.EXPO_PUBLIC_BLOOM_DEV_AUTH });
   try {
@@ -16,12 +16,17 @@ function validateReleaseConfiguration(environment = {}) {
   for (const name of Object.keys(environment)) {
     if (/^EXPO_PUBLIC_.*(GEMINI|GROQ|OPENROUTER|SERVICE_ACCOUNT|PRIVATE_KEY|ADMIN_CREDENTIAL|ACCESS_TOKEN)/i.test(name) && environment[name]) issues.push(`${name} must not contain a backend secret`);
   }
-  for (const name of ['EXPO_PUBLIC_PRIVACY_POLICY_URL', 'EXPO_PUBLIC_TERMS_URL', 'EXPO_PUBLIC_SUPPORT_URL']) {
+  for (const name of ['EXPO_PUBLIC_PRIVACY_POLICY_URL', 'EXPO_PUBLIC_TERMS_URL', 'EXPO_PUBLIC_SUPPORT_URL', 'EXPO_PUBLIC_ACCOUNT_DELETION_URL']) {
     try {
       const url = new URL(environment[name]);
       if (url.protocol !== 'https:' || url.username || url.password || isNonPublicHostname(url.hostname)) throw new Error();
     }
     catch { issues.push(`${name} requires a founder-reviewed public HTTPS page`); }
+  }
+  const { legalApprovalIssues } = require('../src/legal/publication');
+  issues.push(...legalApprovalIssues(legalPublication));
+  if (['1', 'true'].includes(String(environment.EXPO_PUBLIC_BLOOM_NATIVE_TRACKING).toLowerCase())) {
+    issues.push('EXPO_PUBLIC_BLOOM_NATIVE_TRACKING must remain disabled for public release until device acceptance is recorded');
   }
   return issues;
 }

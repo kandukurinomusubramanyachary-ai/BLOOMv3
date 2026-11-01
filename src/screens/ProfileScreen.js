@@ -194,6 +194,7 @@ export default function ProfileScreen({ navigation }) {
       >
         <View style={styles.inner}>
           <ScreenHeader title='Profile' subtitle='Your preferences, privacy and support in one place.' />
+          {state.profile?.deletionPending ? <Text accessibilityRole='alert' style={styles.logoutError}>Your account deletion has not finished. New records are paused. Retry Delete account below to finish removing your account.</Text> : null}
 
           <View style={styles.profileRow}>
             <View style={styles.avatar} accessible={false}>

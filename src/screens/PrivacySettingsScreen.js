@@ -204,7 +204,7 @@ export default function PrivacySettingsScreen({ navigation }) {
               <View style={styles.settingIcon}><Icon name='chatbubbles-outline' size={19} color={COLORS.brand} /></View>
               <View style={styles.settingCopy}>
                 <Text style={styles.sectionTitle}>Meg memory</Text>
-                <Text style={styles.sectionDesc}>When off, chats still save securely but do not inform new replies.</Text>
+                <Text style={styles.sectionDesc}>Choose whether past conversations personalise new chats. Your current conversation still provides context.</Text>
               </View>
               <Switch
                 value={Boolean(state.settings?.megMemory)}

@@ -32,6 +32,8 @@ import {
 import { ensureAuthProfile } from '../services/authProfile';
 import { createAuthSession } from '../services/authSession';
 import { storage } from '../services/storage';
+import { reminderCoordinator } from '../services/reminderCoordinator';
+import { prepareCurrentUserAccountDeletion } from '../services/userData';
 import { requestMegAccountData } from '../services/megAccountData';
 const { deleteAccountInOrder } = require('../services/accountLifecycle');
 const accountWork = require('../services/accountWork');
@@ -41,7 +43,7 @@ export const REQUIRED_DATA_CONSENT =
   'I agree that Bloom may securely store my cycle, symptom, check-in and Meg conversation data to personalise my experience.';
 
 export const OPTIONAL_MODEL_CONSENT =
-  'I agree that my anonymised conversations and feedback may be reviewed to improve Meg.';
+  'I would like to opt in to future Meg improvement programs. This preference does not authorize data sharing or training without further notice.';
 
 const AuthContext = createContext(null);
 
@@ -244,6 +246,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logOut = useCallback(async () => {
+    await reminderCoordinator.stop();
     if (user?.uid) accountWork.invalidate(user.uid);
     if (!auth) {
       if (user?.uid) storage.clearUserScope(user.uid);
@@ -290,7 +293,11 @@ export function AuthProvider({ children }) {
     const resume = accountWork.pause(user.uid);
     try {
       await deleteAccountInOrder({
-        reauthenticate: async () => {}, // Completed above; keep password errors field-specific.
+        reauthenticate: async () => {
+          await reminderCoordinator.stop();
+          await accountWork.drain(user.uid);
+          await prepareCurrentUserAccountDeletion(user.uid);
+        }, // Reauthentication completed above. Fence all devices before deletion.
         deleteMeg: () => requestMegAccountData({ method: 'DELETE', expectedUid: user.uid }),
         deleteAppData: async () => { await beforeDelete(user.uid); },
         deleteAuth: async () => { await deleteUser(user); },
@@ -310,6 +317,8 @@ export function AuthProvider({ children }) {
       );
     } finally { resume(); }
   }, [user]);
+
+  useEffect(() => { void reminderCoordinator.setOwner(user?.uid).catch(() => undefined); }, [user?.uid]);
 
   const value = useMemo(() => ({
     user,

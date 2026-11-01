@@ -61,6 +61,8 @@ function replayResult({ conversationId, messageId, text, metadata = {}, deduplic
     conversationId,
     messageId,
     text: String(text || ''),
+    safety: metadata.safety || null,
+    urgent: metadata.urgent === true,
     metadata: { ...replayMetadata(metadata, messageId), deduplicated: Boolean(deduplicated) },
   };
 }
@@ -249,7 +251,7 @@ async function runChat({
   const memoryStart = Date.now();
   const [storedRecentMessages, memories] = await Promise.all([
     recentPromise,
-    Promise.resolve().then(() => safeCall(() => retrieveRelevantMemories({
+    body.memoryEnabled === false ? [] : Promise.resolve().then(() => safeCall(() => retrieveRelevantMemories({
       store,
       userId,
       message,
@@ -287,6 +289,7 @@ async function runChat({
     conversationId,
     intent: routing.intent,
     supportMode: body.supportMode || null,
+    memoryEnabled: body.memoryEnabled !== false,
     message,
     language,
     safety,
@@ -486,6 +489,8 @@ function finishChat({
     conversationId,
     role: 'assistant',
     content: String(text),
+    safety: safety.triggered ? safety.category : null,
+    urgent: Boolean(safety.triggered && isUrgentCategory(safety.category)),
   }), null);
   trace.persistenceMs = Date.now() - persistenceStartedAt;
 
@@ -516,7 +521,7 @@ function finishChat({
   // Complete user-owned writes before resolving the request, so a subsequent
   // privacy deletion cannot be undone by a deferred memory extraction.
   {
-    if (!safety.triggered) {
+    if (!safety.triggered && cacheRequest?.memoryEnabled !== false) {
       for (const memory of extractMemories({ message, context: selectedContext, intent })) {
         safeCall(() => store.addMemory({ userId, conversationId, ...memory }));
       }
@@ -526,6 +531,9 @@ function finishChat({
 
   const metadata = {
     messageId: assistantMessage?.id || null,
+    provider: state.provider || null,
+    safety: safety.triggered ? safety.category : null,
+    urgent: Boolean(safety.triggered && isUrgentCategory(safety.category)),
     ...publicTraceMetadata(trace, { development: config.nodeEnv === 'development' }),
   };
   if (!connection.closed) connection.done(metadata);
@@ -536,6 +544,7 @@ function finishChat({
     safety: safety.triggered ? safety.category : null,
     urgent: Boolean(safety.triggered && isUrgentCategory(safety.category)),
     metadata,
+    timings: { routing: trace.routingMs, context: trace.contextMs, memory: trace.memoryRetrievalMs, provider: trace.generationMs, persistence: trace.persistenceMs },
   };
 }
 
@@ -673,7 +682,7 @@ function sendCompletedSse(res, { conversationId, messageId, text, metadata = {},
 }
 
 function replayMetadata(metadata = {}, messageId) {
-  return { traceId: metadata.traceId || null, messageId: messageId || metadata.messageId || null };
+  return { traceId: metadata.traceId || null, messageId: metadata.messageId || messageId || null, provider: metadata.provider || null, safety: metadata.safety || null, urgent: metadata.urgent === true };
 }
 function parseMeta(value) {
   if (!value) return {};

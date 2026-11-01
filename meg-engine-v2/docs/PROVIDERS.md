@@ -49,3 +49,20 @@ Use `.env.example` as the source of names. The important controls are:
 - `ENABLE_LOCAL_FALLBACK`, `ENABLE_HEDGING`
 
 Hedging is intentionally only a configuration placeholder in this beta; it is disabled by default and no duplicate cloud request is made today.
+
+## November 2026 hardening
+
+Groq defaults to `openai/gpt-oss-20b`; the prior Llama default was retired for
+ordinary developer accounts ([Groq deprecations](https://console.groq.com/docs/deprecations)).
+GPT-OSS uses the provider-supported reasoning controls and completion-token cap
+([API reference](https://console.groq.com/docs/api-reference)). Overrides remain
+server-only. Gemini uses an API-key header, keeps thought parts out of replies,
+and retains the configurable model ID. Verify model access with the actual
+account; catalog presence does not prove project access. Missing cloud keys and
+disabled local fallback now report unavailable readiness.
+
+`npm run check:meg-live` requires a dedicated QA Firebase token or QA credentials
+in ignored/server environment variables. It sends only a synthetic greeting,
+requires a named supported cloud provider, checks idempotent replay and persisted
+feedback/history, and reports actual timing without printing content or tokens.
+It does not certify backend restart, device accuracy or legal approval.

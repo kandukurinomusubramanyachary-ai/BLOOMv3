@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { SQLiteStore } = require('../persistence/sqlite');
+const conversationKey = (userId, conversationId) => `${userId}\0${conversationId}`;
 
 class InMemoryBackend {
   constructor() {
@@ -16,9 +17,9 @@ class InMemoryBackend {
   ensureUser(userId) { if (!this.users.has(userId)) this.users.set(userId, { id: userId, createdAt: new Date().toISOString() }); }
   ensureConversation(userId, conversationId) {
     this.ensureUser(userId);
-    const current = this.conversations.get(conversationId) || { id: conversationId, userId, createdAt: new Date().toISOString() };
+    const current = this.conversations.get(conversationKey(userId, conversationId)) || { id: conversationId, userId, createdAt: new Date().toISOString() };
     current.updatedAt = new Date().toISOString();
-    this.conversations.set(conversationId, current);
+    this.conversations.set(conversationKey(userId, conversationId), current);
   }
 
   beginRequest({ userId, conversationId, messageId, requestHash, staleAfterMs = 120000 }) {
@@ -67,6 +68,14 @@ class InMemoryBackend {
   getRecentMessages({ userId, conversationId, limit = 8 }) {
     return this.messages.filter((item) => item.userId === userId && item.conversationId === conversationId).slice(-limit);
   }
+  updateFeedback({ userId, conversationId, messageId, feedback }) {
+    const message = this.messages.find(item => item.userId === userId
+      && item.conversationId === conversationId && item.id === messageId && item.role === 'assistant');
+    if (!message) return null;
+    const result = { feedback, feedbackUpdatedAt: new Date().toISOString() };
+    Object.assign(message, result);
+    return result;
+  }
   addMemory(item) {
     this.ensureUser(item.userId);
     const existing = this.memories.find((memory) => memory.userId === item.userId && memory.content === String(item.content));
@@ -91,7 +100,7 @@ class InMemoryBackend {
     const memories = this.memories.filter((item) => item.userId === userId && item.conversationId === conversationId).length;
     this.messages = this.messages.filter((item) => !(item.userId === userId && item.conversationId === conversationId));
     this.memories = this.memories.filter((item) => !(item.userId === userId && item.conversationId === conversationId));
-    if (this.conversations.get(conversationId)?.userId === userId) this.conversations.delete(conversationId);
+    this.conversations.delete(conversationKey(userId, conversationId));
     this.deleteRequests(userId, conversationId);
     return { messages, memories };
   }
@@ -133,8 +142,12 @@ class JsonBackend extends InMemoryBackend {
     try {
       const raw = JSON.parse(fs.readFileSync(this.filename, 'utf8'));
       this.users = new Map(raw.users || []);
-      this.conversations = new Map(raw.conversations || []);
+      this.conversations = new Map((raw.conversations || []).map(([, item]) => [conversationKey(item.userId, item.id), item]));
       this.messages = raw.messages || [];
+      for (const item of this.messages) {
+        const key = conversationKey(item.userId, item.conversationId);
+        if (!this.conversations.has(key)) this.conversations.set(key, { id: item.conversationId, userId: item.userId, createdAt: item.createdAt, updatedAt: item.createdAt });
+      }
       this.memories = raw.memories || [];
       this.providerMetrics = raw.providerMetrics || [];
       this.requests = new Map(raw.requests || []);
@@ -150,6 +163,7 @@ class JsonBackend extends InMemoryBackend {
   completeRequest(item) { super.completeRequest(item); this.persist(); }
   releaseRequest(item) { super.releaseRequest(item); this.persist(); }
   appendMessage(item) { const result = super.appendMessage(item); this.persist(); return result; }
+  updateFeedback(item) { const result = super.updateFeedback(item); this.persist(); return result; }
   addMemory(item) { const result = super.addMemory(item); this.persist(); return result; }
   markMemoryUsed(id) { super.markMemoryUsed(id); this.persist(); }
   saveProviderMetric(metric) { super.saveProviderMetric(metric); this.persist(); }
@@ -179,6 +193,7 @@ class MemoryStore {
   completeRequest(...args) { return this.backend.completeRequest(...args); }
   releaseRequest(...args) { return this.backend.releaseRequest(...args); }
   appendMessage(...args) { return this.backend.appendMessage(...args); }
+  updateFeedback(...args) { return this.backend.updateFeedback(...args); }
   getRecentMessages(...args) { return this.backend.getRecentMessages(...args); }
   addMemory(...args) { return this.backend.addMemory(...args); }
   listMemories(...args) { return this.backend.listMemories(...args); }

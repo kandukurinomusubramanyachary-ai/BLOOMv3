@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
 import GuidedStrengthScreen from './GuidedStrengthScreen';
+import TrackedStrengthScreen from './TrackedStrengthScreen';
+import { isNativeTrackingEnabled } from './featureFlag';
 import ProductTourTarget from '../../components/productTour/ProductTourTarget';
 import { useProductTour } from '../../components/productTour';
 import { GUIDE_METADATA } from '../../components/productTour/tourSteps';
@@ -11,7 +13,7 @@ export default function StrengthScreen() {
   const promptSummaryGuide = () => startIfNeeded('strengthSummary');
   return (
     <ProductTourTarget id='strength'>
-      <GuidedStrengthScreen TourTarget={ProductTourTarget} onWorkoutStart={promptWorkoutGuide} onSummaryShown={promptSummaryGuide} guideHint={GUIDE_METADATA[pendingReplay?.tourId]?.contextHint} />
+      <GuidedStrengthScreen TrackedPlayer={isNativeTrackingEnabled() ? TrackedStrengthScreen : undefined} TourTarget={ProductTourTarget} onWorkoutStart={promptWorkoutGuide} onSummaryShown={promptSummaryGuide} guideHint={GUIDE_METADATA[pendingReplay?.tourId]?.contextHint} />
     </ProductTourTarget>
   );
 }

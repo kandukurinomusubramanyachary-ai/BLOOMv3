@@ -1,3 +1,6 @@
+// Model: private users/{uid} documents and owner subcollections use the validX
+// validators below. accountDeletions/{uid} contains only immutable requestedAt
+// (timestamp). It permits cleanup reads/deletes but prevents private recreation.
 rules_version = '2';
 
 service cloud.firestore {
@@ -37,6 +40,24 @@ service cloud.firestore {
 
     function isOwner(uid) {
       return request.auth != null && request.auth.uid == uid;
+    }
+
+    // Minimal deletion receipts prevent stale sessions from recreating erased data.
+    function isActiveOwner(uid) {
+      return isOwner(uid) && !exists(/databases/$(database)/documents/accountDeletions/$(uid));
+    }
+
+    function validDeletionReceipt(data) {
+      return data.keys().hasOnly(['requestedAt']) && data.keys().hasAll(['requestedAt'])
+        && data.requestedAt is timestamp && data.requestedAt == request.time;
+    }
+
+    match /accountDeletions/{uid} {
+      allow get: if isOwner(uid);
+      allow create: if isOwner(uid) && validDeletionReceipt(request.resource.data)
+        && request.auth.token.auth_time is int
+        && request.auth.token.auth_time > request.time.toMillis() / 1000 - 300;
+      allow list, update, delete: if false;
     }
 
     function isDate(value) {
@@ -348,70 +369,70 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read, delete: if isOwner(uid);
-      allow create: if isOwner(uid) && validUserProfile(request.resource.data);
-      allow update: if isOwner(uid)
+      allow create: if isActiveOwner(uid) && validUserProfile(request.resource.data);
+      allow update: if isActiveOwner(uid)
         && validUserProfile(request.resource.data)
         && (!('createdAt' in resource.data)
           || request.resource.data.createdAt == resource.data.createdAt);
 
       match /cycleLogs/{logId} {
         allow read, delete: if isOwner(uid);
-        allow create, update: if isOwner(uid)
+        allow create, update: if isActiveOwner(uid)
           && request.resource.data.startDate == logId
           && validCycleLog(request.resource.data);
       }
 
       match /checkIns/{checkInId} {
         allow read, delete: if isOwner(uid);
-        allow create, update: if isOwner(uid)
+        allow create, update: if isActiveOwner(uid)
           && request.resource.data.date == checkInId
           && validCheckIn(request.resource.data);
       }
 
       match /dietProfile/{profileId} {
         allow read, delete: if isOwner(uid);
-        allow create, update: if isOwner(uid)
+        allow create, update: if isActiveOwner(uid)
           && profileId == 'main'
           && validDietProfile(request.resource.data);
       }
 
       match /mealLogs/{mealId} {
         allow read, delete: if isOwner(uid);
-        allow create, update: if isOwner(uid)
+        allow create, update: if isActiveOwner(uid)
           && request.resource.data.id == mealId
           && validMealLog(request.resource.data);
       }
 
       match /mealReflections/{reflectionId} {
         allow read, delete: if isOwner(uid);
-        allow create, update: if isOwner(uid)
+        allow create, update: if isActiveOwner(uid)
           && request.resource.data.mealId == reflectionId
           && validMealReflection(request.resource.data);
       }
 
       match /dietObservations/{observationId} {
         allow read, delete: if isOwner(uid);
-        allow create, update: if isOwner(uid)
+        allow create, update: if isActiveOwner(uid)
           && request.resource.data.id == observationId
           && validDietObservation(request.resource.data);
       }
 
       match /strengthSessions/{sessionId} {
         allow read, delete: if isOwner(uid);
-        allow create, update: if isOwner(uid)
+        allow create, update: if isActiveOwner(uid)
           && request.resource.data.id == sessionId
           && validStrengthSession(request.resource.data);
       }
 
       match /megConversations/{conversationId} {
         allow read, delete: if isOwner(uid);
-        allow create, update: if isOwner(uid)
+        allow create, update: if isActiveOwner(uid)
           && validMegConversation(request.resource.data);
 
         match /messages/{messageId} {
           allow read, delete: if isOwner(uid);
-          allow create: if isOwner(uid) && validMegMessage(request.resource.data);
-          allow update: if isOwner(uid)
+          allow create: if isActiveOwner(uid) && validMegMessage(request.resource.data);
+          allow update: if isActiveOwner(uid)
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['feedback'])
             && validMegMessage(request.resource.data);
         }

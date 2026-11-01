@@ -6,6 +6,7 @@ const { chromium } = require('playwright');
 const origin = process.env.BLOOM_TEST_URL || 'http://localhost:8091';
 const output = path.join(__dirname, '..', '.expo', 'onboarding-review');
 const tourOnly = process.argv.includes('--tour-only');
+const firebaseQa = process.argv.includes('--firebase') ? require('./firebase-browser-qa.cjs').createFirebaseBrowserQa() : null;
 const viewports = [
   { name: '320x568', width: 320, height: 568 },
   { name: '375x667', width: 375, height: 667 },
@@ -52,8 +53,10 @@ async function completeOnboarding(page, name) {
 }
 
 (async () => {
+  await require('./browser-qa.cjs').waitForLocalApp(origin);
   await fs.mkdir(output, { recursive: true });
-  const browser = await chromium.launch({ channel: process.env.BLOOM_BROWSER_CHANNEL || 'msedge', headless: true });
+  const browserServer = await chromium.launchServer({ channel: process.env.BLOOM_BROWSER_CHANNEL || 'msedge', headless: true });
+  const browser = await chromium.connect(browserServer.wsEndpoint());
   try {
     for (const viewport of tourOnly ? [] : viewports) {
       const context = await browser.newContext({ viewport, reducedMotion: 'reduce' });
@@ -74,7 +77,7 @@ async function completeOnboarding(page, name) {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
     const page = await context.newPage();
     await page.goto(origin, { waitUntil: 'domcontentloaded', timeout: 120000 });
-    await enterOnboarding(page);
+    if(firebaseQa) await firebaseQa.signup(page); else await enterOnboarding(page);
     await completeOnboarding(page, 'tour');
     await page.getByRole('button', { name: 'Continue to Bloom home' }).click();
     await page.getByText('Want a quick tour of Bloom?', { exact: true }).waitFor();
@@ -119,6 +122,7 @@ async function completeOnboarding(page, name) {
     console.log('PASS context-dependent Strength guide waits for the real player target');
     await context.close();
   } finally {
-    await browser.close();
+    try { await browserServer.kill(); }
+    finally { if(firebaseQa) await firebaseQa.cleanup(); }
   }
-})().catch(error => { console.error(error); process.exitCode = 1; });
+})().catch(error => { console.error(firebaseQa ? String(error.message).replaceAll(firebaseQa.account.password, '[redacted]').replaceAll(firebaseQa.account.email, '[redacted]') : error); process.exitCode = 1; });

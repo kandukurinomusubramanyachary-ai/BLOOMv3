@@ -1,0 +1,7 @@
+{
+  "name": "bloom-pose",
+  "version": "0.1.0",
+  "description": "Private on-device Bloom pose camera",
+  "main": "index.js",
+  "license": "UNLICENSED"
+}

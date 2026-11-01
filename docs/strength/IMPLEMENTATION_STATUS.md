@@ -1,3 +1,5 @@
+> Historical record. The final hardening branch adds gated native pose tracking and newer build metadata. Use [PR #13](https://github.com/kandukurinomusubramanyachary-ai/BLOOMv3/pull/13) and `docs/FINAL_RELEASE_REPORT.md` for current evidence.
+
 # Bloom Strength — Implementation Status
 
 > Historical implementation snapshot. See the [2026-09-20 launch review](../LAUNCH_REVIEW_2026-09-20.md)

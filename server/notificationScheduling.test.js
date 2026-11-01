@@ -5,8 +5,13 @@ const babel = require('@babel/core');
 
 function fixture(platform) {
   const scheduled = [];
+  const permissionCalls = [];
   let handler;
   const api = {
+    AndroidImportance: { LOW: 'low' },
+    setNotificationChannelAsync: async () => { permissionCalls.push('channel'); },
+    getPermissionsAsync: async () => { permissionCalls.push('status'); return { status: 'undetermined', granted: false, canAskAgain: true }; },
+    requestPermissionsAsync: async () => { permissionCalls.push('request'); return { status: 'granted', granted: true }; },
     SchedulableTriggerInputTypes: { DAILY: 'daily', WEEKLY: 'weekly', DATE: 'date' },
     AndroidNotificationPriority: { LOW: 'low', DEFAULT: 'default' },
     setNotificationHandler: value => { handler = value; },
@@ -22,7 +27,7 @@ function fixture(platform) {
     if (name === 'react-native') return { Platform: { OS: platform } };
     return require(name);
   }, mod, mod.exports);
-  return { service: mod.exports.notifications, scheduled, get handler() { return handler; } };
+  return { service: mod.exports.notifications, scheduled, permissionCalls, get handler() { return handler; } };
 }
 
 test('daily and weekly reminders use the typed native scheduling API on Android and iOS', async () => {
@@ -48,3 +53,7 @@ test('one-time reminders use a future date and invalid reminder times are reject
   assert.ok(f.scheduled[0].trigger.date.getTime() > Date.now());
   await assert.rejects(f.service.scheduleDailyReminder({ hour: 25, minute: 0 }), /invalid/);
 });
+
+test('daily wall-clock and weekly weekday fields are unchanged across India, DST and UTC timezones',async()=>{const previous=process.env.TZ;try{for(const tz of ['Asia/Kolkata','America/New_York','UTC']){process.env.TZ=tz;const f=fixture('ios');await f.service.scheduleReminder('daily','Reminder','',8,30);await f.service.scheduleReminder('weekly','Reminder','',9,0,true,1);assert.deepEqual(f.scheduled[0].trigger,{type:'daily',hour:8,minute:30});assert.deepEqual(f.scheduled[1].trigger,{type:'weekly',weekday:1,hour:9,minute:0});}}finally{if(previous===undefined)delete process.env.TZ;else process.env.TZ=previous;}});
+
+test('Android creates its channel before the first notification permission request',async()=>{const f=fixture('android');assert.equal((await f.service.requestPermission()).granted,true);assert.deepEqual(f.permissionCalls,['channel','status','request']);const ios=fixture('ios');await ios.service.requestPermission();assert.deepEqual(ios.permissionCalls,['status','request']);});
