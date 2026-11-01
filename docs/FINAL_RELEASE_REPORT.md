@@ -5,7 +5,7 @@ Public release is blocked. This branch prepares a private test candidate and rev
 Repository: https://github.com/kandukurinomusubramanyachary-ai/BLOOMv3  
 Review PR: https://github.com/kandukurinomusubramanyachary-ai/BLOOMv3/pull/13  
 Integration branch: `fix/bloom-final-production-hardening`  
-Application baseline for the report: `0471137523b2d0ded4f9d42677382060264dbba3`. The final report commit changes documentation only. The PR description and build records give the exact validated final head and artifact SHA; an intermediate artifact must not be substituted.
+Engineering code baseline for this report: `55c1cc750ace111b6d61ef8ded64b39136acf716`, including the production container packaging fix. The final report commit changes documentation only. The PR description and build records give the exact validated final head and artifact SHA; an intermediate artifact must not be substituted.
 
 ## Milestones
 
@@ -26,7 +26,7 @@ Application baseline for the report: `0471137523b2d0ded4f9d42677382060264dbba3`.
 
 - **30 concrete fixes**, listed with regressions in [FINAL_ISSUE_LEDGER.md](FINAL_ISSUE_LEDGER.md). Native tracking is an additional gated capability, not a claim of verified physical accuracy.
 - **426 Bloom tests +50 Meg tests +16 Firestore rule tests =492 passing test cases, zero final failures.** The starting PR12 baseline had430 cases; the net increase is62. The six-stage SDK account driver and browser flows are additional integration evidence.
-- Clean Node22/npm10 root and engine installs passed. Doctor21/21, typecheck, native configuration and web export passed. CI also builds/smokes the production container with fail-closed readiness.
+- Clean Node22/npm10 root and engine installs passed. Doctor21/21, typecheck, native configuration and web export passed. CI also builds/smokes the production container with fail-closed readiness. Its image now copies the shared contract explicitly and loads the packaged server dependency graph at build time.
 - Benchmark:200 deterministic cases, route accuracy100%, intent accuracy93.5%, safety routing20/20. This is a routing benchmark, not a medical or production-readiness score.
 - Browser evidence: synthetic401/429/500/503, stable retry IDs, offline queue/reload, legal routes, visible export failure, logout/reset navigation; six responsive viewports; Strength framing/overlay/rotation/speech controls/pause/guided/cleanup; actual disposable Firebase signup, onboarding persistence, overview and contextual tours. Browser fixtures do not certify real camera accuracy or audible phone speech.
 - Runtime dependency audit:0 high/0 critical,17 moderate/1 low. Full root tree including tools:0 high/0 critical,26 moderate/1 low. Standalone Meg tree:0 vulnerabilities. [Dependency review](DEPENDENCY_SECURITY_REVIEW.md) documents retained upstream compatibility risks; this is not a claim of zero vulnerabilities in all SDKs.
@@ -66,4 +66,4 @@ The isolated synthetic development app runs at **http://localhost:8085** with lo
 
 ## Changed files
 
-The application integration changes122 files relative to the preserved PR12 head, before this report and final documentation index. The exact reviewed diff and file list are available in PR13. Primary areas: Meg server/client/SQLite/providers; Expo package lockfiles; Auth/App contexts and Firestore rules; app-lock lifecycle; native pose module/session/UI; notification coordinator; seven legal drafts/publication gates; regression scripts/tests and release documentation. No credentials, environment files, QA cleanup journals or health records are included in the commit.
+The integration changes126 files relative to the preserved PR12 head, including this report and the [complete file index](FINAL_CHANGED_FILES.md). The exact reviewed diff and file list are also available in PR13. Primary areas: Meg server/client/SQLite/providers; Expo package lockfiles; Auth/App contexts and Firestore rules; app-lock lifecycle; native pose module/session/UI; notification coordinator; seven legal drafts/publication gates; regression scripts/tests and release documentation. No credentials, environment files, QA cleanup journals or health records are included in the commit.

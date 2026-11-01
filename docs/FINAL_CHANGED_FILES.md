@@ -1,12 +1,14 @@
 # Changed files
 
-124 files relative to the preserved PR12 head (01a40510ae706424aebd2155878f7cd39b30db3f), including the final report and this index. The PR diff against main also includes the preserved PR12 changes.
+126 files relative to the preserved PR12 head (01a40510ae706424aebd2155878f7cd39b30db3f), including the final report and this index. The PR diff against main also includes the preserved PR12 changes.
 
 ```text
+.dockerignore
 .env.example
 .github/workflows/native-build.yml
 .github/workflows/verify.yml
 App.js
+Dockerfile
 app.json
 config/legal-publication.json
 docs/BETA_INSTALLATION.md
