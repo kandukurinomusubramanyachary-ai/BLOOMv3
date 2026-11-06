@@ -85,3 +85,21 @@ test('Meg delivery status changes only the selected user message', () => {
   assert.equal(failed[0].deliveryStatus, 'failed');
   assert.deepEqual(failed[1], messages[1]);
 });
+
+test('Meg history merge preserves local reply feedback when remote omits it', () => {
+  const merged = queue.mergeMegConversations(
+    [{ id: 'chat', updatedAt: '2026-10-02T10:00:00Z',
+      messages: [{ id: 'reply', role: 'assistant', text: 'A response', feedback: 'helpful' }] }],
+    [{ id: 'chat', updatedAt: '2026-10-02T11:00:00Z',
+      messages: [{ id: 'reply', role: 'assistant', text: 'A response', feedback: null }] }]
+  );
+  assert.equal(merged[0].messages[0].feedback, 'helpful');
+});
+
+
+test('newer explicit remote feedback removal and newer local ratings survive history merge', () => {
+  const local = [{ id: 'chat', messages: [{ id: 'reply', feedback: 'helpful', feedbackUpdatedAt: '2026-11-01T10:00:00Z' }] }];
+  const remote = [{ id: 'chat', messages: [{ id: 'reply', feedback: null, feedbackUpdatedAt: '2026-11-01T10:01:00Z' }] }];
+  assert.equal(queue.mergeMegConversations(local, remote)[0].messages[0].feedback, null);
+  assert.equal(queue.mergeMegConversations(remote, local)[0].messages[0].feedback, null);
+});

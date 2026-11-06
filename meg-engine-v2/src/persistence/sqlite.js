@@ -36,7 +36,7 @@ class SQLiteStore {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS conversations (
-        id TEXT PRIMARY KEY, user_id TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        id TEXT NOT NULL, user_id TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY (user_id, id)
       );
       CREATE TABLE IF NOT EXISTS messages (
         id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, user_id TEXT NOT NULL,
@@ -65,8 +65,28 @@ class SQLiteStore {
   }
 
   migrate() {
+    const conversationColumns = this.db.prepare('PRAGMA table_info(conversations)').all();
+    if (conversationColumns.filter(column => column.pk > 0).length === 1) {
+      this.db.transaction(() => {
+        this.db.exec(`CREATE TABLE conversations_scoped_v2 (
+          id TEXT NOT NULL, user_id TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+          PRIMARY KEY (user_id, id));
+          INSERT INTO conversations_scoped_v2 SELECT id, user_id, created_at, updated_at FROM conversations;
+          DROP TABLE conversations;
+          ALTER TABLE conversations_scoped_v2 RENAME TO conversations;`);
+      })();
+    }
+    // Recover owner metadata for messages whose conversation ID collided in the old schema.
+    this.db.exec(`INSERT OR IGNORE INTO conversations (id, user_id, created_at, updated_at)
+      SELECT conversation_id, user_id, MIN(created_at), MAX(created_at) FROM messages
+      GROUP BY user_id, conversation_id;
+      CREATE INDEX IF NOT EXISTS messages_user_conversation_idx ON messages(user_id, conversation_id, created_at);`);
     const columns = new Set(this.db.prepare('PRAGMA table_info(messages)').all().map((row) => row.name));
     if (!columns.has('client_message_id')) this.db.exec('ALTER TABLE messages ADD COLUMN client_message_id TEXT');
+    if (!columns.has('safety')) this.db.exec('ALTER TABLE messages ADD COLUMN safety TEXT');
+    if (!columns.has('urgent')) this.db.exec('ALTER TABLE messages ADD COLUMN urgent INTEGER NOT NULL DEFAULT 0');
+    if (!columns.has('feedback')) this.db.exec('ALTER TABLE messages ADD COLUMN feedback TEXT');
+    if (!columns.has('feedback_updated_at')) this.db.exec('ALTER TABLE messages ADD COLUMN feedback_updated_at TEXT');
     this.db.exec('CREATE INDEX IF NOT EXISTS messages_client_id_idx ON messages(user_id, conversation_id, client_message_id)');
     this.db.transaction(() => {
       this.db.exec(`DELETE FROM messages
@@ -79,6 +99,20 @@ class SQLiteStore {
         ON messages(user_id, conversation_id, client_message_id)
         WHERE role = 'user' AND client_message_id IS NOT NULL`);
     })();
+    const repairReplay = this.db.transaction(() => {
+      for (const row of this.db.prepare("SELECT * FROM request_dedup WHERE status = 'done'").all()) {
+        let metadata;
+        try { metadata = JSON.parse(row.response_meta || '{}'); } catch { continue; }
+        if (metadata.messageId !== row.message_id) continue;
+        const answer = this.db.prepare(`SELECT id FROM messages WHERE user_id = ? AND conversation_id = ?
+          AND role = 'assistant' AND content = ? AND created_at <= ? ORDER BY created_at DESC, rowid DESC LIMIT 1`)
+          .get(row.user_id, row.conversation_id, row.response_text, row.updated_at);
+        if (!answer) continue;
+        this.db.prepare('UPDATE request_dedup SET response_meta = ? WHERE user_id = ? AND conversation_id = ? AND message_id = ?')
+          .run(JSON.stringify({ ...metadata, messageId: answer.id }), row.user_id, row.conversation_id, row.message_id);
+      }
+    });
+    repairReplay();
     const metricColumns = new Set(this.db.prepare('PRAGMA table_info(provider_metrics)').all().map((row) => row.name));
     for (const [name, type] of Object.entries(METRIC_COLUMNS)) {
       if (!metricColumns.has(name)) this.db.exec(`ALTER TABLE provider_metrics ADD COLUMN ${name} ${type}`);
@@ -94,8 +128,7 @@ class SQLiteStore {
     this.ensureUser(userId);
     const now = new Date().toISOString();
     this.db.prepare(`INSERT INTO conversations (id, user_id, created_at, updated_at) VALUES (?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET updated_at = excluded.updated_at
-      WHERE conversations.user_id = excluded.user_id`).run(conversationId, userId, now, now);
+      ON CONFLICT(user_id, id) DO UPDATE SET updated_at = excluded.updated_at`).run(conversationId, userId, now, now);
   }
 
   beginRequest({ userId, conversationId, messageId, requestHash, staleAfterMs = 120000 }) {
@@ -128,7 +161,7 @@ class SQLiteStore {
       AND request_hash = ? AND status = 'in_progress'`).run(userId, conversationId, messageId, requestHash);
   }
 
-  appendMessage({ userId, conversationId, role, content, clientMessageId }) {
+  appendMessage({ userId, conversationId, role, content, clientMessageId, safety = null, urgent = false }) {
     this.ensureConversation(userId, conversationId);
     const text = String(content);
     const item = { id: randomUUID(), createdAt: new Date().toISOString() };
@@ -150,14 +183,23 @@ class SQLiteStore {
     this.db.prepare(`INSERT INTO messages
       (id, conversation_id, user_id, role, content, client_message_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
       .run(item.id, conversationId, userId, role, text, clientMessageId || null, item.createdAt);
+    if (safety || urgent) this.db.prepare('UPDATE messages SET safety = ?, urgent = ? WHERE id = ?').run(safety, urgent ? 1 : 0, item.id);
     return { ...item, userId, conversationId, role, content: text, clientMessageId: clientMessageId || null };
   }
 
   getRecentMessages({ userId, conversationId, limit = 8 }) {
     return this.db.prepare(`SELECT id, user_id AS userId, conversation_id AS conversationId, role, content,
       client_message_id AS clientMessageId, created_at AS createdAt FROM messages
-      WHERE user_id = ? AND conversation_id = ? ORDER BY created_at DESC LIMIT ?`)
+      WHERE user_id = ? AND conversation_id = ? ORDER BY created_at DESC, rowid DESC LIMIT ?`)
       .all(userId, conversationId, limit).reverse();
+  }
+
+  updateFeedback({ userId, conversationId, messageId, feedback }) {
+    const updatedAt = new Date().toISOString();
+    const result = this.db.prepare(`UPDATE messages SET feedback = ?, feedback_updated_at = ?
+      WHERE user_id = ? AND conversation_id = ? AND id = ? AND role = 'assistant'`)
+      .run(feedback, updatedAt, userId, conversationId, messageId);
+    return result.changes ? { feedback, feedbackUpdatedAt: updatedAt } : null;
   }
 
   addMemory({ userId, conversationId, layer, content, tags = [], importance = 0.5 }) {
@@ -215,7 +257,7 @@ class SQLiteStore {
     return {
       user: this.db.prepare('SELECT * FROM users WHERE id = ?').get(userId) || null,
       conversations: this.db.prepare('SELECT * FROM conversations WHERE user_id = ?').all(userId),
-      messages: this.db.prepare('SELECT * FROM messages WHERE user_id = ? ORDER BY created_at').all(userId),
+      messages: this.db.prepare('SELECT * FROM messages WHERE user_id = ? ORDER BY created_at, rowid').all(userId),
       memories: this.db.prepare('SELECT * FROM memories WHERE user_id = ?').all(userId),
       requests: this.db.prepare('SELECT * FROM request_dedup WHERE user_id = ?').all(userId),
     };

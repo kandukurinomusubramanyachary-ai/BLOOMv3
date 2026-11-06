@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   Platform,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -11,6 +11,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../components/Icon';
 import { format, isValid, parseISO, subDays } from 'date-fns';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { storage } from '../services/storage';
+const accountWork = require('../services/accountWork');
 import { COLORS, createThemedStyles, ELEVATION, LAYOUT } from '../utils/constants';
 import {
   buildDoctorReport,
@@ -147,6 +150,40 @@ function EmptyPreview({ children }) {
 
 export default function DoctorReportScreen({ navigation }) {
   const { state, saveDoctorReportSettings } = useApp();
+  const { user } = useAuth();
+  const uid = user?.uid || null;
+  const [strengthHistory, setStrengthHistory] = useState({
+    uid: null, loading: true, records: [], error: false,
+  });
+
+  // Read only this account's local Strength history each time the report opens.
+  // Discard results after sign-out, account switch or screen blur.
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    if (!uid) {
+      setStrengthHistory({ uid: null, loading: false, records: [], error: true });
+      return () => { active = false; };
+    }
+    const epoch = accountWork.epoch(uid);
+    setStrengthHistory({ uid, loading: true, records: [], error: false });
+    storage.forUser(uid).getStrengthSessions()
+      .then((records) => {
+        if (active && accountWork.isCurrent(uid, epoch)) {
+          setStrengthHistory({
+            uid, loading: false, records: Array.isArray(records) ? records : [], error: false,
+          });
+        }
+      })
+      .catch(() => {
+        if (active && accountWork.isCurrent(uid, epoch)) {
+          setStrengthHistory({ uid, loading: false, records: [], error: true });
+        }
+      });
+    return () => { active = false; };
+  }, [uid]));
+
+  const strengthHistoryReady = Boolean(uid) && strengthHistory.uid === uid
+    && !strengthHistory.loading && !strengthHistory.error;
   const storedSettings = state.doctorReportSettings || state.settings?.doctorReport;
   const savedSettings = storedSettings && typeof storedSettings === 'object' && !Array.isArray(storedSettings)
     ? storedSettings
@@ -173,13 +210,16 @@ export default function DoctorReportScreen({ navigation }) {
   }), [settings]);
 
   const report = useMemo(() => {
-    const nextReport = buildDoctorReport(state, effectiveSettings);
+    const nextReport = buildDoctorReport({
+      ...state,
+      strengthSessions: strengthHistoryReady ? strengthHistory.records : [],
+    }, effectiveSettings);
     return {
       ...nextReport,
       concerns: effectiveSettings.includeEmotionalNotes ? (nextReport.concerns || []) : [],
       megIncluded: false,
     };
-  }, [state, effectiveSettings]);
+  }, [state, effectiveSettings, strengthHistoryReady, strengthHistory.records]);
 
   const reportText = useMemo(() => doctorReportToText(report), [report]);
   const reportLineCount = reportText.split('\n').filter((line) => line.trim()).length;
@@ -193,6 +233,14 @@ export default function DoctorReportScreen({ navigation }) {
 
   async function runAction(action) {
     if (isBusy) return;
+    if (action !== 'save' && effectiveSettings.includeLifestyle && !strengthHistoryReady) {
+      setError(strengthHistory.error
+        ? 'Saved Strength history could not be loaded. Reopen Reports and try again.'
+        : 'Saved Strength history is still loading. Please try again.');
+      return;
+    }
+    const owner = uid;
+    const epoch = uid ? accountWork.epoch(uid) : null;
     setBusyAction(action);
     setError('');
     setSuccess('');
@@ -202,6 +250,9 @@ export default function DoctorReportScreen({ navigation }) {
         throw new Error('Doctor report settings are unavailable.');
       }
       await saveDoctorReportSettings(effectiveSettings);
+      if (!owner || !accountWork.isCurrent(owner, epoch)) {
+        throw new Error('The signed-in account changed during report preparation.');
+      }
 
       if (action === 'pdf') {
         await exportService.exportDoctorReportPDF(report);
@@ -404,6 +455,13 @@ export default function DoctorReportScreen({ navigation }) {
             </View>
           </View>
 
+          {effectiveSettings.includeLifestyle && !strengthHistoryReady ? (
+            <Text style={styles.previewMeta} accessibilityRole='alert'>
+              {strengthHistory.error
+                ? 'Saved Strength history could not be loaded. Exports containing movement are unavailable until it reloads.'
+                : 'Loading saved Strength sessions before preparing your movement summary...'}
+            </Text>
+          ) : null}
           <Card style={styles.reportPaper}>
             <View style={styles.reportHeading}>
               <Text style={styles.reportKicker}>Bloom health record</Text>
@@ -520,7 +578,9 @@ export default function DoctorReportScreen({ navigation }) {
                 <>
                   <PreviewRow label='Activities logged' value={String(report.movement.entries)} />
                   <PreviewRow label='Completed' value={String(report.movement.completed)} />
-                  <PreviewRow label='Partially completed' value={String(report.movement.partial)} last />
+                  <PreviewRow label='Partially completed' value={String(report.movement.partial)} />
+                  <PreviewRow label='Timer-paced Strength sessions' value={String(report.movement.guidedSessions || 0)} />
+                  <PreviewRow label='Camera-guided Strength sessions' value={String(report.movement.cameraGuidedSessions || 0)} last />
                 </>
               ) : (
                 <EmptyPreview>No movement entries fall within this date range.</EmptyPreview>
@@ -609,14 +669,14 @@ export default function DoctorReportScreen({ navigation }) {
               title={busyAction === 'pdf' ? 'Preparing PDF...' : 'Export as PDF'}
               icon='document-outline'
               onPress={() => runAction('pdf')}
-              disabled={isBusy}
+              disabled={isBusy || (effectiveSettings.includeLifestyle && !strengthHistoryReady)}
             />
             <Button
               title={busyAction === 'text' ? 'Preparing readable report...' : 'Export readable report'}
               icon='document-text-outline'
               variant='secondary'
               onPress={() => runAction('text')}
-              disabled={isBusy}
+              disabled={isBusy || (effectiveSettings.includeLifestyle && !strengthHistoryReady)}
               style={styles.secondaryExport}
             />
             <Button
@@ -624,7 +684,7 @@ export default function DoctorReportScreen({ navigation }) {
               icon='code-slash-outline'
               variant='secondary'
               onPress={() => runAction('json')}
-              disabled={isBusy}
+              disabled={isBusy || (effectiveSettings.includeLifestyle && !strengthHistoryReady)}
               style={styles.secondaryExport}
             />
             <Text style={styles.exportPrivacy}>

@@ -3,10 +3,6 @@ import Constants from 'expo-constants';
 import { swiggyProvider } from './providers/swiggyProvider';
 import { trackFoodDeliveryEvent } from './foodDeliveryAnalytics';
 
-const CACHE_TTL_MS = 2 * 60 * 1000;
-const cache = new Map();
-const inFlight = new Map();
-
 function cleanText(value, maxLength = 160) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
 }
@@ -67,7 +63,6 @@ export async function searchFoodAvailability({
   useSavedAddress = false,
   provider = swiggyProvider,
   signal,
-  now = Date.now,
 } = {}) {
   const normalizedQuery = cleanText(query, 120).toLowerCase();
   if (!normalizedQuery) return { state: 'no-results', provider: 'swiggy', results: [] };
@@ -75,50 +70,33 @@ export async function searchFoodAvailability({
     return { state: 'provider-unavailable', provider: 'swiggy', results: [] };
   }
 
-  const cacheKey = `${provider.id || 'swiggy'}:${normalizedQuery}:${useSavedAddress ? 'saved' : 'unconfirmed'}`;
-  const cached = cache.get(cacheKey);
-  if (cached && now() - cached.createdAt < CACHE_TTL_MS) return cached.value;
-  if (inFlight.has(cacheKey)) return inFlight.get(cacheKey);
-
-  const request = (async () => {
-    trackFoodDeliveryEvent('food_availability_search_started', analyticsProperties(foodId));
-    try {
-      const response = await provider.search({
-        query: normalizedQuery,
-        useSavedAddress: useSavedAddress === true,
-        signal,
-      });
-      if (response?.state === 'provider-unavailable' || response?.state === 'location-required') {
-        return { state: response.state, provider: 'swiggy', results: [] };
-      }
-
-      const results = (Array.isArray(response?.results) ? response.results : [])
-        .map(normalizeSwiggyResult)
-        .filter(Boolean)
-        .slice(0, 3);
-      const value = results.length
-        ? { state: 'results', provider: 'swiggy', results }
-        : { state: 'no-results', provider: 'swiggy', results: [] };
-      cache.set(cacheKey, { createdAt: now(), value });
-      trackFoodDeliveryEvent(
-        results.length ? 'food_availability_search_succeeded' : 'food_availability_search_empty',
-        analyticsProperties(foodId, { resultCount: results.length })
-      );
-      return value;
-    } catch (error) {
-      if (error?.name === 'AbortError') throw error;
-      trackFoodDeliveryEvent('food_availability_search_failed', analyticsProperties(foodId));
-      return { state: 'network-error', provider: 'swiggy', results: [] };
-    } finally {
-      inFlight.delete(cacheKey);
+  // Delivery location and cancellation belong to this caller, never a shared cache.
+  trackFoodDeliveryEvent('food_availability_search_started', analyticsProperties(foodId));
+  try {
+    const response = await provider.search({
+      query: normalizedQuery,
+      useSavedAddress: useSavedAddress === true,
+      signal,
+    });
+    if (response?.state === 'provider-unavailable' || response?.state === 'location-required') {
+      return { state: response.state, provider: 'swiggy', results: [] };
     }
-  })();
 
-  inFlight.set(cacheKey, request);
-  return request;
-}
-
-export function clearFoodAvailabilityCache() {
-  cache.clear();
-  inFlight.clear();
+    const results = (Array.isArray(response?.results) ? response.results : [])
+      .map(normalizeSwiggyResult)
+      .filter(Boolean)
+      .slice(0, 3);
+    const value = results.length
+      ? { state: 'results', provider: 'swiggy', results }
+      : { state: 'no-results', provider: 'swiggy', results: [] };
+    trackFoodDeliveryEvent(
+      results.length ? 'food_availability_search_succeeded' : 'food_availability_search_empty',
+      analyticsProperties(foodId, { resultCount: results.length })
+    );
+    return value;
+  } catch (error) {
+    if (error?.name === 'AbortError') throw error;
+    trackFoodDeliveryEvent('food_availability_search_failed', analyticsProperties(foodId));
+    return { state: 'network-error', provider: 'swiggy', results: [] };
+  }
 }

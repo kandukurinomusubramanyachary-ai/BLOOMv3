@@ -37,6 +37,18 @@ export function buildDoctorReport(state, options = {}) {
   const periods = (state.periods || []).filter((item) => inRange(item.startDate, startDate, endDate));
   const meals = (state.meals || []).filter((item) => inRange(item.date, startDate, endDate));
   const movements = (state.movements || []).filter((item) => inRange(item.date, startDate, endDate));
+  // Strength writes to UID-scoped device history rather than the legacy movement list.
+  // The screen must load the current account's sessions before providing them here.
+  const seenMovementIds = new Set(movements.map((item) => item.id).filter(Boolean));
+  const strengthSessions = (Array.isArray(state.strengthSessions) ? state.strengthSessions : [])
+    .filter((item) => {
+      if (!item || typeof item.id !== 'string' || typeof item.completedAt !== 'string') return false;
+      const date = item.completedAt.slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !inRange(date, startDate, endDate)) return false;
+      if (seenMovementIds.has(item.id)) return false;
+      seenMovementIds.add(item.id);
+      return true;
+    });
   const medications = (state.medications || []).filter((item) => inRange(item.date, startDate, endDate));
 
   const orderedPeriods = [...periods].sort((a, b) => a.startDate.localeCompare(b.startDate));
@@ -89,9 +101,13 @@ export function buildDoctorReport(state, options = {}) {
       produceIncluded: meals.filter((item) => item.produce).length,
     } : null,
     movement: settings.includeLifestyle ? {
-      entries: movements.length,
-      completed: movements.filter((item) => item.status === 'completed').length,
-      partial: movements.filter((item) => item.status === 'partial').length,
+      entries: movements.length + strengthSessions.length,
+      completed: movements.filter((item) => item.status === 'completed').length
+        + strengthSessions.filter((item) => item.completionState === 'completed').length,
+      partial: movements.filter((item) => item.status === 'partial').length
+        + strengthSessions.filter((item) => ['stopped', 'abandoned'].includes(item.completionState)).length,
+      guidedSessions: strengthSessions.filter((item) => item.sessionMode !== 'pose').length,
+      cameraGuidedSessions: strengthSessions.filter((item) => item.sessionMode === 'pose').length,
     } : null,
     medications: settings.includeMedicines ? [...medications, ...medicationFromCheckins] : [],
     concerns: settings.includeEmotionalNotes
@@ -131,7 +147,13 @@ export function doctorReportToText(report) {
   }
   if (report.sleep) lines.push(`SLEEP: ${report.sleep.averageHours?.toFixed(1) || 'Not available'} hour average across ${report.sleep.entries} ${report.sleep.entries === 1 ? 'entry' : 'entries'}`, '');
   if (report.meals) lines.push(`FOOD: ${report.meals.entries} meals logged; protein ${report.meals.proteinIncluded}, fibre ${report.meals.fibreIncluded}, fruit or vegetables ${report.meals.produceIncluded}`, '');
-  if (report.movement) lines.push(`MOVEMENT: ${report.movement.entries} entries; ${report.movement.completed} completed, ${report.movement.partial} partial`, '');
+  if (report.movement) {
+    lines.push(`MOVEMENT: ${report.movement.entries} entries; ${report.movement.completed} completed, ${report.movement.partial} partial`);
+    if (report.movement.guidedSessions || report.movement.cameraGuidedSessions) {
+      lines.push(`Strength sessions: ${report.movement.guidedSessions || 0} timer-paced (not measured), ${report.movement.cameraGuidedSessions || 0} camera-guided`);
+    }
+    lines.push('');
+  }
   if (report.moods?.length || report.concerns?.length) {
     lines.push('OPTIONAL MOODS AND NOTES');
     report.moods?.slice(0, 8).forEach((item) => lines.push(`- ${item.name}: ${item.count}`));

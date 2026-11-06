@@ -4,7 +4,7 @@ const PROVIDERS = ['gemini', 'groq', 'openrouter', 'ollama'];
 
 function bool(value, fallback) {
   if (value === undefined || value === '') return fallback;
-  return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
+  return ['1', 'true', 'yes', 'on'].includes(String(value).trim().toLowerCase());
 }
 
 function integer(value, fallback) {
@@ -77,6 +77,7 @@ function loadConfig(env = process.env) {
       DOCTOR: integer(env.SMART_TIMEOUT_MS, 25000),
       LOCAL: integer(env.LOCAL_TIMEOUT_MS, 45000),
     },
+    requestTimeoutMs: Math.max(1000, Math.min(90000, integer(env.MEG_REQUEST_TIMEOUT_MS, 85000))),
     retries: integer(env.PROVIDER_RETRIES, 1),
     retry: {
       baseDelayMs: integer(env.RETRY_BASE_DELAY_MS, 80),
@@ -102,14 +103,14 @@ function loadConfig(env = process.env) {
     },
     providers: {
       gemini: { apiKey: env.GEMINI_API_KEY || '', model: env.GEMINI_MODEL || 'gemini-2.5-flash', baseUrl: env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta' },
-      groq: { apiKey: env.GROQ_API_KEY || '', model: env.GROQ_MODEL || 'llama-3.1-8b-instant' },
+      groq: { apiKey: env.GROQ_API_KEY || '', model: env.GROQ_MODEL || 'openai/gpt-oss-20b' },
       openrouter: {
         apiKey: env.OPENROUTER_API_KEY || '',
         model: env.OPENROUTER_MODEL || 'meta-llama/llama-3.3-8b-instruct:free',
         referer: env.OPENROUTER_REFERER || 'https://bloom.app',
         title: env.OPENROUTER_TITLE || 'Bloom Meg Engine V2',
       },
-      ollama: { url: env.OLLAMA_URL || 'http://localhost:11434', model: env.OLLAMA_MODEL || 'qwen3.5:4b' },
+      ollama: { enabled: localFallbackEnabled, url: env.OLLAMA_URL || 'http://localhost:11434', model: env.OLLAMA_MODEL || 'qwen3.5:4b' },
     },
   };
 }

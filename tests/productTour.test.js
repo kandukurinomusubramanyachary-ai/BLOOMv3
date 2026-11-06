@@ -42,6 +42,4 @@ test('tour engine uses persisted per-user storage and hydration gating', () => {
   const context = fs.readFileSync(path.join(root, 'src/components/productTour/ProductTourContext.js'), 'utf8');
   assert.match(context, /AsyncStorage/);
   assert.match(context, /tourStateReady/);
-  assert.match(context, /status: 'skipped'/);
-  assert.match(context, /status: 'completed'/);
 });

@@ -1,8 +1,8 @@
 const { ProviderError, providerHeaders, assertOk, normalizeError } = require('./provider');
 
 class OllamaProvider {
-  constructor(config = {}) { this.name = 'ollama'; this.url = (config.url || 'http://localhost:11434').replace(/\/$/, ''); this.model = config.model || 'qwen3.5:4b'; }
-  isConfigured() { return Boolean(this.url && this.model); }
+  constructor(config = {}) { this.name = 'ollama'; this.enabled = config.enabled !== false; this.url = (config.url || 'http://localhost:11434').replace(/\/$/, ''); this.model = config.model || 'qwen3.5:4b'; }
+  isConfigured() { return this.enabled && Boolean(this.url && this.model); }
 
   async *stream({ messages, temperature = 0.7, maxTokens = 900, signal }) {
     if (!this.isConfigured()) throw new ProviderError('Ollama is not configured', { provider: this.name, retryable: false, code: 'NOT_CONFIGURED' });

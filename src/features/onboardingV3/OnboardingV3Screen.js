@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect } from 'react';
-import { View, SafeAreaView } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, SafeAreaView, Text } from 'react-native';
 import { useOnboardingState } from './hooks/useOnboardingState';
 import { ONBOARDING_STEPS, TOTAL_INTERACTIVE_STEPS } from './data/options';
 import ProgressBar from './components/ProgressBar';
@@ -16,6 +16,7 @@ import ResultStep from './screens/ResultStep';
 import { COLORS, createThemedStyles } from '../../utils/constants';
 import { useProductTour } from '../../components/productTour';
 import { useAuth } from '../../context/AuthContext';
+import { useApp } from '../../context/AppContext';
 
 /**
  * Self-contained Bloom V3 Onboarding Module Container.
@@ -29,6 +30,9 @@ export default function OnboardingV3Screen({
   onComplete,
 }) {
   const { user } = useAuth();
+  const { saveProfile } = useApp();
+  const [saving, setSaving] = useState(false);
+  const [finishError, setFinishError] = useState('');
   const { requestOverviewInvitation, setRecommendationHandler } = useProductTour();
   const navigateToRecommendation = useCallback((action) => {
     if (!navigation?.navigate) return;
@@ -46,6 +50,7 @@ export default function OnboardingV3Screen({
     goToNextStep,
     goToPrevStep,
     result,
+    discardCompletedDraft,
   } = useOnboardingState({ uid: user?.uid, initialStep });
 
   const handleNextWithAnswers = useCallback(
@@ -60,25 +65,54 @@ export default function OnboardingV3Screen({
     goToNextStep();
   }, [goToNextStep]);
 
-  const handlePrimaryAction = useCallback(
-    (action) => {
+  const completeOnboarding = useCallback(async (action) => {
+    if (saving) return;
+    if (!user?.uid) {
+      setFinishError('Please sign in again to finish setting up Bloom.');
+      return;
+    }
+    setSaving(true);
+    setFinishError('');
+    try {
+      // This must persist before navigation so the onboarding screen is not
+      // shown again on the next login. Do not change the required consent.
+      const record = result.onboardingRecord || {};
+      await saveProfile({
+        onboardingCompleted: true,
+        ...(record.hasExplicitName && record.firstName ? { firstName: record.firstName } : {}),
+      });
+      // The draft contains sensitive self-reported answers and is no longer needed.
+      await discardCompletedDraft();
       if (onComplete) {
-        onComplete(result, action);
-      } else if (navigation?.navigate) {
-        navigateToRecommendation(action);
+        await onComplete(result, action);
+      } else if (navigation?.reset) {
+        requestOverviewInvitation(null);
+        if (action?.route === 'DailyCheckIn') {
+          navigation.reset({ index: 1, routes: [{ name: 'Main' }, { name: 'DailyCheckIn' }] });
+        } else {
+          const screen = ['Meg', 'Strength', 'Diet'].includes(action?.route) ? action.route : null;
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Main', ...(screen ? { params: { screen } } : {}) }],
+          });
+        }
       }
-    },
-    [navigateToRecommendation, navigation, onComplete, result]
+    } catch {
+      setFinishError('Bloom could not finish your setup. Check your connection, then try again.');
+    } finally {
+      setSaving(false);
+    }
+  }, [discardCompletedDraft, navigation, onComplete, requestOverviewInvitation, result, saveProfile, saving, user?.uid]);
+
+  const handlePrimaryAction = useCallback(
+    (action) => { void completeOnboarding(action); },
+    [completeOnboarding]
   );
 
-  const handleFinish = useCallback(() => {
-    if (onComplete) {
-      onComplete(result, null);
-    } else if (navigation?.navigate) {
-      requestOverviewInvitation(null);
-      navigation.navigate('Main');
-    }
-  }, [navigation, onComplete, requestOverviewInvitation, result]);
+  const handleFinish = useCallback(
+    () => { void completeOnboarding(null); },
+    [completeOnboarding]
+  );
 
   if (!isReady) {
     return <View style={styles.container} />;
@@ -173,6 +207,8 @@ export default function OnboardingV3Screen({
               onFinish={handleFinish}
             />
           )}
+          {saving ? <Text style={styles.status} accessibilityRole='status'>Saving your setup...</Text> : null}
+          {finishError ? <Text style={styles.error} accessibilityRole='alert'>{finishError}</Text> : null}
         </View>
       </View>
     </SafeAreaView>
@@ -191,4 +227,6 @@ const styles = createThemedStyles({
   stepContainer: {
     flex: 1,
   },
+  status: { padding: 12, textAlign: 'center', color: COLORS.ink },
+  error: { padding: 12, textAlign: 'center', color: COLORS.ink },
 });

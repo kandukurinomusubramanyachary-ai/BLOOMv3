@@ -3,7 +3,7 @@ import { View, Text, TextInput, Platform, KeyboardAvoidingView, ScrollView } fro
 import Button from '../../../components/Button';
 import { Entrance } from '../../../components/Motion';
 import ReasonCallout from '../components/ReasonCallout';
-import { COLORS, createThemedStyles, LAYOUT, TYPOGRAPHY, WEB_FOCUS } from '../../../utils/constants';
+import { COLORS, createThemedStyles, TYPOGRAPHY, WEB_FOCUS } from '../../../utils/constants';
 
 /**
  * Screen 2 — Name

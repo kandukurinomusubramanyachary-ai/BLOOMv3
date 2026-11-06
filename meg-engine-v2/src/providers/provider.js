@@ -34,10 +34,10 @@ function normalizeError(error, provider, fallbackCode = 'PROVIDER_ERROR') {
 
 async function assertOk(response, provider) {
   if (response.ok) return response;
-  let body = '';
-  try { body = await response.text(); } catch {}
+  // Provider bodies may echo credentials or prompts. Never use them as log codes.
+  try { await response.body?.cancel(); } catch {}
   const { retryable } = classifyStatus(response.status);
-  throw new ProviderError(`${provider} returned HTTP ${response.status}`, { provider, status: response.status, retryable, code: body.slice(0, 160) || 'HTTP_ERROR' });
+  throw new ProviderError(`${provider} returned HTTP ${response.status}`, { provider, status: response.status, retryable, code: `HTTP_${response.status}` });
 }
 
 function parseOpenAiToken(json) {

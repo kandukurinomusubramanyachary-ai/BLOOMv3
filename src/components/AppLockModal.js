@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -17,6 +16,7 @@ import { useApp } from '../context/AppContext';
 import BrandMark from './BrandMark';
 import Button from './Button';
 import { Entrance } from './Motion';
+const { createUnlockAttemptGuard } = require('../services/appLockLifecycle');
 
 export default function AppLockModal({ visible, onUnlock }) {
   const { state } = useApp();
@@ -24,22 +24,39 @@ export default function AppLockModal({ visible, onUnlock }) {
   const [error, setError] = useState('');
   const [inputFocused, setInputFocused] = useState(false);
   const lockType = state.privacy?.appLockType;
+  const attemptGuard = useRef(createUnlockAttemptGuard());
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
-    if (!visible) return;
+    attemptGuard.current.invalidate();
+    setChecking(false);
+    if (!visible) return undefined;
     setPin('');
     setError('');
     setInputFocused(false);
-    if (lockType === 'biometric') attemptBiometric();
+    if (lockType === 'biometric') void attemptBiometric();
+    return () => {
+      attemptGuard.current.invalidate();
+      if (Platform.OS === 'android' && typeof LocalAuthentication.cancelAuthenticate === 'function') {
+        void LocalAuthentication.cancelAuthenticate().catch(() => undefined);
+      }
+    };
   }, [visible, lockType]);
 
   async function attemptBiometric() {
+    if (!visibleRef.current) return;
+    const attempt = attemptGuard.current.begin();
+    if (attempt === null) return;
+    setChecking(true);
     setError('');
     try {
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Unlock Bloom',
         fallbackLabel: 'Use device passcode',
       });
+      if (!visibleRef.current || !attemptGuard.current.isCurrent(attempt)) return;
       if (result.success) {
         onUnlock();
       } else {
@@ -50,7 +67,9 @@ export default function AppLockModal({ visible, onUnlock }) {
         );
       }
     } catch (authError) {
-      setError('Device security is unavailable right now. Please try again.');
+      if (visibleRef.current && attemptGuard.current.isCurrent(attempt)) setError('Device security is unavailable right now. Please try again.');
+    } finally {
+      if (attemptGuard.current.isCurrent(attempt)) { attemptGuard.current.finish(attempt); setChecking(false); }
     }
   }
 
@@ -123,7 +142,7 @@ export default function AppLockModal({ visible, onUnlock }) {
                   <Text style={styles.error} accessibilityRole='alert'>{error}</Text>
                 </Entrance>
               ) : null}
-              <Button title='Try device security again' icon='finger-print-outline' onPress={attemptBiometric} />
+              <Button title={checking ? 'Checking device security...' : 'Try device security again'} icon='finger-print-outline' onPress={attemptBiometric} disabled={checking} />
               <Text style={styles.deviceNote}>Your device may offer its passcode as a fallback.</Text>
             </View>
           )}

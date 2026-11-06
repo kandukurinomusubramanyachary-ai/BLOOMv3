@@ -15,7 +15,10 @@ coverage
 android
 ios
 assets
-src
+src/*
+!src/services
+src/services/*
+!src/services/megServiceContract.js
 scripts
 
 # Historical code-transfer/staging payloads must never enter build context.

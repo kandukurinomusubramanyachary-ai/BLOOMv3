@@ -11,6 +11,14 @@ import {
 } from 'firebase/firestore';
 import { auth, db, firebaseConfigurationError } from './firebase';
 import { requireLocalDateKey } from '../utils/dateKey';
+const accountWork = require('./accountWork');
+
+function accountGuard(uid) {
+  const version = accountWork.epoch(uid);
+  return () => {
+    if (requireCurrentUser().uid !== uid || !accountWork.isCurrent(uid, version)) throw new Error('Your account data changed. Please retry.');
+  };
+}
 
 function requireFirebase() {
   if (firebaseConfigurationError || !auth || !db) {
@@ -72,21 +80,23 @@ function userCollection(uid, name) {
 
 export async function loadCurrentUserData() {
   const { uid } = requireCurrentUser();
-  const [profileSnapshot, periodSnapshot, checkinSnapshot] = await Promise.all([
+  const [profileSnapshot, periodSnapshot, checkinSnapshot, deletionPending] = await Promise.all([
     getDoc(userDocument(uid)),
     getDocs(userCollection(uid, 'cycleLogs')),
     getDocs(userCollection(uid, 'checkIns')),
+    getCurrentUserDeletionStatus(uid),
   ]);
 
   const remoteProfile = profileSnapshot.exists()
     ? materialiseDocument(profileSnapshot.data())
     : null;
-  const profile = remoteProfile
+  let profile = remoteProfile
     ? {
         ...remoteProfile,
         name: remoteProfile.name || remoteProfile.firstName || '',
       }
     : null;
+  if (deletionPending) profile = { ...(profile || {}), onboardingCompleted: true, deletionPending: true };
   const periods = periodSnapshot.docs
     .map((snapshot) => {
       const value = materialiseDocument(snapshot.data());
@@ -134,9 +144,11 @@ async function saveDatedRecord(collectionName, date, value) {
   const { uid } = requireCurrentUser();
   const key = requireLocalDateKey(date);
   const reference = doc(db, 'users', uid, collectionName, key);
+  const check = accountGuard(uid);
 
   await runTransaction(db, async (transaction) => {
     const existing = await transaction.get(reference);
+    check();
     const record = { ...(value || {}) };
     delete record.createdAt;
     const payload = stripUndefined({
@@ -159,12 +171,14 @@ export async function saveCurrentUserPeriod(period, previousStartDate = null) {
     : startDate;
   const reference = doc(db, 'users', uid, 'cycleLogs', startDate);
   const previousReference = doc(db, 'users', uid, 'cycleLogs', previousKey);
+  const check = accountGuard(uid);
 
   await runTransaction(db, async (transaction) => {
     const existing = await transaction.get(reference);
     const previous = previousKey === startDate
       ? existing
       : await transaction.get(previousReference);
+    check();
     const record = { ...(period || {}) };
     delete record.createdAt;
     delete record.updatedAt;
@@ -255,4 +269,30 @@ export async function deleteAllCurrentUserTrackingData(expectedUid = null) {
 export async function deleteCurrentUserProfileDocument(expectedUid = null) {
   const uid = requireDeletionUser(expectedUid);
   await deleteDoc(doc(db, 'users', uid));
+}
+
+// Receipts contain no email or health fields. They stay immutable to clients so
+// a stale token cannot remove the barrier and recreate data after deletion.
+export async function getCurrentUserDeletionStatus(expectedUid) {
+  const uid = requireDeletionUser(expectedUid);
+  try {
+    const snapshot = await getDoc(doc(db, 'accountDeletions', uid));
+    requireDeletionUser(uid);
+    return snapshot.exists();
+  } catch (error) {
+    // Older deployed rules have no receipt path. Normal login remains usable;
+    // starting deletion still fails closed until the new rules are deployed.
+    if (error.code === 'permission-denied' || error.code === 'firestore/permission-denied') return false;
+    throw error;
+  }
+}
+
+export async function prepareCurrentUserAccountDeletion(expectedUid) {
+  const uid = requireDeletionUser(expectedUid);
+  const reference = doc(db, 'accountDeletions', uid);
+  await runTransaction(db, async transaction => {
+    const existing = await transaction.get(reference);
+    requireDeletionUser(uid);
+    if (!existing.exists()) transaction.set(reference, { requestedAt: serverTimestamp() });
+  });
 }

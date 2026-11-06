@@ -63,8 +63,6 @@ function providerReturning(response) {
   return { id: 'swiggy', isConfigured: () => true, search: async () => response };
 }
 
-test.beforeEach(() => foodDelivery.clearFoodAvailabilityCache());
-
 test('returns a real normalized Swiggy result only when the item is open, in stock and serviceable', async () => {
   const value = await foodDelivery.searchFoodAvailability({
     query: 'paneer wrap',
@@ -180,21 +178,43 @@ test('a Linking capability failure returns safely without launching an invalid d
   assert.equal(result, false);
 });
 
-test('deduplicates repeated availability taps while one search is in flight', async () => {
-  let calls = 0;
-  let release;
-  const gate = new Promise((resolve) => { release = resolve; });
+test('cancelling one availability request does not cancel another caller search', async () => {
+  const releases = [];
   const provider = {
     id: 'swiggy',
     isConfigured: () => true,
-    search: async () => { calls += 1; await gate; return { results: [available()] }; },
+    search: ({ signal }) => new Promise((resolve, reject) => {
+      releases.push(() => resolve({ results: [available()] }));
+      signal.addEventListener('abort', () => reject(new DOMException('Cancelled', 'AbortError')), { once: true });
+    }),
   };
-  const first = foodDelivery.searchFoodAvailability({ query: 'paneer wrap', foodId: 'paneer-roti', provider });
-  const second = foodDelivery.searchFoodAvailability({ query: 'paneer wrap', foodId: 'paneer-roti', provider });
-  assert.equal(calls, 1);
-  release();
-  const [a, b] = await Promise.all([first, second]);
-  assert.deepEqual(a, b);
+  const firstController = new AbortController();
+  const secondController = new AbortController();
+  const first = foodDelivery.searchFoodAvailability({ query: 'paneer wrap', provider, signal: firstController.signal });
+  const second = foodDelivery.searchFoodAvailability({ query: 'paneer wrap', provider, signal: secondController.signal });
+  assert.equal(releases.length, 2);
+  const cancelled = assert.rejects(first, { name: 'AbortError' });
+  firstController.abort();
+  releases[1]();
+  await cancelled;
+  assert.equal((await second).state, 'results');
+});
+
+test('a new account search never reuses the previous account delivery location', async () => {
+  let currentToken = 'account-a';
+  const provider = swiggy.createSwiggyProvider({
+    baseUrl: 'https://api.bloom.example',
+    getAuthToken: async () => currentToken,
+    fetchImpl: async (_url, options) => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ results: [available({ restaurantName: options.headers.Authorization })] }),
+    }),
+  });
+  const search = () => foodDelivery.searchFoodAvailability({ query: 'dosa', useSavedAddress: true, provider });
+  assert.equal((await search()).results[0].restaurantName, 'Bearer account-a');
+  currentToken = 'account-b';
+  assert.equal((await search()).results[0].restaurantName, 'Bearer account-b');
 });
 
 test('Swiggy backend request contains only food query and consent, never Bloom health data', async () => {

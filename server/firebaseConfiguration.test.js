@@ -6,7 +6,10 @@ const fs = require('node:fs');
 const { createRequire } = require('node:module');
 const babel = require('@babel/core');
 const configuration = require('../src/services/firebaseConfiguration');
-const { validateReleaseConfiguration } = require('../scripts/check-release-config.cjs');
+const { validateReleaseConfiguration: validateActualRelease } = require('../scripts/check-release-config.cjs');
+const approvedLegal = Object.fromEntries(require('../src/legal/publication').REQUIRED_FIELDS.map(key => [key, 'Synthetic reviewed test value']));
+Object.assign(approvedLegal, {status:'approved', operatingCountry:'India', approvedAt:'2026-11-01', effectiveDate:'2026-11-01'});
+const validateReleaseConfiguration = env => validateActualRelease(env, approvedLegal);
 
 // Deliberately synthetic public identifiers. These tests never contact Firebase.
 const validConfig = Object.freeze({
@@ -20,6 +23,7 @@ const releaseEnvironment = () => ({
   ...environment(validConfig), EXPO_PUBLIC_BLOOM_DEV_AUTH: '0', MEG_DEV_AUTH: '0', EXPO_PUBLIC_BLOOM_STRENGTH: '0',
   EXPO_PUBLIC_MEG_API_URL: 'https://api.bloom-test.example',
   EXPO_PUBLIC_PRIVACY_POLICY_URL: 'https://bloom-test.example/privacy',
+  EXPO_PUBLIC_ACCOUNT_DELETION_URL: 'https://bloom-test.example/delete',
   EXPO_PUBLIC_TERMS_URL: 'https://bloom-test.example/terms', EXPO_PUBLIC_SUPPORT_URL: 'https://bloom-test.example/support',
 });
 
@@ -169,7 +173,7 @@ test('release CLI prints names and status only, and exits unsuccessfully for inv
     const output = [];
     const module = { exports: {} };
     const localRequire = createRequire(filename);
-    const requireMock = name => name === 'dotenv' ? { config() {} } : localRequire(name);
+    const requireMock = name => name === 'dotenv' ? { config() {} } : name === '../config/legal-publication.json' ? approvedLegal : localRequire(name);
     requireMock.main = module;
     const processMock = { env, exitCode: 0 };
     vm.runInNewContext(source, { module, require: requireMock, process: processMock, URL, console: { log: text => output.push(text), error: text => output.push(text) } }, { filename });

@@ -501,3 +501,35 @@ test('Meg conversation/message owner can restore history, update feedback and de
   await assertSucceeds(deleteDoc(message));
   await assertSucceeds(deleteDoc(conversation));
 });
+
+test('deletion receipts require recent owner authentication and cannot be removed or used against another account', async () => {
+  const recent = Math.floor(Date.now() / 1000);
+  const owner = testEnvironment.authenticatedContext('receipt-owner', { auth_time: recent }).firestore();
+  const stale = testEnvironment.authenticatedContext('stale-owner', { auth_time: recent - 600 }).firestore();
+  const other = testEnvironment.authenticatedContext('receipt-other', { auth_time: recent }).firestore();
+  const receipt = doc(owner, 'accountDeletions', 'receipt-owner');
+  await assertFails(setDoc(doc(stale, 'accountDeletions', 'stale-owner'), { requestedAt: serverTimestamp() }));
+  await assertFails(setDoc(doc(other, 'accountDeletions', 'receipt-owner'), { requestedAt: serverTimestamp() }));
+  await assertFails(setDoc(receipt, { requestedAt: serverTimestamp(), health: 'forbidden' }));
+  await assertSucceeds(setDoc(receipt, { requestedAt: serverTimestamp() }));
+  await assertSucceeds(getDoc(receipt));
+  await assertFails(getDoc(doc(other, 'accountDeletions', 'receipt-owner')));
+  await assertFails(updateDoc(receipt, { requestedAt: serverTimestamp() }));
+  await assertFails(deleteDoc(receipt));
+});
+
+test('stale sessions cannot recreate private records after a deletion receipt, while owner cleanup remains possible', async () => {
+  const owner = testEnvironment.authenticatedContext('deleting-owner', { auth_time: Math.floor(Date.now() / 1000) }).firestore();
+  const profile = doc(owner, 'users', 'deleting-owner');
+  const checkin = doc(owner, 'users', 'deleting-owner', 'checkIns', '2026-07-27');
+  await assertSucceeds(setDoc(profile, validProfile()));
+  await assertSucceeds(setDoc(checkin, validCheckIn()));
+  await assertSucceeds(setDoc(doc(owner, 'accountDeletions', 'deleting-owner'), { requestedAt: serverTimestamp() }));
+  await assertFails(updateDoc(profile, { firstName: 'Late update' }));
+  await assertFails(setDoc(checkin, validCheckIn()));
+  await assertSucceeds(getDoc(checkin));
+  await assertSucceeds(deleteDoc(checkin));
+  await assertSucceeds(deleteDoc(profile));
+  await assertFails(setDoc(profile, validProfile()));
+  await assertFails(setDoc(checkin, validCheckIn()));
+});

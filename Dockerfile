@@ -12,7 +12,10 @@ COPY meg-engine-v2/package.json meg-engine-v2/package-lock.json ./meg-engine-v2/
 RUN npm ci --omit=dev --prefix meg-engine-v2 --no-audit --no-fund
 
 COPY server ./server
+COPY src/services/megServiceContract.js ./src/services/megServiceContract.js
 COPY meg-engine-v2 ./meg-engine-v2
+
+RUN node -e "require('./server/index.js')"
 
 RUN mkdir -p "$MEG_V2_DATA_DIR" && chown -R node:node "$MEG_V2_DATA_DIR"
 USER node

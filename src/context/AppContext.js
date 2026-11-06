@@ -215,6 +215,8 @@ export function AppProvider({ children }) {
   const storage = useMemo(() => sharedStorage.forUser(user.uid), [user.uid]);
   storage.setUserScope(user.uid);
   const [state, dispatch] = useReducer(appReducer, initialState);
+  const latestStateRef = useRef(state);
+  latestStateRef.current = state;
   const activeUidRef = useRef(user.uid);
   const accountEpoch = accountWork.epoch(user.uid);
   const megDataRevisionRef = useRef(0);
@@ -233,7 +235,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     setStartupStage('profile-load');
     dispatch({ type: 'RESET_FOR_USER' });
-    loadInitialData();
+    void accountWork.track(user.uid, () => loadInitialData()).catch(() => undefined);
   }, [user?.uid]);
 
   useEffect(() => {
@@ -453,21 +455,22 @@ export function AppProvider({ children }) {
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
       if (dietBootstrap && activeUidRef.current === expectedUid) {
-        Promise.resolve().then(() => hydrateDietData(
+        accountWork.track(expectedUid, () => hydrateDietData(
           expectedUid,
           dietBootstrap.meals,
           dietBootstrap.settings,
           dietBootstrap.revision
-        ));
+        )).catch(() => undefined);
       }
     }
   }
 
-  async function persist(operation) {
+  async function persist(operation, { privacyOperation = false } = {}) {
     if (activeUidRef.current !== user.uid) throw new Error('Your sign-in changed. Please retry.');
+    if (state.profile?.deletionPending && !privacyOperation) throw new Error('Account deletion is pending. Retry Delete account to finish.');
     dispatch({ type: 'SET_SAVE_STATE', payload: { status: 'saving' } });
     try {
-      const result = await operation();
+      const result = privacyOperation ? await operation() : await accountWork.track(user.uid, operation);
       if (activeUidRef.current !== user.uid) throw new Error('Your sign-in changed. Please retry.');
       dispatch({ type: 'SET_SAVE_STATE', payload: { status: 'saved' } });
       return result;
@@ -802,7 +805,8 @@ export function AppProvider({ children }) {
     }
     const current = state.megConversations.filter((item) => item.id !== conversation.id);
     const next = [...current, conversation];
-    await storage.setMegConversations(next, user.uid);
+    await accountWork.track(user.uid, () => storage.setMegConversations(next, user.uid));
+    if (activeUidRef.current !== user.uid || !accountWork.isCurrent(user.uid, accountEpoch)) throw new Error('Your account data changed. Please retry.');
     dispatch({ type: 'SET_MEG_CONVERSATIONS', payload: next });
     return conversation;
   }
@@ -811,7 +815,7 @@ export function AppProvider({ children }) {
     const resume = accountWork.pause(user.uid);
     megDataRevisionRef.current += 1;
     deletingMegRef.current = true;
-    try { await persist(() => deleteCurrentUserMegConversation(id)); }
+    try { await accountWork.drain(user.uid); await persist(() => deleteCurrentUserMegConversation(id), { privacyOperation: true }); }
     finally { deletingMegRef.current = false; resume(); }
     const conversations = state.megConversations.filter((item) => item.id !== id);
     await storage.setMegConversations(conversations, user.uid);
@@ -823,27 +827,32 @@ export function AppProvider({ children }) {
     const resume = accountWork.pause(user.uid);
     megDataRevisionRef.current += 1;
     deletingMegRef.current = true;
-    try { await persist(() => deleteAllCurrentUserMegData()); }
+    try { await accountWork.drain(user.uid); await persist(() => deleteAllCurrentUserMegData(), { privacyOperation: true }); }
     finally { deletingMegRef.current = false; resume(); }
     await storage.setMegConversations([], user.uid);
     dispatch({ type: 'SET_MEG_CONVERSATIONS', payload: [] });
   }
 
   async function saveMegFeedback(conversationId, messageId, feedback) {
-    const version = accountWork.epoch(user.uid);
-    await persist(() => updateCurrentUserMegFeedback(conversationId, messageId, feedback));
-    const conversations = state.megConversations.map((conversation) => (
-      conversation.id !== conversationId
-        ? conversation
-        : {
-            ...conversation,
-            messages: (conversation.messages || []).map((message) => (
-              message.id === messageId ? { ...message, feedback: feedback ?? null } : message
-            )),
-          }
+    const uid = user?.uid;
+    if (!uid || activeUidRef.current !== uid) throw new Error('Please sign in to save feedback.');
+    const version = accountWork.epoch(uid);
+    const conversation = state.megConversations.find((item) => item.id === conversationId);
+    if (!conversation?.messages?.some((message) => message.id === messageId && message.role === 'assistant')) {
+      throw new Error('The Meg reply is no longer in your conversation. Reopen the chat and try again.');
+    }
+    const savedFeedback = await persist(() => updateCurrentUserMegFeedback(conversationId, messageId, feedback));
+    if (activeUidRef.current !== uid || !accountWork.isCurrent(uid, version)) return;
+    const conversations = latestStateRef.current.megConversations.map((item) => (
+      item.id !== conversationId ? item : {
+        ...item,
+        messages: (item.messages || []).map((message) => (
+          message.id === messageId ? { ...message, feedback: feedback ?? null, feedbackUpdatedAt: savedFeedback.feedbackUpdatedAt } : message
+        )),
+      }
     ));
-    if (activeUidRef.current !== user.uid || !accountWork.isCurrent(user.uid, version)) return;
-    await storage.setMegConversations(conversations, user.uid);
+    await persist(() => storage.forUser(uid).setMegConversations(conversations));
+    if (activeUidRef.current !== uid || !accountWork.isCurrent(uid, version)) return;
     dispatch({ type: 'SET_MEG_CONVERSATIONS', payload: conversations });
   }
 
@@ -875,7 +884,7 @@ export function AppProvider({ children }) {
     const expectedUid = user.uid;
     const resume = accountWork.pause(expectedUid);
     megDataRevisionRef.current += 1;
-    try { await persist(async () => {
+    try { await accountWork.drain(expectedUid); await persist(async () => {
       await prepareStrengthDataDeletion(expectedUid);
       await deleteAllCurrentUserMegData({ expectedUid });
       await Promise.all([
@@ -883,7 +892,7 @@ export function AppProvider({ children }) {
       deleteAllCurrentUserDietData(expectedUid),
       ]);
       await storage.deleteAllData(expectedUid);
-    }); } finally { resume(); }
+    }, { privacyOperation: true }); } finally { resume(); }
     dispatch({ type: 'RESET_FOR_USER' });
     await loadInitialData();
   }
@@ -899,7 +908,7 @@ export function AppProvider({ children }) {
         deleteAllCurrentUserDietData(expectedUid),
       ]);
       await deleteCurrentUserProfileDocument(expectedUid);
-    });
+    }, { privacyOperation: true });
     dispatch({ type: 'RESET_FOR_USER' });
   }
 

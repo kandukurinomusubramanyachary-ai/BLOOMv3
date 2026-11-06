@@ -70,5 +70,4 @@ export const TOUR_SET_LABELS = {
   appOverview: 'Getting around Bloom', today: 'Today', checkin: 'Daily Check-In', timeline: 'Timeline', meg: 'Meg', strengthHome: 'Strength basics', strengthWorkout: 'First workout', strengthSummary: 'Workout summary', profile: 'Profile & appearance',
 };
 
-export const TOUR_STEPS = TOUR_SETS.appOverview;
 export const PRODUCT_TOUR_STORAGE_KEY = '@bloom_product_tours_v3';

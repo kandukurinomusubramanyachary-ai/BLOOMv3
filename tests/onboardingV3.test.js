@@ -11,7 +11,7 @@ const {
 
 test('normalizeOnboardingAnswers handles empty / partial inputs gracefully', () => {
   const norm = normalizeOnboardingAnswers({});
-  assert.equal(norm.firstName, 'Friend');
+  assert.equal(norm.firstName, null);
   assert.equal(norm.hasExplicitName, false);
   assert.deepEqual(norm.reasonsForJoining, []);
   assert.equal(norm.cyclePattern, 'not_sure');
@@ -27,7 +27,7 @@ test('normalizeOnboardingAnswers trims explicit name', () => {
   assert.equal(norm.hasExplicitName, true);
 });
 
-test('Persona A: PCOS + irregular cycles + fatigue + mood + emotional support priority', () => {
+test('Persona A: PCOS + irregular cycles + fatigue + symptom and emotional priorities', () => {
   const personaA = {
     firstName: 'Priya',
     reasonsForJoining: ['diagnosed_pcos', 'irregular_periods', 'emotional_support'],
@@ -41,15 +41,15 @@ test('Persona A: PCOS + irregular cycles + fatigue + mood + emotional support pr
 
   const result = buildOnboardingResult(personaA);
   assert.equal(result.onboardingRecord.firstName, 'Priya');
-  assert.equal(result.onboardingRecord.primaryFocus, 'emotional_support');
-  assert.equal(result.summary.recommendedAction.type, 'meg');
-  assert.equal(result.summary.recommendedAction.route, 'Meg');
-  assert.ok(result.summary.recommendedAction.title.includes('Meg'));
+  assert.equal(result.onboardingRecord.primaryFocus, 'manage_symptoms');
+  assert.equal(result.summary.recommendedAction.type, 'checkin');
+  assert.equal(result.summary.recommendedAction.route, 'DailyCheckIn');
+  assert.ok(result.summary.recommendedAction.title.includes('check-in'));
   assert.ok(result.summary.affirmation.includes('PCOS'));
   assert.ok(result.summary.cards[0].narrative.includes('unpredictable'));
   assert.ok(result.summary.cards[1].narrative.includes('fatigue'));
   assert.ok(result.summary.cards[2].narrative.includes('low on reserve'));
-  assert.equal(result.homePersonalizationHandoff.primaryPriority, 'emotional_support');
+  assert.equal(result.homePersonalizationHandoff.primaryPriority, 'manage_symptoms');
   assert.equal(result.megHandoff.userName, 'Priya');
   assert.deepEqual(result.megHandoff.onboardingSummary.reasons, personaA.reasonsForJoining);
 });
@@ -109,7 +109,7 @@ test('Persona D: User skips all optional questions', () => {
   };
 
   const result = buildOnboardingResult(personaD);
-  assert.equal(result.onboardingRecord.firstName, 'Friend');
+  assert.equal(result.onboardingRecord.firstName, null);
   assert.equal(result.onboardingRecord.hasExplicitName, false);
   assert.equal(result.summary.recommendedAction.type, 'timeline');
   assert.ok(result.summary.greeting.includes('Bloom is ready for you'));

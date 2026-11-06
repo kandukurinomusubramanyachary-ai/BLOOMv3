@@ -65,3 +65,24 @@ test('SQLiteStore consolidates legacy duplicate client IDs and deduplicates inse
     store.close(); fs.rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test('legacy global conversation keys migrate transactionally and recover colliding owner metadata', () => {
+  const Database = require('better-sqlite3');
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'meg-conversation-migrate-'));
+  const filename = path.join(directory, 'legacy.db');
+  const legacy = new Database(filename);
+  legacy.exec(`CREATE TABLE conversations (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+    CREATE TABLE messages (id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT NOT NULL);
+    INSERT INTO conversations VALUES ('same', 'alice', '2026-01-01', '2026-01-01');
+    INSERT INTO messages VALUES ('a', 'same', 'alice', 'user', 'Synthetic A', '2026-01-01');
+    INSERT INTO messages VALUES ('b', 'same', 'bob', 'user', 'Synthetic B', '2026-01-02');`);
+  legacy.close();
+  const store = new SQLiteStore({ filename });
+  try {
+    assert.equal(store.exportUserData({ userId: 'alice' }).conversations.length, 1);
+    assert.equal(store.exportUserData({ userId: 'bob' }).conversations.length, 1);
+    store.appendMessage({ userId: 'bob', conversationId: 'same', role: 'assistant', content: 'Synthetic reply' });
+    assert.equal(store.getRecentMessages({ userId: 'bob', conversationId: 'same' }).length, 2);
+    assert.equal(store.getRecentMessages({ userId: 'alice', conversationId: 'same' }).length, 1);
+  } finally { store.close(); fs.rmSync(directory, { recursive: true, force: true }); }
+});

@@ -9,6 +9,7 @@ function truncate(value, limit) {
 }
 
 export function preferredDisplayName(profile = {}) {
+  profile = profile || {};
   const selected = compact(profile.preferredName);
   if (selected) return truncate(selected, 32);
 

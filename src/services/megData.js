@@ -3,12 +3,12 @@ import {
   deleteDoc,
   doc,
   getDocs,
-  updateDoc,
   writeBatch,
 } from 'firebase/firestore';
 import { auth, db, firebaseConfigurationError } from './firebase';
 import { stripUndefined } from './userData';
 import { requestMegAccountData } from './megAccountData';
+import { mergeMegConversations } from './megLocalQueue';
 
 const BATCH_LIMIT = 450;
 
@@ -89,28 +89,26 @@ function conversationsCollection(uid) {
 
 export async function loadCurrentUserMegConversations() {
   const { uid } = requireFirebaseUser();
-  const snapshot = await getDocs(conversationsCollection(uid));
-  const conversations = await Promise.all(snapshot.docs.map(conversationFromSnapshot));
-  return conversations.sort((left, right) => (
-    dateValue(left.updatedAt) - dateValue(right.updatedAt)
-    || left.id.localeCompare(right.id)
-  ));
+  const [backend, legacy] = await Promise.all([
+    requestMegAccountData({ history: true, expectedUid: uid }),
+    getDocs(conversationsCollection(uid)).then(snapshot => Promise.all(snapshot.docs.map(conversationFromSnapshot))).catch(() => []),
+  ]);
+  requireFirebaseUser(uid);
+  return mergeMegConversations(legacy, backend.conversations || []);
 }
 
 export async function updateCurrentUserMegFeedback(conversationId, messageId, feedback) {
   const { uid } = requireFirebaseUser();
-  const safeConversationId = requireDocumentId(conversationId, 'conversation ID');
-  const safeMessageId = requireDocumentId(messageId, 'message ID');
-  const reference = doc(
-    db,
-    'users',
-    uid,
-    'megConversations',
-    safeConversationId,
-    'messages',
-    safeMessageId
-  );
-  await updateDoc(reference, { feedback: feedback ?? null });
+  requireDocumentId(conversationId, 'conversation ID');
+  requireDocumentId(messageId, 'message ID');
+  try {
+    return await requestMegAccountData({ method: 'PATCH', conversationId, messageId, feedback, expectedUid: uid });
+  } catch (error) {
+    // Older replies can predate V2 storage. Preserve their local ratings.
+    // Outages and authorization failures remain visible, never fake sync.
+    if (error.status === 404) return { feedback: feedback ?? null, feedbackUpdatedAt: new Date().toISOString(), localOnly: true };
+    throw error;
+  }
 }
 
 async function deleteReferences(references, expectedUid) {

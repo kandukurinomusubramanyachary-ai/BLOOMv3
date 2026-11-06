@@ -228,6 +228,10 @@ voice fallback, and workout-summary sync in a supported browser/device.
 
 ## Release validation
 
+The [6 November code audit and cleanup workflow](docs/CODEBASE_AUDIT_2026-11-06.md)
+records the current baseline, removal evidence, test coverage, branch decisions,
+and remaining acceptance work.
+
 Run from a clean checkout:
 
 ```bash

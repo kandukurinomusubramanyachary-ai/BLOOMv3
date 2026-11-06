@@ -21,6 +21,7 @@ import LegalScreen from '../screens/LegalScreen';
 import OnboardingV3Screen from '../features/onboardingV3/OnboardingV3Screen';
 import LearnBloomScreen from '../screens/LearnBloomScreen';
 import AppLockModal from '../components/AppLockModal';
+const { createAppLockLifecycle } = require('../services/appLockLifecycle');
 import { useReducedMotion } from '../components/Motion';
 import { COLORS, navigationColorsForTheme } from '../utils/constants';
 import { markStartupReady, setStartupStage } from '../diagnostics/startupDiagnostics';
@@ -37,8 +38,7 @@ export default function RootNavigator() {
   const reduceMotion = useReducedMotion();
   const [splashComplete, setSplashComplete] = useState(false);
   const [locked, setLocked] = useState(false);
-  const appState = useRef(AppState.currentState);
-  const backgroundTime = useRef(null);
+  const lockLifecycle = useRef(createAppLockLifecycle(AppState.currentState));
   const handleSplashFinish = useCallback(() => setSplashComplete(true), []);
   const handleNavigationReady = useCallback(() => {
     setStartupStage('navigation-ready');
@@ -69,22 +69,11 @@ export default function RootNavigator() {
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextAppState => {
-      if (appState.current === 'active' && nextAppState === 'background') {
-        backgroundTime.current = Date.now();
-      }
-
-      if (appState.current === 'background' && nextAppState === 'active') {
-        const elapsed = Date.now() - (backgroundTime.current || Date.now());
-        const timeoutMs = (state.privacy.appLockTimeout || 5) * 60 * 1000;
-
-        if (state.privacy.appLockEnabled && elapsed > timeoutMs) {
-          setLocked(true);
-        }
-      }
-
-      appState.current = nextAppState;
+      if (lockLifecycle.current.transition(nextAppState, {
+        enabled: state.privacy.appLockEnabled,
+        timeoutMinutes: state.privacy.appLockTimeout,
+      }).lock) setLocked(true);
     });
-
     return () => subscription.remove();
   }, [state.privacy.appLockEnabled, state.privacy.appLockTimeout]);
 
@@ -104,7 +93,7 @@ export default function RootNavigator() {
         onReady={handleNavigationReady}
       >
         <Stack.Navigator
-          initialRouteName='Main'
+          initialRouteName={state.profile?.onboardingCompleted === false ? 'OnboardingV3Preview' : 'Main'}
           screenOptions={{
             headerShown: false,
             cardStyle: { flex: 1, minHeight: 0, backgroundColor: COLORS.canvas },

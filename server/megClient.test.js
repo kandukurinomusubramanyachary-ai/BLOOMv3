@@ -3,6 +3,7 @@ const path = require('node:path');
 const test = require('node:test');
 const babel = require('@babel/core');
 
+function withMegHealth(fixture){return (url,options)=>String(url).endsWith('/health')?Promise.resolve({status:200,json:async()=>({provider:'meg-v2',contract:require('../src/services/megServiceContract').MEG_SERVICE_CONTRACT})}):fixture(url,options);}
 function loadMegModule(currentUser) {
   const filename = path.resolve(__dirname, '../src/services/meg.js');
   const transformed = babel.transformFileSync(filename, {
@@ -12,6 +13,7 @@ function loadMegModule(currentUser) {
   });
   const moduleValue = { exports: {} };
   const localRequire = (request) => {
+    if (request === './megServiceContract') return require('../src/services/megServiceContract');
     if (request === './accountWork') return require('../src/services/accountWork');
     if (request === './firebase') return { auth: { currentUser } };
     if (request === './megQaTiming') {
@@ -92,7 +94,7 @@ test('Meg API provider sends bounded context and mode in the authenticated reque
   const meg = loadMegModule(currentUser);
   const originalFetch = global.fetch;
   let request;
-  global.fetch = async (url, options) => {
+  global.fetch = withMegHealth(async (url, options) => {
     request = { url, options, body: JSON.parse(options.body) };
     return {
       ok: true,
@@ -106,7 +108,7 @@ test('Meg API provider sends bounded context and mode in the authenticated reque
         };
       },
     };
-  };
+  });
 
   try {
     const provider = meg.createLocalMegApiProvider({
@@ -169,10 +171,10 @@ test('Meg uses the active screen session without serializing authentication call
   const meg = loadMegModule(null);
   const originalFetch = global.fetch;
   let captured;
-  global.fetch = async (_url, options) => {
+  global.fetch = withMegHealth(async (_url, options) => {
     captured = options;
     return { ok: true, status: 200, json: async () => ({ message: 'Hello' }) };
-  };
+  });
   try {
     const provider = meg.createLocalMegApiProvider({ baseUrl: 'http://127.0.0.1:3001', timeoutMs: 1000 });
     await assert.rejects(provider.reply({ message: 'Hello' }), /sign in/);
@@ -190,7 +192,7 @@ test('Meg refreshes an expired Firebase token once and preserves the idempotency
   const originalFetch = global.fetch;
   const calls = [];
   const tokenCalls = [];
-  global.fetch = async (_url, options) => {
+  global.fetch = withMegHealth(async (_url, options) => {
     calls.push({
       authorization: options.headers.Authorization,
       body: JSON.parse(options.body),
@@ -201,7 +203,7 @@ test('Meg refreshes an expired Firebase token once and preserves the idempotency
       status: 200,
       json: async () => ({ message: 'Authenticated reply', messageId: 'assistant-1' }),
     };
-  };
+  });
 
   try {
     const provider = meg.createLocalMegApiProvider({ baseUrl: 'http://127.0.0.1:3001', timeoutMs: 1000 });
@@ -235,12 +237,12 @@ test('Meg fallback auth getter forwards forceRefresh after a 401', async () => {
   const meg = loadMegModule(currentUser);
   const originalFetch = global.fetch;
   const authorizations = [];
-  global.fetch = async (_url, options) => {
+  global.fetch = withMegHealth(async (_url, options) => {
     authorizations.push(options.headers.Authorization);
     return authorizations.length === 1
       ? { ok: false, status: 401, json: async () => ({}) }
       : { ok: true, status: 200, json: async () => ({ message: 'Authenticated reply' }) };
-  };
+  });
 
   try {
     const provider = meg.createLocalMegApiProvider({ baseUrl: 'http://127.0.0.1:3001', timeoutMs: 1000 });
@@ -288,7 +290,7 @@ test('Meg maps malformed, auth, server, and network failures to safe retryable e
 test('Meg rejects a successful HTTP response with a malformed payload', async () => {
   const meg = loadMegModule(null);
   const originalFetch = global.fetch;
-  global.fetch = async () => ({ ok: true, status: 200, json: async () => ({ unexpected: true }) });
+  global.fetch = withMegHealth(async () => ({ ok: true, status: 200, json: async () => ({ unexpected: true }) }));
 
   try {
     const provider = meg.createLocalMegApiProvider({ baseUrl: 'http://127.0.0.1:3001', timeoutMs: 1000 });
@@ -305,11 +307,11 @@ test('Meg rejects a successful HTTP response with a malformed payload', async ()
 test('Meg times out a slow request instead of leaving the UI pending forever', async () => {
   const meg = loadMegModule(null);
   const originalFetch = global.fetch;
-  global.fetch = async (_url, options) => new Promise((_resolve, reject) => {
+  global.fetch = withMegHealth(async (_url, options) => new Promise((_resolve, reject) => {
     options.signal.addEventListener('abort', () => {
       reject(Object.assign(new Error('aborted'), { name: 'AbortError' }));
     }, { once: true });
-  });
+  }));
 
   try {
     const provider = meg.createLocalMegApiProvider({ baseUrl: 'http://127.0.0.1:3001', timeoutMs: 10 });
@@ -325,15 +327,23 @@ test('Meg times out a slow request instead of leaving the UI pending forever', a
   }
 });
 
-test('Meg also bounds Firebase token acquisition before the network request starts', async () => {
+test('Meg bounds token acquisition after the public handshake and before private network work', async () => {
   const meg = loadMegModule(null);
-  const provider = meg.createLocalMegApiProvider({ baseUrl: 'http://127.0.0.1:3001', timeoutMs: 10 });
-  const startedAt = Date.now();
-
-  await assert.rejects(provider.reply({
-    accountUid: 'token-timeout-user',
-    message: 'Hello',
-    getIdToken: () => new Promise(() => {}),
-  }), (error) => error.name === 'AbortError');
-  assert.ok(Date.now() - startedAt < 500, 'token acquisition should share the request timeout bound');
+  const originalFetch = global.fetch;
+  let privateRequests = 0;
+  let tokenRequests = 0;
+  global.fetch = withMegHealth(async () => { privateRequests++; throw new Error('Private request must not start'); });
+  try {
+    const provider = meg.createLocalMegApiProvider({ baseUrl: 'http://127.0.0.1:3001', timeoutMs: 10 });
+    const startedAt = Date.now();
+    await assert.rejects(provider.reply({
+      accountUid: 'token-timeout-user', message: 'Hello',
+      getIdToken: () => { tokenRequests++; return new Promise(() => {}); },
+    }), error => error.name === 'AbortError');
+    assert.equal(tokenRequests, 1);
+    assert.equal(privateRequests, 0);
+    assert.ok(Date.now() - startedAt < 500, 'token acquisition shares the request timeout bound');
+  } finally { global.fetch = originalFetch; }
 });
+
+test('old Meg deployment is blocked before acquiring a token or sending private chat context',async()=>{const originalFetch=global.fetch;const calls=[];let tokens=0;const meg=loadMegModule({uid:'contract-alice',getIdToken:async()=>{tokens++;return 'private-token';}});global.fetch=async(url,options)=>{calls.push({url,options});return{status:200,json:async()=>({provider:'openai-compatible'})};};try{const provider=meg.createLocalMegApiProvider({baseUrl:'https://qa.example'});await assert.rejects(provider.reply({accountUid:'contract-alice',message:'synthetic private fixture',context:{cycleDay:4}}),{code:'meg_backend_upgrade_required'});assert.equal(tokens,0);assert.equal(calls.length,1);assert.equal(calls[0].url,'https://qa.example/health');assert.equal(calls[0].options.headers,undefined);assert.equal(calls[0].options.body,undefined);}finally{global.fetch=originalFetch;}});

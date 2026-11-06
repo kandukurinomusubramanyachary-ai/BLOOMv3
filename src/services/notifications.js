@@ -33,6 +33,8 @@ class NotificationService {
   }
 
   async requestPermission() {
+    // Android 13 needs a channel before the first permission prompt can appear.
+    if (Platform.OS === 'android') await this.setupAndroidChannel();
     configureNotificationHandler();
     const existing = await this.getPermissionStatus();
     if (existing.granted || !existing.canAskAgain) return existing;

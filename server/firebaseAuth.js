@@ -17,6 +17,7 @@ function createRequireFirebaseAuth({
   allowDevAuth = true,
 } = {}) {
   return async function requireFirebaseAuth(request, response, next) {
+    const startedAt = Date.now();
     const token = bearerTokenFromHeader(request.get('authorization'));
 
     // Local/preview-only dev token. Production always requires Firebase auth.
@@ -35,6 +36,7 @@ function createRequireFirebaseAuth({
       const uid = typeof decodedToken?.uid === 'string' ? decodedToken.uid.trim() : '';
       if (!uid) throw new Error('verified token did not contain a UID');
       request.auth = { uid };
+      request.authenticationMs = Date.now() - startedAt;
       return next();
     } catch (error) {
       logger.warn('meg_auth_rejected', {
