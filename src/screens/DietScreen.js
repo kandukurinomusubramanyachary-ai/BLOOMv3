@@ -29,7 +29,7 @@ import {
   kitEstimate,
   rotatingRescue,
 } from '../services/dietRescue';
-import { COLORS, createThemedStyles, LAYOUT, TYPOGRAPHY, WEB_FOCUS } from '../utils/constants';
+import { COLORS, createThemedStyles, TYPOGRAPHY, WEB_FOCUS } from '../utils/constants';
 import Button from '../components/Button';
 import DietDeliveryDiscovery from '../components/DietDeliveryDiscovery';
 import { useReducedMotion } from '../components/Motion';

@@ -21,7 +21,7 @@
 - Tables: dividers and grouped rows echo Profile settings. Onboarding highlights only the existing largest-drop calculation, labeled in text; never health answer values.
 - Meg: the same small untinted lotus and soft rose divider used in its brand/presence treatment. Strength uses its theme's sage support. Diet retains current action terminology.
 - Feedback: neutral metrics. Technical health is separately labeled; danger tint applies only when the critical-error count is nonzero.
-- Empty/loading/error: real lotus, neutral skeletons, clear unavailable states and retry, referencing `FeedbackStates.js`. Reduced motion removes animation. Privacy remains visible in the footer; no content or identifiers added.
+- Empty/loading/error: real lotus, neutral skeletons, clear unavailable states and retry. Reduced motion removes animation. Privacy remains visible in the footer; no content or identifiers added.
 
 ## Principles
 Warm, calm, premium, feminine without childish decoration, health/wellness oriented, low visual noise, readable, and privacy-first. Reuse actual Bloom evidence; do not invent a new identity. Root `DESIGN.md` is supporting guidance; current component code and tokens are the implementation authority.

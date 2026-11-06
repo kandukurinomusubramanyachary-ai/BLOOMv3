@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Platform, View, Text, ScrollView, StyleSheet, Pressable } from 'react-native';
+import { Platform, View, Text, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from '../components/Icon';
 import { useApp } from '../context/AppContext';

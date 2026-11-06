@@ -3,7 +3,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import {
   Platform,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,

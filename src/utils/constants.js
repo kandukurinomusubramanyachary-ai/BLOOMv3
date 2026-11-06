@@ -295,27 +295,6 @@ export const RADIUS = Object.freeze({
 });
 // cardRadius/controlRadius stay in LAYOUT for back-compat.
 
-// V3 additive spacing family. SIZES remains the canonical scale used today;
-// SPACING is the same unit system under one name for new components.
-export const SPACING = Object.freeze({
-  xs: 4,
-  sm: 8,
-  compact: 12,
-  md: 16,
-  gutter: 20,
-  lg: 24,
-  xl: 32,
-  xxl: 48,
-});
-
-// V3 additive focus ring used by WEB_FOCUS for keyboard focus on custom controls.
-export const FOCUS_RING = Object.freeze({
-  outlineStyle: 'solid',
-  outlineWidth: 2,
-  outlineColor: COLORS.focus,
-  outlineOffset: 2,
-});
-
 export const MOTION = {
   duration: {
     press: 120,

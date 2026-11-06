@@ -39,6 +39,8 @@ require('./dependencyCompatibility.test');
 require('./uiHardening.test');
 require('./theme.test');
 require('./onboardingTour.test');
+require('../tests/onboardingV3.test');
+require('../tests/productTour.test');
 
 require('./finalMegHardening.test');
 require('./privacyRaces.test');

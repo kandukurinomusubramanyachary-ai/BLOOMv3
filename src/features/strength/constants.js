@@ -1,5 +1,3 @@
-const STRENGTH_FLAG = 'bloom_strength';
-
 const STRENGTH_DEFAULTS = Object.freeze({
   targetReps: 8,
   sampleRate: 12,
@@ -104,21 +102,9 @@ const FOCUS_COPY = Object.freeze({
   returnCentre: 'Next time, we can return to the centre before beginning another rep.',
 });
 
-const CALIBRATION_STEPS = Object.freeze([
-  'Loading pose model',
-  'Looking for one person',
-  'Checking visible joints',
-  'Checking full-body framing',
-  'Checking camera angle',
-  'Holding still',
-  'Starting',
-]);
-
 module.exports = {
-  CALIBRATION_STEPS,
   EXERCISE_COPY,
   FOCUS_COPY,
   STRENGTH_COPY,
   STRENGTH_DEFAULTS,
-  STRENGTH_FLAG,
 };

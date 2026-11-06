@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, Text, Pressable, Platform } from 'react-native';
+import { View, Text } from 'react-native';
 import Icon from '../../../components/Icon';
-import { COLORS, createThemedStyles, TYPOGRAPHY, WEB_FOCUS } from '../../../utils/constants';
+import { COLORS, createThemedStyles, TYPOGRAPHY } from '../../../utils/constants';
 
 /**
  * Clean, lightweight privacy assurance card.

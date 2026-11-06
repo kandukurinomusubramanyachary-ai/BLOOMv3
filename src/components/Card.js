@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 import { COLORS, createThemedStyles, ELEVATION, WEB_FOCUS } from '../utils/constants';
 
 const elevationStyle = Platform.select({
